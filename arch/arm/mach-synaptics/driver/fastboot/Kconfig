@@ -1,0 +1,60 @@
+menu "Synaptics Fastboot Setup"
+
+config SYNA_FASTBOOT_GUI_ENABLE
+	bool "Fastboot gui enable"
+	depends on CMD_SYNA_FASTBOOT_GUI
+	default y
+	help
+		add switch to disable GUI if GUI components are not ready
+
+config SYNA_DISPLAY_TA
+	bool "Using TA to display GUI"
+	depends on SYNA_FASTBOOT_GUI_ENABLE
+	default y
+	help
+		for security reason, we need call display driver through fastlogo ta
+
+config SYNA_FASTBOOT_GUI_BUTTON
+	bool "Use button to change/select reboot option"
+	depends on SYNA_FASTBOOT_GUI_ENABLE
+	default y
+	select DM_KEYBOARD
+	select ADC_KEY
+
+choice
+	prompt "Select Place to Store Bootflag"
+
+config SYNA_BOOTFLAG_IN_SM
+	bool "Bootflag is in SM memory"
+	depends on FASTBOOT
+	select SYNA_SM
+	help
+	  select this indicate that the bootflag is stored in SM
+
+config SYNA_BOOTFLAG_IN_FTS
+	bool "Bootflag is in flash-ts"
+	depends on FASTBOOT
+	select FLASH_TS_MMC
+	help
+	  select this indicate that the bootflag is stored in flash ts
+
+endchoice
+
+config SYNA_BOOTFLAG_IN_DTCM
+	bool "Bootflag is in SM DTCM as reboot msg"
+	depends on FASTBOOT
+	help
+	  select this indicate that the bootflag is stored in SM reboot msg
+
+config SYNA_FB_BOOT
+	bool "Boot from download image through fastboot"
+	depends on SYNA_BOOTFLAG_IN_SM
+
+config SYNA_FASTBOOT_AB
+	bool "Fastboot support AB bootflow"
+	depends on FASTBOOT
+	select SYNA_BOOTFLAG_IN_FTS
+	help
+	  select this indicate that AB flow boot_ctrl Hal is enabled
+endmenu
+

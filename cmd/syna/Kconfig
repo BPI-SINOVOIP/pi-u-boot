@@ -1,0 +1,19 @@
+menu "Synaptics specific command line interface"
+
+config CMD_USBLOAD
+	bool "usb load"
+	depends on USB_BOOT
+	default y
+	help
+	  use the command to download images through usb cable
+
+config CMD_SYNA_FASTBOOT_GUI
+	bool "Enable GUI for Fastboot"
+	depends on USB_FUNCTION_FASTBOOT || UDP_FUNCTION_FASTBOOT
+
+config CMD_SYNA_FTS
+	bool "Enable Android Flash-based transactional key-value store command"
+	depends on MISC
+	help
+	  Enable Flash-based transactional key-value based on MMC.
+endmenu

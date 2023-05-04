@@ -945,6 +945,11 @@ int console_init_r(void)
 			break;
 	}
 
+#ifdef CONFIG_CONSOLE_MUX
+	for (i = 0; i < MAX_FILES; i++)
+		console_devices[i] = (struct stdio_dev **)malloc(sizeof(struct stdio_dev **));
+#endif
+
 	/* Initializes output console first */
 	if (outputdev != NULL) {
 		console_setfile(stdout, outputdev);
@@ -967,12 +972,12 @@ int console_init_r(void)
 	stdio_print_current_devices();
 #endif /* CONFIG_SYS_CONSOLE_INFO_QUIET */
 
+	gd->flags |= GD_FLG_DEVINIT;	/* device initialization completed */
+
 	/* Setting environment variables */
 	for (i = 0; i < MAX_FILES; i++) {
 		env_set(stdio_names[i], stdio_devices[i]->name);
 	}
-
-	gd->flags |= GD_FLG_DEVINIT;	/* device initialization completed */
 
 #if 0
 	/* If nothing usable installed, use only the initial console */

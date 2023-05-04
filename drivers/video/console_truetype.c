@@ -124,42 +124,50 @@ struct console_tt_priv {
 static int console_truetype_set_row(struct udevice *dev, uint row, int clr)
 {
 	struct video_priv *vid_priv = dev_get_uclass_priv(dev->parent);
+	struct vidconsole_priv *vc_priv = dev_get_uclass_priv(dev);
 	struct console_tt_priv *priv = dev_get_priv(dev);
 	void *line;
-	int pixels = priv->font_size * vid_priv->line_length;
-	int i;
+	int pixels = VID_TO_PIXEL(vc_priv->xsize_frac);
+	int i, j;
 
-	line = vid_priv->fb + row * priv->font_size * vid_priv->line_length;
-	switch (vid_priv->bpix) {
+	line = vid_priv->fb + (row * priv->font_size + vc_priv->ystart) * vid_priv->line_length +
+	       VID_TO_PIXEL(vc_priv->xstart_frac) * VNBYTES(vid_priv->bpix);
+	for (j = 0; j < priv->font_size; j++) {
+		switch (vid_priv->bpix) {
 #ifdef CONFIG_VIDEO_BPP8
-	case VIDEO_BPP8: {
-		uint8_t *dst = line;
+		case VIDEO_BPP8: {
+			uint8_t *dst = line;
 
-		for (i = 0; i < pixels; i++)
-			*dst++ = clr;
-		break;
-	}
+			for (i = 0; i < pixels; i++) {
+				*dst++ = clr;
+			}
+			break;
+		}
 #endif
 #ifdef CONFIG_VIDEO_BPP16
-	case VIDEO_BPP16: {
-		uint16_t *dst = line;
+		case VIDEO_BPP16: {
+			uint16_t *dst = line;
 
-		for (i = 0; i < pixels; i++)
-			*dst++ = clr;
-		break;
-	}
+			for (i = 0; i < pixels; i++) {
+				*dst++ = clr;
+			}
+			break;
+		}
 #endif
 #ifdef CONFIG_VIDEO_BPP32
-	case VIDEO_BPP32: {
-		uint32_t *dst = line;
+		case VIDEO_BPP32: {
+			uint32_t *dst = line;
 
-		for (i = 0; i < pixels; i++)
-			*dst++ = clr;
-		break;
-	}
+			for (i = 0; i < pixels; i++) {
+				*dst++ = clr;
+			}
+			break;
+		}
 #endif
-	default:
-		return -ENOSYS;
+		default:
+			return -ENOSYS;
+		}
+		line += vid_priv->line_length;
 	}
 
 	return 0;
@@ -168,15 +176,25 @@ static int console_truetype_set_row(struct udevice *dev, uint row, int clr)
 static int console_truetype_move_rows(struct udevice *dev, uint rowdst,
 				     uint rowsrc, uint count)
 {
+	struct vidconsole_priv *vc_priv = dev_get_uclass_priv(dev);
 	struct video_priv *vid_priv = dev_get_uclass_priv(dev->parent);
 	struct console_tt_priv *priv = dev_get_priv(dev);
 	void *dst;
 	void *src;
 	int i, diff;
 
-	dst = vid_priv->fb + rowdst * priv->font_size * vid_priv->line_length;
-	src = vid_priv->fb + rowsrc * priv->font_size * vid_priv->line_length;
-	memmove(dst, src, priv->font_size * vid_priv->line_length * count);
+	dst = (vid_priv->fb) +
+	      (vc_priv->ystart + rowdst * priv->font_size) * vid_priv->line_length +
+	      (VID_TO_PIXEL(vc_priv->xstart_frac) * VNBYTES(vid_priv->bpix));
+	src = (vid_priv->fb) +
+	      (vc_priv->ystart + rowsrc * priv->font_size) * vid_priv->line_length +
+	      (VID_TO_PIXEL(vc_priv->xstart_frac) * VNBYTES(vid_priv->bpix));
+
+	for (i = 0; i < priv->font_size * count; i++) {
+		memmove(dst, src, VID_TO_PIXEL(vc_priv->xsize_frac) * VNBYTES(vid_priv->bpix));
+		dst += vid_priv->line_length;
+		src += vid_priv->line_length;
+	}
 
 	/* Scroll up our position history */
 	diff = (rowsrc - rowdst) * priv->font_size;
@@ -251,6 +269,10 @@ static int console_truetype_putc_xy(struct udevice *dev, uint x, uint y,
 
 	/* Figure out where to write the character in the frame buffer */
 	bits = data;
+
+	x += vc_priv->xstart_frac;
+	y += vc_priv->ystart;
+
 	line = vid_priv->fb + y * vid_priv->line_length +
 		VID_TO_PIXEL(x) * VNBYTES(vid_priv->bpix);
 	linenum = priv->baseline + yoff;
@@ -273,16 +295,39 @@ static int console_truetype_putc_xy(struct udevice *dev, uint x, uint y,
 				int val = *bits;
 				int out;
 
-				if (vid_priv->colour_bg)
+				if (vc_priv->colour_bg)
 					val = 255 - val;
 				out = val >> 3 |
 					(val >> 2) << 5 |
 					(val >> 3) << 11;
-				if (vid_priv->colour_fg)
+				if (vc_priv->colour_fg)
 					*dst++ |= out;
 				else
 					*dst++ &= out;
 				bits++;
+			}
+			break;
+		}
+#endif
+#ifdef CONFIG_VIDEO_BPP32
+		case VIDEO_BPP32 : {
+			uint32_t *dst = (uint32_t *)line + xoff;
+			int i;
+			u8 bg_R = vc_priv->colour_bg & 0xFF;
+			u8 bg_G = (vc_priv->colour_bg >> 8) & 0xFF;
+			u8 bg_B = (vc_priv->colour_bg >> 16) & 0xFF;
+			u8 fg_R = vc_priv->colour_fg & 0xFF;
+			u8 fg_G = (vc_priv->colour_fg >> 8) & 0xFF;
+			u8 fg_B = (vc_priv->colour_fg >> 16) & 0xFF;
+
+			for (i = 0; i < width; i++) {
+				u8 *channel = (u8 *)(dst++);
+				u8 val = *bits++;
+
+				*channel++ = bg_R + (fg_R - bg_R) * (float)val / 255;
+				*channel++ = bg_G + (fg_G - bg_G) * (float)val / 255;
+				*channel++ = bg_B + (fg_B - bg_B) * (float)val / 255;
+				*channel++ = 0;
 			}
 			break;
 		}
@@ -306,23 +351,24 @@ static int console_truetype_putc_xy(struct udevice *dev, uint x, uint y,
  * given bounds.
  *
  * @dev:	Device to update
- * @xstart:	X start position in pixels from the left
- * @ystart:	Y start position in pixels from the top
- * @xend:	X end position in pixels from the left
- * @yend:	Y end position  in pixels from the top
+ * @xstart:	X start position in pixels from the left of the console region
+ * @ystart:	Y start position in pixels from the top of the console region
+ * @xend:	X end position in pixels from the left of the console region
+ * @yend:	Y end position  in pixels from the top of the console region
  * @clr:	Value to write
  * @return 0 if OK, -ENOSYS if the display depth is not supported
  */
 static int console_truetype_erase(struct udevice *dev, int xstart, int ystart,
 				  int xend, int yend, int clr)
 {
+	struct vidconsole_priv *vc_priv = dev_get_uclass_priv(dev);
 	struct video_priv *vid_priv = dev_get_uclass_priv(dev->parent);
 	void *line;
 	int pixels = xend - xstart;
 	int row, i;
 
-	line = vid_priv->fb + ystart * vid_priv->line_length;
-	line += xstart * VNBYTES(vid_priv->bpix);
+	line = vid_priv->fb + (vc_priv->ystart + ystart) * vid_priv->line_length;
+	line += (VID_TO_PIXEL(vc_priv->xstart_frac) + xstart) * VNBYTES(vid_priv->bpix);
 	for (row = ystart; row < yend; row++) {
 		switch (vid_priv->bpix) {
 #ifdef CONFIG_VIDEO_BPP8
@@ -401,7 +447,7 @@ static int console_truetype_backspace(struct udevice *dev)
 
 	console_truetype_erase(dev, VID_TO_PIXEL(pos->xpos_frac), pos->ypos,
 			       xend, pos->ypos + vc_priv->y_charsize,
-			       vid_priv->colour_bg);
+			       vc_priv->colour_bg);
 
 	/* Move the cursor back to where it was when we pushed this record */
 	vc_priv->xcur_frac = pos->xpos_frac;
@@ -514,9 +560,6 @@ static int console_truetype_probe(struct udevice *dev)
 
 	vc_priv->x_charsize = priv->font_size;
 	vc_priv->y_charsize = priv->font_size;
-	vc_priv->xstart_frac = VID_TO_POS(2);
-	vc_priv->cols = vid_priv->xsize / priv->font_size;
-	vc_priv->rows = vid_priv->ysize / priv->font_size;
 	vc_priv->tab_width_frac = VID_TO_POS(priv->font_size) * 8 / 2;
 
 	if (!stbtt_InitFont(font, priv->font_data, 0)) {
@@ -533,6 +576,11 @@ static int console_truetype_probe(struct udevice *dev)
 	return 0;
 }
 
+static const struct udevice_id console_truetype_ids[] = {
+	{ .compatible = "console-truetype", },
+	{ }
+};
+
 struct vidconsole_ops console_truetype_ops = {
 	.putc_xy	= console_truetype_putc_xy,
 	.move_rows	= console_truetype_move_rows,
@@ -544,6 +592,7 @@ struct vidconsole_ops console_truetype_ops = {
 U_BOOT_DRIVER(vidconsole_truetype) = {
 	.name	= "vidconsole_tt",
 	.id	= UCLASS_VIDEO_CONSOLE,
+	.of_match = console_truetype_ids,
 	.ops	= &console_truetype_ops,
 	.probe	= console_truetype_probe,
 	.priv_auto_alloc_size	= sizeof(struct console_tt_priv),

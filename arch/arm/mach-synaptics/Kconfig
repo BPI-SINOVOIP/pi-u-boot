@@ -1,0 +1,76 @@
+if ARCH_SYNAPTICS
+
+config SYS_SOC
+	default "synaptics"
+
+config SYS_VENDOR
+	default "synaptics"
+
+choice
+	prompt "Synaptics board select"
+
+config TARGET_AS370
+	bool "Synaptics AS370 SoC"
+	select ARM64
+	help
+	  The Synaptics AS370 is a ARM64-based SoC with a quad-core Cortex-A53.
+	  including UART, SPI, USB2.0 and OTG, NAND, EMMC, USB Ethernet
+
+config TARGET_VS680
+	bool "Synaptics VS680 SoC"
+	select ARM64
+	help
+	  The Synaptics VS680 is a ARM64-based SoC with a quad-core Cortex-A73.
+	  including UART, SPI, USB2.0 and OTG, NAND, EMMC, USB Ethernet, etc.
+
+config TARGET_VS680_A0
+	bool "Synaptics VS680 SoC"
+	select ARM64
+	help
+	  The Synaptics VS680 is a ARM64-based SoC with a quad-core Cortex-A73.
+	  including UART, SPI, USB2.0 and OTG, NAND, EMMC, USB Ethernet, etc.
+
+config TARGET_VS640
+	bool "Synaptics VS640 SoC"
+	select ARM64
+	help
+	  The Synaptics AS640 is a ARM64-based SoC with a quad-core Cortex-A55.
+	  including UART, SPI, USB2.0 and OTG, EMMC, etc.
+endchoice
+
+source "arch/arm/mach-synaptics/driver/Kconfig"
+
+source "board/synaptics/as370/Kconfig"
+source "board/synaptics/vs680/Kconfig"
+source "board/synaptics/vs680a0/Kconfig"
+source "board/synaptics/vs640/Kconfig"
+
+menu "Synaptics Specific Setup"
+
+choice
+	prompt "Select fastboot/spi-uboot/usb-uboot"
+config USB_BOOT
+	bool "BOOT from USB tool"
+	help
+	  Enable boot from USB tool including download, burn image through USB
+
+config SYNA_FASTBOOT
+	bool "synaptics FASTBOOT support"
+	help
+	  Support Synaptics fastboot
+
+config SYNA_SPIBOOT
+	bool "synaptics SPI uboot support"
+	help
+	  Support Synaptics fastboot
+
+endchoice
+
+config CMD_IRQ_SYNA
+	bool "CMD to test irq function"
+
+config USE_IRQ_SYNA
+	bool "Support IRQ function of Synaptics' chip"
+endmenu
+
+endif

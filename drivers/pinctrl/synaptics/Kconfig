@@ -1,0 +1,24 @@
+if ARCH_SYNAPTICS
+
+config PINCTRL_SYNAPTICS
+	bool "Synaptics SoC pinctrl core driver"
+	default y
+
+config PINCTRL_SYNAPTICS_AS370
+	bool "Synaptics AS370 SoC pinctrl driver"
+	depends on TARGET_AS370
+	default y
+	select PINCTRL_SYNAPTICS
+
+config PINCTRL_SYNAPTICS_VS680
+	bool "Synaptics VS680 SoC pinctrl driver"
+	depends on TARGET_VS680 || TARGET_VS680_A0
+	default y
+	select PINCTRL_SYNAPTICS
+
+config PINCTRL_SYNAPTICS_VS640
+	bool "Synaptics VS640 SoC pinctrl driver"
+	depends on TARGET_VS640
+	default y
+	select PINCTRL_SYNAPTICS
+endif

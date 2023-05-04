@@ -64,6 +64,7 @@ obj-$(CONFIG_MMC_SDHCI_TANGIER)		+= tangier_sdhci.o
 obj-$(CONFIG_MMC_SDHCI_TEGRA)		+= tegra_mmc.o
 obj-$(CONFIG_MMC_SDHCI_XENON)		+= xenon_sdhci.o
 obj-$(CONFIG_MMC_SDHCI_ZYNQ)		+= zynq_sdhci.o
+obj-$(CONFIG_MMC_DWCMSHC)		+= dwcmshc_sdhci.o
 
 obj-$(CONFIG_MMC_SUNXI)			+= sunxi_mmc.o
 obj-$(CONFIG_MMC_UNIPHIER)		+= tmio-common.o uniphier-sd.o

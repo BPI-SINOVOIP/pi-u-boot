@@ -1,0 +1,6 @@
+config SYNA_USB_PHY
+	bool "Synaptics usb PHY driver"
+	depends on ARCH_SYNAPTICS
+	default n
+	help
+	  Support usb3.0 PHY driver for Syanaptics

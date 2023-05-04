@@ -1,0 +1,12 @@
+config FLASH_TS_MMC
+	bool "Enable Flash-based transactional key-value based on MMC"
+	depends on DM_MMC
+	help
+	  Enable Flash-based transactional key-value based on MMC.
+
+config FLASH_MMC_DEV
+	int "Define MMC FLASH default device"
+	default 0
+	help
+	  Define this to the eMMC device that used to do fts.
+

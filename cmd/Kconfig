@@ -1041,6 +1041,11 @@ config CMD_MTD
 	help
 	  MTD commands support.
 
+config CMD_SYNA_NAND
+	bool "Synaptics nand download"
+	help
+	  Snaptics nand download commands support.
+
 config CMD_NAND
 	bool "nand"
 	default y if NAND_SUNXI
@@ -1690,6 +1695,7 @@ config CMD_UUID
 endmenu
 
 source "cmd/ti/Kconfig"
+source "cmd/syna/Kconfig"
 
 config CMD_BOOTSTAGE
 	bool "Enable the 'bootstage' command"

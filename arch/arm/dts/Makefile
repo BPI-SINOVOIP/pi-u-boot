@@ -798,6 +798,41 @@ dtb-$(CONFIG_TARGET_VEXPRESS_CA5X2) += vexpress-v2p-ca5s.dtb
 dtb-$(CONFIG_TARGET_VEXPRESS_CA9X4) += vexpress-v2p-ca9.dtb
 dtb-$(CONFIG_TARGET_VEXPRESS_CA15_TC2) += vexpress-v2p-ca15_a7.dtb
 
+dtb-$(CONFIG_TARGET_AS370) += as370-usbboot-nand.dtb
+dtb-$(CONFIG_TARGET_AS370) += as370-usbboot-emmc.dtb
+dtb-$(CONFIG_TARGET_AS370) += as370-usbboot-emmc-usbc.dtb
+dtb-$(CONFIG_TARGET_AS370) += as370-spi-emmc.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-fpga.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-spi.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-spi-pek.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-usbboot.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-fastboot.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-fastboot-iommu.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-fastboot-lgu.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-fastboot-lgu-iommu.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-fastboot-dennis.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-fastboot-elektra.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-spi-lgu.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-spi-dennis.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-spi-elektra.dtb
+dtb-$(CONFIG_TARGET_VS640) += vs640-fpga.dtb
+dtb-$(CONFIG_TARGET_VS640) += vs640-evk.dtb
+dtb-$(CONFIG_TARGET_VS640) += vs640-pek.dtb
+dtb-$(CONFIG_TARGET_VS640) += vs640-fastboot.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fpga.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-spi.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-usbboot.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fastboot.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fastboot-iommu.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fastboot-lgu.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fastboot-lgu-iommu.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fastboot-dennis.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fastboot-elektra.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fastboot-720p.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-spi-lgu.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-spi-dennis.dtb
+dtb-$(CONFIG_TARGET_VS680_A0) += vs680-spi-elektra.dtb
+
 targets += $(dtb-y)
 
 # Add any required device tree compiler flags here

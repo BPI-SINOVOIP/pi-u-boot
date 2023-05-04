@@ -11,6 +11,7 @@
 #include <fb_nand.h>
 #include <fs.h>
 #include <version.h>
+#include "fastboot_syna.h"
 
 static void getvar_version(char *var_parameter, char *response);
 static void getvar_version_bootloader(char *var_parameter, char *response);
@@ -18,8 +19,9 @@ static void getvar_downloadsize(char *var_parameter, char *response);
 static void getvar_serialno(char *var_parameter, char *response);
 static void getvar_version_baseband(char *var_parameter, char *response);
 static void getvar_product(char *var_parameter, char *response);
+static void getvar_unlocked(char *var_parameter, char *response);
+static void getvar_unlocked_critical(char *var_parameter, char *response);
 static void getvar_platform(char *var_parameter, char *response);
-static void getvar_current_slot(char *var_parameter, char *response);
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH)
 static void getvar_has_slot(char *var_parameter, char *response);
 #endif
@@ -30,6 +32,14 @@ static void getvar_partition_type(char *part_name, char *response);
 static void getvar_partition_size(char *part_name, char *response);
 #endif
 static void getvar_is_userspace(char *var_parameter, char *response);
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_AB)
+static void getvar_current_slot(char *var_parameter, char *response);
+static void getvar_slot_count(char *var_parameter, char *response);
+static void getvar_slot_successful(char *var_parameter, char *response);
+static void getvar_slot_unbootable(char *var_parameter, char *response);
+static void getvar_slot_retry_count(char *var_parameter, char *response);
+static void getvar_slot_suffixes(char *var_parameter, char *response);
+#endif
 
 static const struct {
 	const char *variable;
@@ -57,12 +67,15 @@ static const struct {
 		.variable = "product",
 		.dispatch = getvar_product
 	}, {
+		.variable = "unlocked",
+		.dispatch = getvar_unlocked
+	}, {
+		.variable = "unlocked-critical",
+		.dispatch = getvar_unlocked_critical
+	}, {
 		.variable = "platform",
 		.dispatch = getvar_platform
-	}, {
-		.variable = "current-slot",
-		.dispatch = getvar_current_slot
-#if CONFIG_IS_ENABLED(FASTBOOT_FLASH)
+# if CONFIG_IS_ENABLED(FASTBOOT_FLASH)
 	}, {
 		.variable = "has-slot",
 		.dispatch = getvar_has_slot
@@ -80,7 +93,28 @@ static const struct {
 	}, {
 		.variable = "is-userspace",
 		.dispatch = getvar_is_userspace
+	},
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_AB)
+	{
+		.variable = "current-slot",
+		.dispatch = getvar_current_slot
+	}, {
+		.variable = "slot-count",
+		.dispatch = getvar_slot_count
+	}, {
+		.variable = "slot-successful",
+		.dispatch = getvar_slot_successful
+	}, {
+		.variable = "slot-unbootable",
+		.dispatch = getvar_slot_unbootable
+	}, {
+		.variable = "slot-retry-count",
+		.dispatch = getvar_slot_retry_count
+	}, {
+		.variable = "slot-suffixes",
+		.dispatch = getvar_slot_suffixes
 	}
+#endif
 };
 
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH)
@@ -94,7 +128,7 @@ static const struct {
  *
  * @param[in] part_name Info for which partition name to look for
  * @param[in,out] response Pointer to fastboot response buffer
- * @param[out] size If not NULL, will contain partition size (in blocks)
+ * @param[out] size If not NULL, will contain partition size (in bytes)
  * @return Partition number or negative value on error
  */
 static int getvar_get_part_info(const char *part_name, char *response,
@@ -108,13 +142,13 @@ static int getvar_get_part_info(const char *part_name, char *response,
 	r = fastboot_mmc_get_part_info(part_name, &dev_desc, &part_info,
 				       response);
 	if (r >= 0 && size)
-		*size = part_info.size;
+		*size = part_info.size * part_info.blksz;
 # elif CONFIG_IS_ENABLED(FASTBOOT_FLASH_NAND)
 	struct part_info *part_info;
 
 	r = fastboot_nand_get_part_info(part_name, &part_info, response);
 	if (r >= 0 && size)
-		*size = part_info->size;
+		*size = part_info.size * part_info.blksz;
 # else
 	fastboot_fail("this storage is not supported in bootloader", response);
 	r = -ENODEV;
@@ -156,12 +190,42 @@ static void getvar_version_baseband(char *var_parameter, char *response)
 
 static void getvar_product(char *var_parameter, char *response)
 {
-	const char *board = env_get("board");
+	const char *board = env_get("product");
 
 	if (board)
 		fastboot_okay(board, response);
 	else
 		fastboot_fail("Board not set", response);
+}
+
+static void getvar_unlocked(char *var_parameter, char *response)
+{
+	unsigned int lock_flag, lock_critical_flag;
+	int ret = get_lock_flag(&lock_flag, &lock_critical_flag);
+	if (ret) {
+		fastboot_fail("get_oem_lock_flag failed", response);
+	}
+
+	if (lock_flag)
+		fastboot_okay("no", response);
+	else
+		fastboot_okay("yes", response);
+
+}
+
+static void getvar_unlocked_critical(char *var_parameter, char *response)
+{
+	unsigned int lock_flag, lock_critical_flag;
+	int ret = get_lock_flag(&lock_flag, &lock_critical_flag);
+	if (ret) {
+		fastboot_fail("get_oem_lock_flag failed", response);
+	}
+
+	if (lock_critical_flag)
+		fastboot_okay("no", response);
+	else
+		fastboot_okay("yes", response);
+
 }
 
 static void getvar_platform(char *var_parameter, char *response)
@@ -172,12 +236,6 @@ static void getvar_platform(char *var_parameter, char *response)
 		fastboot_okay(p, response);
 	else
 		fastboot_fail("platform not set", response);
-}
-
-static void getvar_current_slot(char *var_parameter, char *response)
-{
-	/* A/B not implemented, for now always return "a" */
-	fastboot_okay("a", response);
 }
 
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH)
@@ -217,19 +275,12 @@ fail:
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC)
 static void getvar_partition_type(char *part_name, char *response)
 {
-	int r;
-	struct blk_desc *dev_desc;
-	disk_partition_t part_info;
-
-	r = fastboot_mmc_get_part_info(part_name, &dev_desc, &part_info,
-				       response);
-	if (r >= 0) {
-		r = fs_set_blk_dev_with_part(dev_desc, r);
-		if (r < 0)
-			fastboot_fail("failed to set partition", response);
-		else
-			fastboot_okay(fs_get_type_name(), response);
-	}
+	char *s;
+	s = fastboot_check_partition_type(part_name);
+	if (!strcmp(s, "partition not found!"))
+		fastboot_fail(s,response);
+	else
+		fastboot_okay(s, response);
 }
 #endif
 
@@ -249,6 +300,90 @@ static void getvar_is_userspace(char *var_parameter, char *response)
 {
 	fastboot_okay("no", response);
 }
+
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_AB)
+static void getvar_current_slot(char *var_parameter, char *response)
+{
+	int slot_index = get_current_slot();
+
+	if (slot_index != BOOTSEL_INVALID)
+		fastboot_response("OKAY", response, "%s", SLOT_NAME(slot_index));
+	else
+		fastboot_fail("current-slot not set", response);
+}
+
+static void getvar_slot_count(char *var_parameter, char *response)
+{
+	char str_num[12];
+	int slot_count = get_slot_count();
+	if (slot_count > 0) {
+		sprintf(str_num, "%d", slot_count);
+		fastboot_response("OKAY", response, "%s", str_num);
+	} else
+		fastboot_fail("slot-count not set", response);
+}
+
+static void getvar_slot_successful(char *var_parameter, char *response)
+{
+	char *cmd = var_parameter;
+	int slot_index = BOOTSEL_INVALID;
+
+	if (cmd)
+		slot_index = SLOT_INDEX(cmd);
+
+	if (!INDEX_VALID(slot_index))
+		fastboot_fail("slot-successful failed", response);
+	else {
+		if (is_slot_successful(slot_index))
+			fastboot_okay("yes", response);
+		else
+			fastboot_okay("no", response);
+	}
+}
+
+static void getvar_slot_unbootable(char *var_parameter, char *response)
+{
+	char *cmd = var_parameter;
+	int slot_index = BOOTSEL_INVALID;
+
+	if (cmd)
+		slot_index = SLOT_INDEX(cmd);
+
+	if (!INDEX_VALID(slot_index))
+		fastboot_fail("slot-unbootable failed", response);
+	else {
+		if (is_slot_unbootable(slot_index))
+			fastboot_okay("yes", response);
+		else
+			fastboot_okay("no", response);
+	}
+}
+
+static void getvar_slot_retry_count(char *var_parameter, char *response)
+{
+	char *cmd = var_parameter;
+	int slot_index = BOOTSEL_INVALID;
+
+	if (cmd)
+		slot_index = SLOT_INDEX(cmd);
+
+	if (!INDEX_VALID(slot_index))
+		fastboot_fail("slot-retry-count failed", response);
+	else {
+		fastboot_response("OKAY", response, "%d", get_slot_retry_count(slot_index));
+	}
+}
+
+static void getvar_slot_suffixes(char *var_parameter, char *response)
+{
+	int slot_index = get_current_slot();
+
+	if (slot_index != BOOTSEL_INVALID)
+		fastboot_response("OKAY", response, "%s", SLOT_NAME(slot_index));
+	else
+		fastboot_fail("slot-suffixes not set", response);
+}
+#endif
 
 /**
  * fastboot_getvar() - Writes variable indicated by cmd_parameter to response.

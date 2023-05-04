@@ -1612,6 +1612,10 @@ config ARCH_ASPEED
 	select OF_CONTROL
 	imply CMD_DM
 
+config ARCH_SYNAPTICS
+	bool "Synaptics SOCs"
+	select ARM64
+
 endchoice
 
 config ARCH_SUPPORT_TFABOOT
@@ -1747,6 +1751,8 @@ source "arch/arm/cpu/armv7/Kconfig"
 source "arch/arm/cpu/armv8/Kconfig"
 
 source "arch/arm/mach-imx/Kconfig"
+
+source "arch/arm/mach-synaptics/Kconfig"
 
 source "board/bosch/shc/Kconfig"
 source "board/bosch/guardian/Kconfig"

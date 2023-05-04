@@ -113,6 +113,9 @@ pie_fixup_done:
 #endif
 	b	0f
 2:	set_vbar	vbar_el2, x0
+	mrs	x0, hcr_el2
+	orr	x0, x0, #0x38			/* HCR_EL2.AMO|IMO|FMO */
+	msr	hcr_el2, x0
 	mov	x0, #0x33ff
 	msr	cptr_el2, x0			/* Enable FP/SIMD */
 	b	0f

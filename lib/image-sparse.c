@@ -42,9 +42,30 @@
 #include <part.h>
 #include <sparse_format.h>
 
+#ifdef CONFIG_MMC_WRITE
+#include <mmc.h>
+#endif
+
 #include <linux/math64.h>
 
 static void default_log(const char *ignored, char *response) {}
+
+static unsigned int get_extcsd181(void)
+{
+#ifdef CONFIG_MMC_WRITE
+	struct mmc *mmc;
+
+	mmc = find_mmc_device(0);
+
+	if (!mmc)
+		return 0xFFFFFFFF;
+
+	if(mmc->ext_csd)
+		return mmc->ext_csd[181];
+#endif
+
+	return 0xFFFFFFFF;
+}
 
 int write_sparse_image(struct sparse_storage *info,
 		       const char *part_name, void *data, char *response)
@@ -64,13 +85,15 @@ int write_sparse_image(struct sparse_storage *info,
 	int fill_buf_num_blks;
 	int i;
 	int j;
+	unsigned int erased_mem_cont = get_extcsd181();
+	int ignore_fill = 0;
 
 	fill_buf_num_blks = CONFIG_IMAGE_SPARSE_FILLBUF_SIZE / info->blksz;
 
 	/* Read and skip over sparse image header */
 	sparse_header = (sparse_header_t *)data;
 
-	data += sparse_header->file_hdr_sz;
+	data += sizeof(sparse_header_t);
 	if (sparse_header->file_hdr_sz > sizeof(sparse_header_t)) {
 		/*
 		 * Skip the remaining bytes in a header that is longer than
@@ -171,6 +194,15 @@ int write_sparse_image(struct sparse_storage *info,
 				return -1;
 			}
 
+			ignore_fill = (*(uint32_t *)data == erased_mem_cont) ? 1 : 0;
+
+			if(ignore_fill) {
+				data = (char *)data + sizeof(uint32_t);
+				blk += blkcnt;
+				total_blocks += chunk_data_sz / sparse_header->blk_sz;
+				continue;
+			}
+
 			fill_buf = (uint32_t *)
 				   memalign(ARCH_DMA_MINALIGN,
 					    ROUNDUP(
@@ -246,6 +278,7 @@ int write_sparse_image(struct sparse_storage *info,
 			info->mssg("Unknown chunk type", response);
 			return -1;
 		}
+
 	}
 
 	debug("Wrote %d blocks, expected to write %d blocks\n",

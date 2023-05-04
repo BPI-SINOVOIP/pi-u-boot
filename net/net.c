@@ -575,6 +575,7 @@ restart:
 		 */
 		eth_rx();
 
+#ifndef CONFIG_SYNA_FASTBOOT
 		/*
 		 *	Abort if ctrl-c was pressed.
 		 */
@@ -594,6 +595,7 @@ restart:
 			ret = -EINTR;
 			goto done;
 		}
+#endif
 
 		/*
 		 *	Check for a timeout, and run the timeout handler

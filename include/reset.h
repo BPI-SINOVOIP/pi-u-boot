@@ -62,6 +62,7 @@ struct reset_ctl {
 	 */
 	unsigned long id;
 	unsigned long data;
+	unsigned long sticky;
 	unsigned long polarity;
 };
 

@@ -96,6 +96,10 @@ config CONSOLE_ROTATION
 	  struct video_priv: 0=unrotated, 1=90 degrees clockwise, 2=180
 	  degrees, 3=270 degrees.
 
+config CONSOLE_FONT_PNG
+	bool "Support a console that uses fonts from a PNG images"
+	depends on DM_VIDEO
+
 config CONSOLE_TRUETYPE
 	bool "Support a console that uses TrueType fonts"
 	depends on DM_VIDEO
@@ -506,6 +510,12 @@ config VIDEO_ARM_MALIDP
 	help
 	  This enables support for Arm Ltd Mali Display Processors from
 	  the DP500, DP550 and DP650 family.
+
+config VIDEO_SYNA
+	bool "Enable Syna Display support"
+	depends on ARCH_SYNAPTICS
+	help
+	  This enables support for Synaptics display for Edge Soc family
 
 config VIDEO_SANDBOX_SDL
 	bool "Enable sandbox video console using SDL"

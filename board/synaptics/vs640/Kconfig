@@ -1,0 +1,9 @@
+if TARGET_VS640
+
+config SYS_BOARD
+	default "vs640"
+
+config SYS_CONFIG_NAME
+	default "vs640"
+
+endif

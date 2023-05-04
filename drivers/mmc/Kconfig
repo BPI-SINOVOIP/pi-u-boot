@@ -613,6 +613,13 @@ config TEGRA124_MMC_DISABLE_EXT_LOOPBACK
 	  TODO(marcel.ziswiler@toradex.com): Move to device tree controlled
 	  approach once proper kernel integration made it mainline.
 
+config MMC_DWCMSHC
+	bool "DesignWare Cores Mobile Storage Host Controller"
+	depends on DM_MMC && BLK
+	depends on MMC_SDHCI
+	help
+	  Support for DesignWare Cores Mobile Storage Host Controller on Synaptics SOCs
+
 config MMC_SDHCI_ZYNQ
 	bool "Arasan SDHCI controller support"
 	depends on ARCH_ZYNQ || ARCH_ZYNQMP || ARCH_VERSAL

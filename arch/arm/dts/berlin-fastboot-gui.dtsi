@@ -1,0 +1,63 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * (C) Copyright 2017 Marvell Technology Group Ltd.
+ * Xiaoming Lu <xmlu@marvell.com>
+ *
+ * (C) Copyright 2020 Synaptics Incorporated
+ * Author: Shanmugam Ramachandran <sramacha@synaptics.com>
+ *
+ */
+
+/ {
+	fb_gui:fb {
+		compatible = "marvell,berlin-fb";
+		colour-fg = <0xFFFFFF>;
+		colour-bg = <0x000000>;
+		u-boot,dm-pre-reloc;
+		vidconsole-log {
+			compatible = "console-font-png";
+			xstart = <390>;
+			xsize = <790>;
+			ystart = <100>;
+			ysize = <520>;
+			colour-fg = <0xF0F0F0>;
+			colour-bg = <0x111111>;
+		};
+		vidconsole-info {
+			compatible = "console-font-png";
+			xstart = <100>;
+			xsize = <250>;
+			ystart = <180>;
+			ysize = <208>;
+			colour-fg = <0xF0F0F0>;
+			colour-bg = <0x000000>;
+		};
+		vidconsole-lock {
+			compatible = "console-font-png";
+			xstart = <100>;
+			xsize = <250>;
+			ystart = <388>;
+			ysize = <16>;
+			colour-fg = <0xF0F0F0>;
+			colour-bg = <0x000000>;
+		};
+		vidconsole-usage {
+			compatible = "console-font-png";
+			xstart = <100>;
+			xsize = <250>;
+			ystart = <530>;
+			ysize = <64>;
+			colour-fg = <0xF0F0F0>;
+			colour-bg = <0x000000>;
+		};
+		vidconsole-sel {
+			compatible = "console-font-png";
+			xstart = <100>;
+			xsize = <250>;
+			ystart = <604>;
+			ysize = <16>;
+			colour-fg = <0xF0F0F0>;
+			colour-bg = <0x000000>;
+		};
+	};
+};

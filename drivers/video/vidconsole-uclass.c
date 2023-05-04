@@ -23,6 +23,8 @@ struct vid_rgb {
 	u32 b;
 };
 
+DECLARE_GLOBAL_DATA_PTR;
+
 /* By default we scroll by a single line */
 #ifndef CONFIG_CONSOLE_SCROLL_LINES
 #define CONFIG_CONSOLE_SCROLL_LINES 1
@@ -79,13 +81,14 @@ static int vidconsole_back(struct udevice *dev)
 	}
 
 	priv->xcur_frac -= VID_TO_POS(priv->x_charsize);
-	if (priv->xcur_frac < priv->xstart_frac) {
+	if (priv->xcur_frac < 0) {
 		priv->xcur_frac = (priv->cols - 1) *
 			VID_TO_POS(priv->x_charsize);
 		priv->ycur -= priv->y_charsize;
 		if (priv->ycur < 0)
 			priv->ycur = 0;
 	}
+
 	video_sync(dev->parent, false);
 
 	return 0;
@@ -95,12 +98,10 @@ static int vidconsole_back(struct udevice *dev)
 static void vidconsole_newline(struct udevice *dev)
 {
 	struct vidconsole_priv *priv = dev_get_uclass_priv(dev);
-	struct udevice *vid_dev = dev->parent;
-	struct video_priv *vid_priv = dev_get_uclass_priv(vid_dev);
 	const int rows = CONFIG_CONSOLE_SCROLL_LINES;
 	int i;
 
-	priv->xcur_frac = priv->xstart_frac;
+	priv->xcur_frac = 0;
 	priv->ycur += priv->y_charsize;
 
 	/* Check if we need to scroll the terminal */
@@ -108,7 +109,7 @@ static void vidconsole_newline(struct udevice *dev)
 		vidconsole_move_rows(dev, 0, rows, priv->rows - rows);
 		for (i = 0; i < rows; i++)
 			vidconsole_set_row(dev, priv->rows - i - 1,
-					   vid_priv->colour_bg);
+					   priv->colour_bg);
 		priv->ycur -= rows * priv->y_charsize;
 	}
 	priv->last_ch = 0;
@@ -156,6 +157,49 @@ u32 vid_console_color(struct video_priv *priv, unsigned int idx)
 		else
 			return 0x000000; /* black */
 	}
+}
+
+u32 vid_console_color_index(struct video_priv *priv, unsigned int clr)
+{
+    unsigned int r, g, b;
+    int i;
+
+    switch (priv->bpix) {
+    case VIDEO_BPP16:
+        b = clr & 0x1F;
+        g = (clr >> 5) & 0x1F;
+        r = (clr >> 11) & 0x1F;
+        break;
+    case VIDEO_BPP32:
+        b = clr & 0xFF;
+        g = (clr >> 8) & 0xFF;
+        r = (clr >> 16) & 0xFF;
+        break;
+    default:
+        /*
+         * For unknown bit arrangements just support
+         * black and white.
+         */
+        if (clr)
+            r = g = b = 0xFF; /* white */
+        else
+            r = g = b = 0x00; /* black */
+    }
+
+    for (i = 0; i < VID_COLOR_COUNT; i++) {
+        if ((colors[i].r == r) && (colors[i].g == g) && (colors[i].b == b)) {
+            break;
+        }
+    }
+
+    if (i >= VID_COLOR_COUNT) {
+        if (clr)
+            return VID_WHITE; /* white */
+        else
+            return VID_BLACK; /* black */
+    }
+
+    return i;
 }
 
 static char *parsenum(char *s, int *num)
@@ -502,7 +546,7 @@ int vidconsole_put_char(struct udevice *dev, char ch)
 		/* beep */
 		break;
 	case '\r':
-		priv->xcur_frac = priv->xstart_frac;
+		priv->xcur_frac = 0;
 		break;
 	case '\n':
 		vidconsole_newline(dev);
@@ -559,26 +603,59 @@ static void vidconsole_puts(struct stdio_dev *sdev, const char *s)
 	video_sync(dev->parent, false);
 }
 
+static int vidconsole_clear(struct udevice *dev)
+{
+	struct vidconsole_priv *vc_priv = dev_get_uclass_priv(dev);
+
+	video_fill(dev->parent, VID_TO_PIXEL(vc_priv->xstart_frac), VID_TO_PIXEL(vc_priv->xsize_frac),
+		vc_priv->ystart, vc_priv->ysize, vc_priv->colour_bg);
+	vc_priv->xcur_frac = 0;
+	vc_priv->ycur = 0;
+	return 0;
+}
+
 /* Set up the number of rows and colours (rotated drivers override this) */
 static int vidconsole_pre_probe(struct udevice *dev)
 {
-	struct vidconsole_priv *priv = dev_get_uclass_priv(dev);
+	struct vidconsole_priv *vc_priv = dev_get_uclass_priv(dev);
 	struct udevice *vid = dev->parent;
 	struct video_priv *vid_priv = dev_get_uclass_priv(vid);
 
-	priv->xsize_frac = VID_TO_POS(vid_priv->xsize);
+	if (VID_TO_PIXEL(vc_priv->xstart_frac + vc_priv->xsize_frac) >= vid_priv->xsize)
+		vc_priv->xsize_frac = VID_TO_POS(vid_priv->xsize) - vc_priv->xstart_frac;
+	if (vc_priv->ystart + vc_priv->ysize >= vid_priv->ysize)
+		vc_priv->ysize = vid_priv->ysize - vc_priv->ystart;
 
+	vc_priv->xstart_frac = 0;
+	vc_priv->xsize_frac = 0;
+	vc_priv->ystart = vid_priv->xsize;
+	vc_priv->ysize = vid_priv->ysize;
 	return 0;
 }
 
 /* Register the device with stdio */
 static int vidconsole_post_probe(struct udevice *dev)
 {
-	struct vidconsole_priv *priv = dev_get_uclass_priv(dev);
-	struct stdio_dev *sdev = &priv->sdev;
+	struct vidconsole_priv *vc_priv = dev_get_uclass_priv(dev);
+	struct stdio_dev *sdev = &vc_priv->sdev;
+	struct video_priv *vid_priv = dev_get_uclass_priv(dev->parent);
 
-	if (!priv->tab_width_frac)
-		priv->tab_width_frac = VID_TO_POS(priv->x_charsize) * 8;
+	void *blob = (void *)gd->fdt_blob;
+	int node = dev_of_offset(dev);
+
+	vc_priv->xstart_frac = VID_TO_POS(fdtdec_get_int(blob, node, "xstart", 0));
+	vc_priv->xsize_frac = VID_TO_POS(fdtdec_get_int(blob, node, "xsize", vid_priv->xsize));
+	vc_priv->ystart = fdtdec_get_int(blob, node, "ystart", 0);
+	vc_priv->ysize = fdtdec_get_int(blob, node, "ysize", vid_priv->ysize);
+
+	vc_priv->cols = VID_TO_PIXEL(vc_priv->xsize_frac) / vc_priv->x_charsize;
+	vc_priv->rows = vc_priv->ysize / vc_priv->y_charsize;
+
+	vc_priv->colour_fg = fdtdec_get_int(blob, node, "colour-fg", vid_priv->colour_fg);
+	vc_priv->colour_bg = fdtdec_get_int(blob, node, "colour-bg", vid_priv->colour_bg);
+
+	if (!vc_priv->tab_width_frac)
+		vc_priv->tab_width_frac = VID_TO_POS(vc_priv->x_charsize) * 8;
 
 	if (dev->seq) {
 		snprintf(sdev->name, sizeof(sdev->name), "vidconsole%d",
@@ -591,6 +668,8 @@ static int vidconsole_post_probe(struct udevice *dev)
 	sdev->putc = vidconsole_putc;
 	sdev->puts = vidconsole_puts;
 	sdev->priv = dev;
+
+	vidconsole_clear(dev);
 
 	return stdio_register(sdev);
 }

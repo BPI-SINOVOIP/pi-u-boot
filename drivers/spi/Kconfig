@@ -108,6 +108,13 @@ config DESIGNWARE_SPI
 	  access the SPI NOR flash on platforms embedding this Designware
 	  IP core.
 
+config SYNA_DWSPI
+	bool "Synaptics Designware SPI driver"
+	help
+	  Enable the Designware SPI driver. This driver can be used to
+	  access the SPI NOR flash on platforms embedding this Designware
+	  IP core.
+
 config EXYNOS_SPI
 	bool "Samsung Exynos SPI driver"
 	help

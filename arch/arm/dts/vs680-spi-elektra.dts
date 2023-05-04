@@ -1,0 +1,124 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * Copyright (C) 2019 Synaptics Incorporated
+ *
+ * Author: Shaojun Feng <Shaojun.Feng@synaptics.com>
+ *
+ */
+
+/dts-v1/;
+
+#include "vs680.dtsi"
+#include "include/dt-bindings/gpio/gpio.h"
+
+/ {
+	model = "Synaptics VS680 Elektra";
+	compatible = "Synaptics,vs680", "Synaptics,asserial";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0 0 0x80000000>;
+	};
+
+	fts {
+		compatible = "google,flash-ts-mmc";
+	};
+
+	chosen {
+                stdout-path = &smuart0;
+        };
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb0_vbus: regulator@0 {
+			compatible = "regulator-fixed";
+			regulator-name = "usb0_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&porta 11 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+	};
+};
+
+&sysmgr_pinctrl {
+	gmac_prstb: gmac_prstb {
+		groups = "SM_TDO";
+		function = "gpio";
+		drive-strength = <3>;
+	};
+};
+
+&pinctrl {
+	emmc_pmux: emmc-pmux {
+                groups = "NAND_IO0", "NAND_IO1", "NAND_IO2", "NAND_IO3", "NAND_IO4", "NAND_IO5", "ND_IO6", "NAND_IO7", "NAND_ALE", "NAND_CLE", "NAND_WPn";
+                function = "emmc";
+        };
+
+	usb2_vbus_pmux: usb_vbus_pmux {
+		groups = "I2S2_DI0";
+		function = "gpio";
+	};
+
+};
+
+&CPU_SLEEP_0 {
+	status = "disabled";
+};
+
+&smuart0 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+	max-write-size = <128>;
+	clock-frequency = <100000000>;
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		memory-map = <0x0 0xf0000000 0x0 0x4000000>;
+		spi-max-frequency = <10000000>;
+        };
+};
+
+&phy0 {
+	reg = <0>;
+};
+
+&gmac0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac_prstb>;
+	max-speed = <1000>;
+	phy-mode = "rgmii-id";
+	phy-handle = <&phy0>;
+	phy = <&phy0>;
+	snps,reset-gpio = <&portd 8 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 50000>;
+};
+
+&sdhci2 {
+	status = "okay";
+	max-frequency = <50000000>;
+	cap-mmc-highspeed;
+	1_8v-signalling;
+};
+
+&usb_phy0 {
+	status = "okay";
+};
+
+&usb0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb2_vbus_pmux>;
+	vbus-supply = <&usb0_vbus>;
+	status = "okay";
+};

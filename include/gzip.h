@@ -7,6 +7,8 @@
 #ifndef __GZIP_H
 #define __GZIP_H
 
+int is_gzip_image(void *data);
+
 /**
  * gzip_parse_header() - Parse a header from a gzip file
  *

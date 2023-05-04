@@ -1,0 +1,122 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * Copyright (C) 2019 Synaptics Incorporated
+ *
+ * Author: Shaojun Feng <Shaojun.Feng@synaptics.com>
+ *
+ */
+
+/dts-v1/;
+
+#include "vs680.dtsi"
+#include "include/dt-bindings/gpio/gpio.h"
+#include "berlin-fastboot-gui.dtsi"
+
+/ {
+	model = "Synaptics VS680 FASTBOOT";
+	compatible = "Synaptics,vs680", "Synaptics,asserial";
+	fastboot,product-name = "vs680";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x04100000 0 0x62f00000>;
+	};
+
+	fts {
+		compatible = "google,flash-ts-mmc";
+	};
+
+	chosen {
+                stdout-path = &smuart0;
+        };
+
+	fb_hdmi {
+		compatible = "fb,hdmi-5v-gpio";
+		hdmi-gpio = <&portd 16 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+
+};
+
+&sysmgr_pinctrl {
+	sm_i2c_tw3_pmux: sm_i2c_tw3_pmux {
+		groups = "SM_TW3_SCL", "SM_TW3_SDA";
+		function = "tw3";
+	};
+};
+
+&pinctrl {
+        emmc_pmux: emmc-pmux {
+                groups = "NAND_IO0", "NAND_IO1", "NAND_IO2", "NAND_IO3", "NAND_IO4", "NAND_IO5", "ND_IO6", "NAND_IO7", "NAND_ALE", "NAND_CLE", "NAND_WPn";
+                function = "emmc";
+        };
+
+	usb_vbus_pmux: usb_vbus_pmux {
+		groups = "USB2_DRV_VBUS";
+		function = "gpio";
+	};
+};
+
+&CPU_SLEEP_0 {
+	status = "disabled";
+};
+
+&smuart0 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+	max-write-size = <128>;
+	clock-frequency = <100000000>;
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		memory-map = <0x0 0xf0000000 0x0 0x4000000>;
+		spi-max-frequency = <10000000>;
+        };
+};
+
+&phy0 {
+	reg = <0>;
+};
+
+&i2c3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sm_i2c_tw3_pmux>;
+	expander1: gpio@44 {
+		compatible = "fcs,fxl6408";
+		reg = <0x44>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&gmac0 {
+	status = "okay";
+	max-speed = <1000>;
+	phy-mode = "rgmii-id";
+	phy-handle = <&phy0>;
+	phy = <&phy0>;
+	snps,reset-gpio = <&expander1 0 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 50000>;
+};
+
+&sdhci2 {
+	status = "okay";
+	max-frequency = <50000000>;
+	cap-mmc-highspeed;
+	1_8v-signalling;
+};
+
+&usb_phy0 {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};

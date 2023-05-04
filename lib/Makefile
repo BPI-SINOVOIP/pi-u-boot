@@ -54,6 +54,10 @@ obj-$(CONFIG_TPM_V1) += tpm-v1.o
 obj-$(CONFIG_TPM_V2) += tpm-v2.o
 endif
 
+ifeq ($(CONFIG_$(SPL_)GZIP),y)
+obj-$(CONFIG_IMAGE_SPARSE) += image-gzipped-sparse.o
+endif
+
 obj-$(CONFIG_RSA) += rsa/
 obj-$(CONFIG_SHA1) += sha1.o
 obj-$(CONFIG_SHA256) += sha256.o

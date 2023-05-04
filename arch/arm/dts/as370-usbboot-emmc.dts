@@ -1,0 +1,59 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * Copyright (C) 2019 Synaptics Incorporated
+ *
+ * Author:
+ * Shaojun Feng <Shaojun.Feng@synaptics.com>
+ * Cheng Lu <Cheng.Lu@synaptics.com>
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+#include "as370.dtsi"
+
+/ {
+	model = "Synaptics AS370";
+	compatible = "Synaptics,as370", "Synaptics,asserial";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0 0 0x20000000>;
+	};
+
+	chosen {
+                stdout-path = &uart0;
+        };
+
+};
+
+&pinctrl {
+        nand_pmux: nand-pmux {
+                groups = "NAND_IO0", "NAND_IO1", "NAND_IO2", "NAND_IO3", "NAND_IO4", "NAND_IO5", "NAND_IO6", "NAND_IO7", "NAND_ALE", "NAND_CLE", "NAND_WEn", "NAND_REn", "NAND_WPn", "NAND_CEn", "NAND_RDY";
+                function = "nand";
+        };
+
+        emmc_pmux: emmc-pmux {
+                groups = "NAND_IO0", "NAND_IO1", "NAND_IO2", "NAND_IO3", "NAND_IO4", "NAND_IO5", "NAND_IO6", "NAND_IO7", "NAND_WPn", "NAND_CEn", "NAND_RDY";
+                function = "emmc";
+        };
+};
+
+&sdhci2 {
+        status = "okay";
+        pinctrl-0 = <&emmc_pmux>;
+        pinctrl-names = "default";
+};
+
+&CPU_SLEEP_0 {
+	status = "disabled";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};

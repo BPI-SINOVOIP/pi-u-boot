@@ -385,6 +385,7 @@ int phy_meson_gxl_init(void);
 int phy_natsemi_init(void);
 int phy_realtek_init(void);
 int phy_smsc_init(void);
+int phy_sunplus_init(void);
 int phy_teranetics_init(void);
 int phy_ti_init(void);
 int phy_vitesse_init(void);

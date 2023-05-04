@@ -40,25 +40,25 @@ enum color_idx {
 /**
  * struct vidconsole_priv - uclass-private data about a console device
  *
- * Drivers must set up @rows, @cols, @x_charsize, @y_charsize in their probe()
- * method. Drivers may set up @xstart_frac if desired.
+ * Drivers must set up @x_charsize, @y_charsize in their probe() method.
+ * @xstart_frac, @xsize_frac, @ystart, @ysize, @colour_fg and @colour_bg
+ * will be provided from device tree.
  *
- * @sdev:		stdio device, acting as an output sink
- * @xcur_frac:		Current X position, in fractional units (VID_TO_POS(x))
- * @ycur:		Current Y position in pixels (0=top)
- * @rows:		Number of text rows
- * @cols:		Number of text columns
- * @x_charsize:		Character width in pixels
- * @y_charsize:		Character height in pixels
+ * @sdev:	stdio device, acting as an output sink
+ * @xcur_frac:	Current X position in console region, in fractional units (VID_TO_POS(x))
+ * @ycur:	Current Y position in console region, in pixels (0=top)
+ * @rows:	Number of text rows
+ * @cols:	Number of text columns
+ * @x_charsize:	Character width in pixels
+ * @y_charsize:	Character height in pixels
  * @tab_width_frac:	Tab width in fractional units
- * @xsize_frac:		Width of the display in fractional units
+ * @xsize_frac:	Width of the console region in fractional units
  * @xstart_frac:	Left margin for the text console in fractional units
- * @last_ch:		Last character written to the text console on this line
- * @escape:		TRUE if currently accumulating an ANSI escape sequence
- * @escape_len:		Length of accumulated escape sequence so far
- * @col_saved:		Saved X position, in fractional units (VID_TO_POS(x))
- * @row_saved:		Saved Y position in pixels (0=top)
- * @escape_buf:		Buffer to accumulate escape sequence
+ * @ysize:	Height of the console region in fractional units
+ * @ystart:	Top margin for the text console in fractional units
+ * @colour_fg:	Foreground colour for console region (pixel value)
+ * @colour_bg:	Background colour for console region (pixel value)
+ * @last_ch:	Last character written to the text console on this line
  */
 struct vidconsole_priv {
 	struct stdio_dev sdev;
@@ -71,6 +71,10 @@ struct vidconsole_priv {
 	int tab_width_frac;
 	int xsize_frac;
 	int xstart_frac;
+	int ysize;
+	int ystart;
+	int colour_fg;
+	int colour_bg;
 	int last_ch;
 	/*
 	 * ANSI escape sequences are accumulated character by character,
@@ -87,9 +91,9 @@ struct vidconsole_priv {
 /**
  * struct vidconsole_ops - Video console operations
  *
- * These operations work on either an absolute console position (measured
- * in pixels) or a text row number (measured in rows, where each row consists
- * of an entire line of text - typically 16 pixels).
+ * These operations work on either an relative console position (measured
+ * in pixels) in console region or a text row number (measured in rows,
+ * where each row consists of an entire line of text - typically 16 pixels).
  */
 struct vidconsole_ops {
 	/**
@@ -255,6 +259,18 @@ void vidconsole_position_cursor(struct udevice *dev, unsigned col,
  * @return	color value
  */
 u32 vid_console_color(struct video_priv *priv, unsigned int idx);
+
+/**
+ * vid_console_color_index() - convert pixel's internal
+ * representation to color code
+ *
+ * The caller has to guarantee that the color matches one of color code
+ *
+ * @priv    private data of the console device
+ * @clr     color value
+ * @return  color index
+ */
+u32 vid_console_color_index(struct video_priv *priv, unsigned int clr);
 
 #endif
 

@@ -1,0 +1,119 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * Copyright (C) 2019 Synaptics Incorporated
+ *
+ * Author: Shaojun Feng <Shaojun.Feng@synaptics.com>
+ *
+ */
+
+/dts-v1/;
+
+#include "vs680.dtsi"
+#include "include/dt-bindings/gpio/gpio.h"
+
+/ {
+	model = "Synaptics VS680";
+	compatible = "Synaptics,vs680", "Synaptics,asserial";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0 0 0x40000000>;
+	};
+
+	chosen {
+                stdout-path = &usbc0;
+        };
+
+	config {
+		bootcmd = "runscript usbs u-boot-auto-cmd.txt;";
+		bootdelay = <0>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb0_vbus: regulator@0 {
+			compatible = "regulator-fixed";
+			regulator-name = "usb0_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&portb 23 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+	};
+};
+
+&sysmgr_pinctrl {
+	gmac0_pmux: gmac0-pmux {
+		groups = "SM_SPI2_SS1n";
+		function = "gpio";
+	};
+};
+
+&pinctrl {
+        emmc_pmux: emmc-pmux {
+                groups = "NAND_IO0", "NAND_IO1", "NAND_IO2", "NAND_IO3", "NAND_IO4", "NAND_IO5", "ND_IO6", "NAND_IO7", "NAND_ALE", "NAND_CLE", "NAND_WPn";
+                function = "emmc";
+        };
+
+	usb_vbus_pmux: usb_vbus_pmux {
+		groups = "USB2_DRV_VBUS";
+		function = "gpio";
+	};
+};
+
+&CPU_SLEEP_0 {
+	status = "disabled";
+};
+
+&smuart0 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+	max-write-size = <128>;
+	clock-frequency = <100000000>;
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		memory-map = <0x0 0xf0000000 0x0 0x4000000>;
+		spi-max-frequency = <10000000>;
+        };
+};
+
+&phy0 {
+	reg = <0>;
+};
+
+&gmac0 {
+	status = "disabled";
+	max-speed = <100>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac0_pmux>;
+	phy-handle = <&phy0>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 0>;
+};
+
+&sdhci2 {
+	status = "okay";
+	max-frequency = <50000000>;
+	cap-mmc-highspeed;
+	1_8v-signalling;
+};
+
+&usb0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb_vbus_pmux>;
+	vbus-supply = <&usb0_vbus>;
+	status = "disabled";
+};
+
+&usbc0 {
+	status = "okay";
+};

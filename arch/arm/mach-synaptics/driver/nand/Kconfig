@@ -1,0 +1,11 @@
+config NAND_CNDS
+	bool "Support for NAND on Cadence HPNFC"
+	depends on ARCH_SYNAPTICS
+	default n
+	---help---
+	Enable support for NAND. Support for Cadence HPNFC.
+
+config NAND_RANDOMIZER
+	bool "Enable nand randomizer when do nand read/write"
+	depends on NAND_CNDS
+	default n

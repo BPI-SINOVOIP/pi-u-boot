@@ -11,6 +11,7 @@
 #include <fb_nand.h>
 #include <part.h>
 #include <stdlib.h>
+#include "fastboot_syna.h"
 
 /**
  * image_size - final fastboot image size
@@ -34,10 +35,16 @@ static void download(char *, char *);
 static void flash(char *, char *);
 static void erase(char *, char *);
 #endif
-static void reboot_bootloader(char *, char *);
+static void cb_reboot_bootloader(char *, char *);
+static void cb_reboot_recovery(char *, char *);
+static void cb_reboot_fastboot(char *, char *);
 #if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_FORMAT)
 static void oem_format(char *, char *);
 #endif
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_AB)
+static void set_active(char *, char *);
+#endif
+static void flashing(char *, char *);
 
 static const struct {
 	const char *command;
@@ -75,11 +82,15 @@ static const struct {
 	},
 	[FASTBOOT_COMMAND_REBOOT_BOOTLOADER] =  {
 		.command = "reboot-bootloader",
-		.dispatch = reboot_bootloader
+		.dispatch = cb_reboot_bootloader
 	},
-	[FASTBOOT_COMMAND_SET_ACTIVE] =  {
-		.command = "set_active",
-		.dispatch = okay
+	[FASTBOOT_COMMAND_REBOOT_FASTBOOT] =  {
+		.command = "reboot-fastboot",
+		.dispatch = cb_reboot_fastboot
+	},
+	[FASTBOOT_COMMAND_REBOOT_RECOVERY] =  {
+		.command = "reboot-recovery",
+		.dispatch = cb_reboot_recovery
 	},
 #if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_FORMAT)
 	[FASTBOOT_COMMAND_OEM_FORMAT] = {
@@ -87,6 +98,16 @@ static const struct {
 		.dispatch = oem_format,
 	},
 #endif
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_AB)
+	[FASTBOOT_COMMAND_SET_ACTIVE] =  {
+		.command = "set_active",
+		.dispatch = set_active
+	},
+#endif
+	[FASTBOOT_COMMAND_FLASHING] =  {
+		.command = "flashing",
+		.dispatch = flashing,
+	},
 };
 
 /**
@@ -104,6 +125,11 @@ int fastboot_handle_command(char *cmd_string, char *response)
 
 	cmd_parameter = cmd_string;
 	strsep(&cmd_parameter, ":");
+
+	if (!cmd_parameter){
+		cmd_parameter = cmd_string;
+		cmd_string = strsep(&cmd_parameter, " ");
+	}
 
 	for (i = 0; i < FASTBOOT_COMMAND_COUNT; i++) {
 		if (!strcmp(commands[i].command, cmd_string)) {
@@ -267,6 +293,35 @@ void fastboot_data_complete(char *response)
  */
 static void flash(char *cmd_parameter, char *response)
 {
+	int ret = oem_check_lock(cmd_parameter);
+	if (ret != 0) {
+		if (ret == 1)
+			fastboot_response("FAIL", response, "fastboot flash partition %s"
+				" need unlock", cmd_parameter);
+		else if (ret == 2)
+			fastboot_response("FAIL", response, "fastboot flash partition %s"
+				" need unlock_critical", cmd_parameter);
+		else if (ret == 3)
+			fastboot_response("FAIL", response, "fastboot flash partition %s"
+				" can't be flashed", cmd_parameter);
+		else
+			fastboot_response("FAIL", response, "fastboot flash partition %s"
+				" check lock fail %d", cmd_parameter, ret);
+		return;
+	}
+
+	ret = virtual_ab_merge_status_check(cmd_parameter);
+	if (ret != 0)
+	{
+		if (ret == 1)
+			fastboot_response("FAIL", response, "fastboot flash partition %s"
+				" ab merge is merging or snapshot", cmd_parameter);
+		else
+			fastboot_response("FAIL", response, "fastboot flash partition %s"
+				" check ab merge status fail %d", cmd_parameter, ret);
+		return;
+	}
+
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC)
 	fastboot_mmc_flash_write(cmd_parameter, fastboot_buf_addr, image_size,
 				 response);
@@ -288,6 +343,35 @@ static void flash(char *cmd_parameter, char *response)
  */
 static void erase(char *cmd_parameter, char *response)
 {
+	int ret = oem_check_lock(cmd_parameter);
+	if (ret != 0) {
+		if (ret == 1)
+			fastboot_response("FAIL", response, "fastboot erase partition %s"
+				" need unlock", cmd_parameter);
+		else if (ret == 2)
+			fastboot_response("FAIL", response, "fastboot erase partition %s"
+				" need unlock_critical", cmd_parameter);
+		else if (ret == 3)
+			fastboot_response("FAIL", response, "fastboot erase partition %s"
+				" can't be flashed", cmd_parameter);
+		else
+			fastboot_response("FAIL", response, "fastboot erase partition %s"
+				" check lock fail %d", cmd_parameter, ret);
+		return;
+	}
+
+	ret = virtual_ab_merge_status_check(cmd_parameter);
+	if (ret != 0)
+	{
+		if (ret == 1)
+			fastboot_response("FAIL", response, "fastboot erase partition %s"
+				" ab merge is merging or snapshot", cmd_parameter);
+		else
+			fastboot_response("FAIL", response, "fastboot erase partition %s"
+				" check ab merge status fail %d", cmd_parameter, ret);
+		return;
+	}
+
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC)
 	fastboot_mmc_erase(cmd_parameter, response);
 #endif
@@ -297,16 +381,26 @@ static void erase(char *cmd_parameter, char *response)
 }
 #endif
 
-/**
- * reboot_bootloader() - Sets reboot bootloader flag.
- *
- * @cmd_parameter: Pointer to command parameter
- * @response: Pointer to fastboot response buffer
- */
-static void reboot_bootloader(char *cmd_parameter, char *response)
+static void cb_reboot_bootloader(char *cmd_parameter, char *response)
 {
-	if (fastboot_set_reboot_flag())
-		fastboot_fail("Cannot set reboot flag", response);
+	if (fb_set_reboot_bootloader_flag())
+		fastboot_fail("Cannot set reboot bootloader flag", response);
+	else
+		fastboot_okay(NULL, response);
+}
+
+static void cb_reboot_recovery(char *cmd_parameter, char *response)
+{
+	if (fb_set_reboot_recovery_flag())
+		fastboot_fail("Cannot set reboot recovery flag", response);
+	else
+		fastboot_okay(NULL, response);
+}
+
+static void cb_reboot_fastboot(char *cmd_parameter, char *response)
+{
+	if (fb_set_reboot_fastboot_flag())
+		fastboot_fail("Cannot set reboot fastboot flag", response);
 	else
 		fastboot_okay(NULL, response);
 }
@@ -334,3 +428,95 @@ static void oem_format(char *cmd_parameter, char *response)
 	}
 }
 #endif
+
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_AB)
+static void set_active(char *cmd_parameter, char *response)
+{
+	char *cmd = cmd_parameter;
+	int slot_index = BOOTSEL_INVALID;
+
+	if (cmd)
+		slot_index = SLOT_INDEX(cmd);
+
+	if (set_slot_active(slot_index))
+		fastboot_okay(NULL, response);
+	else
+		fastboot_fail("set_slot_active", response);
+}
+#endif
+
+/**
+ * flashing_erase() - erase the indicated partition before flashing.
+ *
+ * @cmd_parameter: Pointer to partition name
+ * @response: Pointer to fastboot response buffer
+ *
+ * Erases the partition indicated by cmd_parameter (clear to 0x00s). Writes
+ * to response.
+ */
+static void flashing_erase(char *cmd_parameter, char *response)
+{
+	int ret;
+
+	ret = virtual_ab_merge_status_check(cmd_parameter);
+	if (ret != 0)
+	{
+		if (ret == 1)
+			fastboot_response("FAIL", response, "fastboot erase partition %s"
+				" ab merge is merging or snapshot", cmd_parameter);
+		else
+			fastboot_response("FAIL", response, "fastboot erase partition %s"
+				" check ab merge status fail %d", cmd_parameter, ret);
+		printf("flashing_erase : ab merge status check fail (%d)!\n", ret);
+		return;
+	}
+
+#if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC)
+	fastboot_mmc_erase(cmd_parameter, response);
+#endif
+#if CONFIG_IS_ENABLED(FASTBOOT_FLASH_NAND)
+	fastboot_nand_erase(cmd_parameter, response);
+#endif
+}
+
+static void flashing(char *cmd_parameter, char *response)
+{
+	u32 ret;
+	u32 lock_flag, lock_critical_flag;
+
+	if (!strcmp("get_unlock_ability", cmd_parameter)) {
+			fastboot_okay("1", response);
+			return;
+	}
+
+	ret = get_lock_flag(&lock_flag, &lock_critical_flag);
+	if (ret) {
+		fastboot_fail("get_lock_flag failed", response);
+		return;
+	}
+
+	if (!strcmp("lock_critical", cmd_parameter)) {
+		lock_critical_flag = 1;
+	} else if (!strcmp("unlock_critical", cmd_parameter)) {
+		lock_critical_flag = 0;
+	} else if (!strcmp("lock", cmd_parameter)) {
+		lock_flag = 1;
+		lock_critical_flag = 1;
+	} else if (!strcmp("unlock", cmd_parameter)) {
+		lock_flag = 0;
+		lock_critical_flag = 0;
+	} else {
+		fastboot_fail("fastboot flshing cannot found cmd[%s]", response);
+		return;
+	}
+
+	flashing_erase("userdata", response);
+	flashing_erase("metadata", response);
+
+	ret = save_lock_flag(lock_flag, lock_critical_flag);
+	if (ret) {
+		fastboot_fail("save_lock_flag failed", response);
+	} else {
+		fastboot_okay(NULL, response);
+	}
+}

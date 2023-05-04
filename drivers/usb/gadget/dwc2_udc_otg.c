@@ -462,7 +462,8 @@ static void reconfig_usbd(struct dwc2_udc *dev)
 	debug("Reseting OTG controller\n");
 
 	dflt_gusbcfg =
-		0<<15		/* PHY Low Power Clock sel*/
+		1<<30		/* Force device mode*/
+		|0<<15		/* PHY Low Power Clock sel*/
 		|1<<14		/* Non-Periodic TxFIFO Rewind Enable*/
 		|0x5<<10	/* Turnaround time*/
 		|0<<9 | 0<<8	/* [0:HNP disable,1:HNP enable][ 0:SRP disable*/
@@ -706,7 +707,8 @@ static struct usb_request *dwc2_alloc_request(struct usb_ep *ep,
 					     gfp_t gfp_flags)
 {
 	struct dwc2_request *req;
-
+	//FIXME: Workaround for vs680, why need this?
+	mdelay(5);
 	debug("%s: %s %p\n", __func__, ep->name, ep);
 
 	req = memalign(CONFIG_SYS_CACHELINE_SIZE, sizeof(*req));

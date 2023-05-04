@@ -195,11 +195,10 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 	int i, j;
 	uchar *fb;
 	struct bmp_image *bmp = map_sysmem(bmp_image, 0);
-	uchar *bmap;
-	ushort padded_width;
+	uchar *bmap, *bmap_line;
 	unsigned long width, height, byte_width;
 	unsigned long pwidth = priv->xsize;
-	unsigned colours, bpix, bmp_bpix;
+	unsigned colours, bpix, bmp_bpix, bmp_byteperline;
 	struct bmp_color_table_entry *palette;
 	int hdr_size;
 
@@ -216,6 +215,7 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 	hdr_size = get_unaligned_le16(&bmp->header.size);
 	debug("hdr_size=%d, bmp_bpix=%d\n", hdr_size, bmp_bpix);
 	palette = (void *)bmp + 14 + hdr_size;
+	bmp_byteperline = (bmp_bpix * width + 31) / 32 * 4;
 
 	colours = 1 << bmp_bpix;
 
@@ -247,8 +247,6 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 	if (bmp_bpix == 8)
 		video_set_cmap(dev, palette, colours);
 
-	padded_width = (width & 0x3 ? (width & ~0x3) + 4 : width);
-
 	if (align) {
 		video_splash_align_axis(&x, priv->xsize, width);
 		video_splash_align_axis(&y, priv->ysize, height);
@@ -259,7 +257,7 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 	if ((y + height) > priv->ysize)
 		height = priv->ysize - y;
 
-	bmap = (uchar *)bmp + get_unaligned_le32(&bmp->header.data_offset);
+	bmap_line = (uchar *)bmp + get_unaligned_le32(&bmp->header.data_offset);
 	fb = (uchar *)(priv->fb +
 		(y + height - 1) * priv->line_length + x * bpix / 8);
 
@@ -289,6 +287,7 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 
 		for (i = 0; i < height; ++i) {
 			WATCHDOG_RESET();
+			bmap = bmap_line;
 			for (j = 0; j < width; j++) {
 				if (bpix != 16) {
 					fb_put_byte(&fb, &bmap);
@@ -298,7 +297,7 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 					fb += sizeof(uint16_t) / sizeof(*fb);
 				}
 			}
-			bmap += (padded_width - width);
+			bmap_line += bmp_byteperline;
 			fb -= byte_width + priv->line_length;
 		}
 		break;
@@ -307,46 +306,57 @@ int video_bmp_display(struct udevice *dev, ulong bmp_image, int x, int y,
 	case 16:
 		for (i = 0; i < height; ++i) {
 			WATCHDOG_RESET();
+			bmap = bmap_line;
 			for (j = 0; j < width; j++)
 				fb_put_word(&fb, &bmap);
 
-			bmap += (padded_width - width) * 2;
+			bmap_line += bmp_byteperline;
 			fb -= width * 2 + priv->line_length;
 		}
 		break;
 #endif /* CONFIG_BMP_16BPP */
-#if defined(CONFIG_BMP_24BPP)
+#if defined(CONFIG_BMP_24BMP) && defined(CONFIG_VIDEO_BPP32)
 	case 24:
 		for (i = 0; i < height; ++i) {
+			bmap = bmap_line;
 			for (j = 0; j < width; j++) {
-				if (bpix == 16) {
-					/* 16bit 555RGB format */
-					*(u16 *)fb = ((bmap[2] >> 3) << 10) |
-						((bmap[1] >> 3) << 5) |
-						(bmap[0] >> 3);
-					bmap += 3;
-					fb += 2;
-				} else {
+				if (priv->colour_format == VIDEO_COLOUR_FORMAT_ARGB) {
 					*(fb++) = *(bmap++);
 					*(fb++) = *(bmap++);
 					*(fb++) = *(bmap++);
 					*(fb++) = 0;
+				} else if (priv->colour_format == VIDEO_COLOUR_FORMAT_ABGR) {
+					*(fb++) = *(bmap + 2);
+					*(fb++) = *(bmap + 1);
+					*(fb++) = *(bmap);
+					*(fb++) = 0;
+					bmap += 3;
 				}
 			}
+			bmap_line += bmp_byteperline;
 			fb -= priv->line_length + width * (bpix / 8);
-			bmap += (padded_width - width) * 3;
 		}
 		break;
-#endif /* CONFIG_BMP_24BPP */
-#if defined(CONFIG_BMP_32BPP)
+#endif /* CONFIG_BMP_24BMP */
+#if defined(CONFIG_BMP_32BPP) && defined(CONFIG_VIDEO_BPP32)
 	case 32:
 		for (i = 0; i < height; ++i) {
+			bmap = bmap_line;
 			for (j = 0; j < width; j++) {
-				*(fb++) = *(bmap++);
-				*(fb++) = *(bmap++);
-				*(fb++) = *(bmap++);
-				*(fb++) = *(bmap++);
+				if (priv->colour_format == VIDEO_COLOUR_FORMAT_ARGB) {
+					*(fb++) = *(bmap++);
+					*(fb++) = *(bmap++);
+					*(fb++) = *(bmap++);
+					*(fb++) = *(bmap++);
+				} else if (priv->colour_format == VIDEO_COLOUR_FORMAT_ABGR) {
+					*(fb++) = *(bmap + 2);
+					*(fb++) = *(bmap + 1);
+					*(fb++) = *(bmap);
+					*(fb++) = *(bmap + 3);
+					bmap += 3;
+				}
 			}
+			bmap_line += bmp_byteperline;
 			fb -= priv->line_length + width * (bpix / 8);
 		}
 		break;

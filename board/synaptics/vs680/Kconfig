@@ -1,0 +1,9 @@
+if TARGET_VS680
+
+config SYS_BOARD
+	default "vs680"
+
+config SYS_CONFIG_NAME
+	default "vs680"
+
+endif

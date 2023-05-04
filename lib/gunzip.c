@@ -24,6 +24,15 @@
 #define COMMENT			0x10
 #define RESERVED		0xe0
 #define DEFLATED		8
+#define GZIP_MAGIC_NUMBER      0x8B1F
+
+int is_gzip_image(void *data)
+{
+	if ( ((u16 *)data)[0] == GZIP_MAGIC_NUMBER)
+		return 1;
+	else
+		return 0;
+}
 
 void *gzalloc(void *x, unsigned items, unsigned size)
 {

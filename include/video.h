@@ -41,6 +41,13 @@ enum video_log2_bpp {
 	VIDEO_BPP32,
 };
 
+#ifdef CONFIG_VIDEO_BPP32
+enum video_colour_format {
+	VIDEO_COLOUR_FORMAT_ARGB,
+	VIDEO_COLOUR_FORMAT_ABGR
+};
+#endif
+
 /*
  * Convert enum video_log2_bpp to bytes and bits. Note we omit the outer
  * brackets to allow multiplication by fractional pixels.
@@ -88,8 +95,11 @@ struct video_priv {
 	void *fb;
 	int fb_size;
 	int line_length;
-	u32 colour_fg;
-	u32 colour_bg;
+	int colour_fg;
+	int colour_bg;
+#ifdef CONFIG_VIDEO_BPP32
+	int colour_format;
+#endif
 	bool flush_dcache;
 	ushort *cmap;
 	u8 fg_col_idx;
@@ -98,6 +108,13 @@ struct video_priv {
 
 /* Placeholder - there are no video operations at present */
 struct video_ops {
+    /**
+     * flush() - call this operation when fb device need addition flush operation
+     *
+     * @dev:    Device to write to
+     * @return 0 if OK, -ve on error
+     */
+    int (*flush)(struct udevice *dev);
 };
 
 #define video_get_ops(dev)        ((struct video_ops *)(dev)->driver->ops)
@@ -127,6 +144,31 @@ int video_reserve(ulong *addrp);
  * @return 0
  */
 int video_clear(struct udevice *dev);
+
+/**
+ * video_fill() - fill specific region with specific colour
+ *
+ * @dev:	Device to fill colour
+ * @xstart:	X left margin for the region in pixels from the left
+ * @xsize:	X size for the region in pixels from the left
+ * @ystart:	Y top margin for the region in pixels from the top
+ * @ysize:	Y size for the region in pixels from the top
+ * @colour:	colour to be filled (pixel value)
+ * @return 0 if OK, -ve on error
+ */
+int video_fill(struct udevice *dev, int xstart, int xsize, int ystart, int ysize, int colour);
+
+/**
+ * video_colour_invert() - do colour invert in a specific region
+ *
+ * @dev:	Device to do colour invert
+ * @xstart:	X left margin for the region in pixels from the left
+ * @xsize:	X size for the region in pixels from the left
+ * @ystart:	Y top margin for the region in pixels from the top
+ * @ysize:	Y size for the region in pixels from the top
+ * @return 0 if OK, -ve on error
+ */
+int video_colour_invert(struct udevice *dev, int xstart, int xsize, int ystart, int ysize);
 
 /**
  * video_sync() - Sync a device's frame buffer with its hardware

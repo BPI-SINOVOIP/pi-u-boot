@@ -755,6 +755,12 @@ config MTK_SERIAL
 	  The High-speed UART is compatible with the ns16550a UART and have
 	  its own high-speed registers.
 
+config USBCONSOLE
+	bool "Synaptics usb console"
+	depends on USB_BOOT
+	help
+	  Use synaptics usb console
+
 config MPC8XX_CONS
 	bool "Console driver for MPC8XX"
 	depends on MPC8xx

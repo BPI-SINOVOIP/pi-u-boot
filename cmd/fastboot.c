@@ -143,7 +143,8 @@ NXTARG:
 		argc--;
 	}
 
-	return do_fastboot_usb(argc, argv, buf_addr, buf_size);
+	do_fastboot_usb(argc, argv, buf_addr, buf_size);
+	return 0;
 }
 
 #ifdef CONFIG_SYS_LONGHELP

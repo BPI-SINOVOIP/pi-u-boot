@@ -1,0 +1,94 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * Copyright (C) 2020 Synaptics Incorporated
+ *
+ * Author: Cheng Lu <Cheng.Lu@synaptics.com>
+ *
+ */
+
+/dts-v1/;
+
+#include "vs680.dtsi"
+#include "include/dt-bindings/gpio/gpio.h"
+#include "berlin-fastboot-gui.dtsi"
+
+/ {
+	model = "Synaptics VS680 FASTBOOT ELEKTRA";
+	compatible = "Synaptics,vs680", "Synaptics,asserial";
+	fastboot,product-name = "vs680";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x04100000 0 0x62f00000>;
+	};
+
+	fts {
+		compatible = "google,flash-ts-mmc";
+	};
+
+	chosen {
+                stdout-path = &smuart0;
+        };
+
+	fb_hdmi {
+		compatible = "fb,hdmi-5v-gpio";
+		hdmi-gpio = <&portd 16 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+
+};
+
+&sysmgr_pinctrl {
+	gmac_prstb: gmac_prstb {
+		groups = "SM_TDO";
+		function = "gpio";
+		drive-strength = <3>;
+	};
+};
+
+&pinctrl {
+	usb2_vbus_pmux: usb_vbus_pmux {
+		groups = "I2S2_DI0";
+		function = "gpio";
+	};
+};
+
+&CPU_SLEEP_0 {
+	status = "disabled";
+};
+
+&smuart0 {
+	status = "okay";
+};
+
+&phy0 {
+	reg = <0>;
+};
+
+&gmac0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac_prstb>;
+	max-speed = <1000>;
+	phy-mode = "rgmii-id";
+	phy-handle = <&phy0>;
+	phy = <&phy0>;
+	snps,reset-gpio = <&portd 8 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 50000>;
+};
+
+&sdhci2 {
+	status = "okay";
+	max-frequency = <50000000>;
+	cap-mmc-highspeed;
+	1_8v-signalling;
+};
+
+&usb_phy0 {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};

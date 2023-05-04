@@ -12,6 +12,7 @@ obj-$(CONFIG_ARCH_ATH79) += ath79/
 obj-$(CONFIG_ARCH_RMOBILE) += renesas/
 obj-$(CONFIG_PINCTRL_SANDBOX)	+= pinctrl-sandbox.o
 
+obj-$(CONFIG_PINCTRL_SYNAPTICS)	+= synaptics/
 obj-$(CONFIG_PINCTRL_UNIPHIER)	+= uniphier/
 obj-$(CONFIG_PINCTRL_PIC32)	+= pinctrl_pic32.o
 obj-$(CONFIG_PINCTRL_EXYNOS)	+= exynos/

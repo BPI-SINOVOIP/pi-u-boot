@@ -383,4 +383,10 @@ config MT7621_GPIO
 	help
 	  Say yes here to support MediaTek MT7621 compatible GPIOs.
 
+config FXL6408_GPIO
+	bool "FXL6408 I2C GPIO Expander driver"
+	depends on DM_GPIO && DM_I2C
+	help
+	  This option enables support for 8 GPIOs found
+	  on the Fairchild Semiconductor FXL6408.
 endmenu

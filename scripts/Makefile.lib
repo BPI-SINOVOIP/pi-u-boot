@@ -271,6 +271,24 @@ quiet_cmd_gzip = GZIP    $@
 cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -n -f -9 > $@) || \
 	(rm -f $@ ; false)
 
+# Generate an assembly file to wrap gzip data
+quiet_cmd_S_gzip= GZIP     $@
+# Modified for U-Boot
+cmd_S_gzip=						\
+(							\
+	echo '.section .rodata.gzip.init,"a"';		\
+	echo '.balign 16';				\
+	echo '.global __gzip_$(*F)_begin';		\
+	echo '__gzip_$(*F)_begin:';			\
+	echo '.incbin "$<" ';				\
+	echo '__gzip_$(*F)_end:';			\
+	echo '.global __gzip_$(*F)_end';		\
+	echo '.balign 16';				\
+) > $@
+
+$(obj)/%.S: $(src)/%.gz
+	$(call cmd,S_gzip)
+
 # DTC
 # ---------------------------------------------------------------------------
 

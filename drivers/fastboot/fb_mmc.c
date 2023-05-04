@@ -16,16 +16,19 @@
 #include <div64.h>
 #include <linux/compat.h>
 #include <android_image.h>
+#include <gzip.h>
 
 #define FASTBOOT_MAX_BLK_WRITE 16384
 
 #define BOOT_PARTITION_NAME "boot"
+extern int write_gzipped_sparse_image(struct sparse_storage *info,
+					const char *part_name, void *data, int len, char *response);
 
 struct fb_mmc_sparse {
 	struct blk_desc	*dev_desc;
 };
 
-static int part_get_info_by_name_or_alias(struct blk_desc *dev_desc,
+int part_get_info_by_name_or_alias(struct blk_desc *dev_desc,
 		const char *name, disk_partition_t *info)
 {
 	int ret;
@@ -388,12 +391,38 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 	}
 #endif
 
+#ifdef CONFIG_ARCH_SYNAPTICS
+	if ((strcmp(cmd, "bootloader") == 0) ||
+		 (strcmp(cmd, "bootloader1") == 0)) {
+		int ret = blk_dselect_hwpart(dev_desc, 1);
+		if (ret) {
+			printf("invalid mmc hwpart\n");
+			fastboot_fail("invalid mmc hwpart", response);
+			return;
+		}
+		info.start = 0;
+		info.size = dev_desc->lba;
+		info.blksz = dev_desc->blksz;
+		printf("%lx, %lx, %lx\n", info.start, info.size, info.blksz);
+	} else if (strcmp(cmd, "bootloader2") == 0) {
+		int ret = blk_dselect_hwpart(dev_desc, 2);
+		if (ret) {
+			printf("invalid mmc hwpart\n");
+			fastboot_fail("invalid mmc hwpart", response);
+			return;
+		}
+		info.start = 0;
+		info.size = dev_desc->lba;
+		info.blksz = dev_desc->blksz;
+		printf("%lx, %lx, %lx\n", info.start, info.size, info.blksz);
+	} else
+#endif
 #ifdef CONFIG_ANDROID_BOOT_IMAGE
 	if (strncasecmp(cmd, "zimage", 6) == 0) {
 		fb_mmc_update_zimage(dev_desc, download_buffer,
 				     download_bytes, response);
 		return;
-	}
+	} else
 #endif
 
 	if (part_get_info_by_name_or_alias(dev_desc, cmd, &info) < 0) {
@@ -424,6 +453,29 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 					 response);
 		if (!err)
 			fastboot_okay(NULL, response);
+	} else if (is_gzip_image(download_buffer)) {
+		struct sparse_storage sparse;
+		sparse.priv = dev_desc;
+		sparse.blksz = info.blksz;
+		sparse.start = info.start;
+		sparse.size = info.size;
+		sparse.write = fb_mmc_sparse_write;
+		sparse.reserve = fb_mmc_sparse_reserve;
+		sparse.mssg = fastboot_fail;
+		int ret = write_gzipped_sparse_image(&sparse, cmd, download_buffer,
+							download_bytes, response);
+		if (ret == 0) {
+			fastboot_okay("", response);
+		} else if(ret == -2){ // not sparse image but gzip image
+			if (gzwrite(download_buffer, download_bytes, dev_desc,
+				0x100000, info.start * 0x200, 0)) {
+				fastboot_fail("flashing gzip image failed", response);
+			} else {
+				fastboot_okay("", response);
+			}
+		} else {
+			fastboot_fail("flashing gzip sparse image failed", response);
+		}
 	} else {
 		write_raw_image(dev_desc, &info, cmd, download_buffer,
 				download_bytes, response);
@@ -457,6 +509,32 @@ void fastboot_mmc_erase(const char *cmd, char *response)
 		return;
 	}
 
+#ifdef CONFIG_ARCH_SYNAPTICS
+	if ((strcmp(cmd, "bootloader") == 0) ||
+		 (strcmp(cmd, "bootloader1") == 0)) {
+		ret = blk_dselect_hwpart(dev_desc, 1);
+		if (ret) {
+			printf("invalid mmc hwpart\n");
+			fastboot_fail("invalid mmc hwpart", response);
+			return;
+		}
+		info.start = 0;
+		info.size = dev_desc->lba;
+		info.blksz = dev_desc->blksz;
+		printf("%lx, %lx, %lx\n", info.start, info.size, info.blksz);
+	} else if (strcmp(cmd, "bootloader2") == 0) {
+		ret = blk_dselect_hwpart(dev_desc, 2);
+		if (ret) {
+			printf("invalid mmc hwpart\n");
+			fastboot_fail("invalid mmc hwpart", response);
+			return;
+		}
+		info.start = 0;
+		info.size = dev_desc->lba;
+		info.blksz = dev_desc->blksz;
+		printf("%lx, %lx, %lx\n", info.start, info.size, info.blksz);
+	} else
+#endif
 	ret = part_get_info_by_name_or_alias(dev_desc, cmd, &info);
 	if (ret < 0) {
 		pr_err("cannot find partition: '%s'\n", cmd);

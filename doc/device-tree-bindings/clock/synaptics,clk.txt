@@ -1,0 +1,41 @@
+* Synptics clock control unit
+
+By using he Synptics clock controller, various clock setting can be applied
+to controllers and peripherals within the SoC.
+
+Note: now we only support the source from syspll. will be supported later
+from avpll
+
+Required Properties:
+
+Clock:
+- compatible: should be "synaptics,generic-clock"
+- reg: clock control register physical base address and length
+- #clock-cells = <0>;
+- clk_src: now we only have syspll available
+- clk_div: the divder and the freq = (freq of src) / div
+	available value: 0(no div), 2, 3, 4, 6, 8, 12
+- clk_freq: aimed frequency
+
+Example: Clock controller node:
+
+	emmc_clk: emmc_clk {
+		compatible = "synaptics,generic-clock";
+		reg = <0xea0540 0x4>;
+		#clock-cells = <0>;
+		clk_div = <4>;
+		clk_src = <SRC_SYSPLL_CLKO1>;
+		clk_freq = <200000000>;
+	};
+
+Gate:
+- compatible: should be "synaptics,generic-gate"
+- reg: clock gate control register physical address and size
+- #clock-cells = <1>;
+
+Example: Gate controller node:
+	emmc_gate: emmc_gate {
+		compatible = "synaptics,generic-gate";
+		reg = <0xea0514 0x4>;
+		#clock-cells = <1>;
+	};

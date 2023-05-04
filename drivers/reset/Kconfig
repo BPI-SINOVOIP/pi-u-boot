@@ -127,4 +127,9 @@ config RESET_HISILICON
 	help
 	  Support for reset controller on HiSilicon SoCs.
 
+config RESET_SYNAPTICS
+	bool "Reset controller driver for Synaptcis SoCs"
+	depends on DM_RESET && ARCH_SYNAPTICS
+	help
+	  Support for reset controller on HiSilicon SoCs.
 endmenu

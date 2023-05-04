@@ -249,5 +249,6 @@ source "drivers/pinctrl/nxp/Kconfig"
 source "drivers/pinctrl/renesas/Kconfig"
 source "drivers/pinctrl/rockchip/Kconfig"
 source "drivers/pinctrl/uniphier/Kconfig"
+source "drivers/pinctrl/synaptics/Kconfig"
 
 endmenu

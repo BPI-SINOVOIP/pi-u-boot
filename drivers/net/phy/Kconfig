@@ -216,6 +216,9 @@ config RTL8211F_PHY_FORCE_EEE_RXC_ON
 config PHY_SMSC
 	bool  "Microchip(SMSC) Ethernet PHYs support"
 
+config PHY_SUNPLUS
+	bool  "SUNPLUS Ethernet PHY support"
+
 config PHY_TERANETICS
 	bool "Teranetics Ethernet PHYs support"
 

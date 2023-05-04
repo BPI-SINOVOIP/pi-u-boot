@@ -86,6 +86,96 @@ int video_reserve(ulong *addrp)
 	return 0;
 }
 
+int video_fill(struct udevice *dev, int xstart, int xsize, int ystart, int ysize, int colour)
+{
+	struct video_priv *priv = dev_get_uclass_priv(dev);
+	int i, row;
+
+	void *line = priv->fb + ystart * priv->line_length +
+		xstart * VNBYTES(priv->bpix);
+	for (row = 0; row < ysize; row++) {
+		switch (priv->bpix) {
+#ifdef CONFIG_VIDEO_BPP8
+		case VIDEO_BPP8: {
+			uint8_t *dst = line;
+
+			for (i = 0; i < xsize; i++)
+				*dst++ = colour;
+			break;
+		}
+#endif
+#ifdef CONFIG_VIDEO_BPP16
+		case VIDEO_BPP16: {
+			uint16_t *dst = line;
+
+			for (i = 0; i < xsize; i++)
+				*dst++ = colour;
+			break;
+		}
+#endif
+#ifdef CONFIG_VIDEO_BPP32
+		case VIDEO_BPP32: {
+			uint32_t *dst = line;
+
+			for (i = 0; i < xsize; i++)
+				*dst++ = colour;
+			break;
+		}
+#endif
+		default:
+			return -ENOSYS;
+		}
+		line += priv->line_length;
+	}
+	return 0;
+}
+
+int video_colour_invert(struct udevice *dev, int xstart, int xsize, int ystart, int ysize)
+{
+	struct video_priv *priv = dev_get_uclass_priv(dev);
+	int i, row;
+
+	void *line = priv->fb + ystart * priv->line_length +
+		xstart * VNBYTES(priv->bpix);
+	for (row = 0; row < ysize; row++) {
+		switch (priv->bpix) {
+#ifdef CONFIG_VIDEO_BPP8
+		case VIDEO_BPP8: {
+			uint8_t *dst = line;
+			uint8_t data;
+
+			for (i = 0; i < xsize; i++) {
+				data = *dst;
+				*dst++ = 255 - data;
+			}
+			break;
+		}
+#endif
+#ifdef CONFIG_VIDEO_BPP32
+		case VIDEO_BPP32: {
+			uint32_t *dst = line;
+			uint32_t data;
+			uint8_t *channel;
+
+			for (i = 0; i < xsize; i++) {
+				data = *dst;
+				channel = (uint8_t *)dst;
+				*channel++ = 255 - (data & 0xFF);
+				*channel++ = 255 - ((data >> 8) & 0xFF);
+				*channel++ = 255 - ((data >> 16) & 0xFF);
+				dst++;
+			}
+			break;
+		}
+#endif
+		default:
+			return -ENOSYS;
+		}
+		line += priv->line_length;
+	}
+	return 0;
+}
+
 int video_clear(struct udevice *dev)
 {
 	struct video_priv *priv = dev_get_uclass_priv(dev);
@@ -120,6 +210,9 @@ void video_set_default_colors(struct udevice *dev, bool invert)
 	struct video_priv *priv = dev_get_uclass_priv(dev);
 	int fore, back;
 
+    void *blob = (void *)gd->fdt_blob;
+    int node = dev_of_offset(dev);
+
 #ifdef CONFIG_SYS_WHITE_ON_BLACK
 	/* White is used when switching to bold, use light gray here */
 	fore = VID_LIGHT_GRAY;
@@ -128,6 +221,7 @@ void video_set_default_colors(struct udevice *dev, bool invert)
 	fore = VID_BLACK;
 	back = VID_WHITE;
 #endif
+
 	if (invert) {
 		int temp;
 
@@ -139,11 +233,19 @@ void video_set_default_colors(struct udevice *dev, bool invert)
 	priv->bg_col_idx = back;
 	priv->colour_fg = vid_console_color(priv, fore);
 	priv->colour_bg = vid_console_color(priv, back);
+
+    /* Set up colours - we could in future support other colours */
+    priv->colour_fg = fdtdec_get_int(blob, node, "colour-fg", priv->colour_fg);
+    priv->colour_bg = fdtdec_get_int(blob, node, "colour-bg", priv->colour_bg);
+    priv->fg_col_idx = vid_console_color_index(priv, priv->colour_fg);
+    priv->bg_col_idx = vid_console_color_index(priv, priv->colour_bg);
 }
 
 /* Flush video activity to the caches */
 void video_sync(struct udevice *vid, bool force)
 {
+    struct video_ops *ops = video_get_ops(vid);
+
 	/*
 	 * flush_dcache_range() is declared in common.h but it seems that some
 	 * architectures do not actually implement it. Is there a way to find
@@ -166,6 +268,9 @@ void video_sync(struct udevice *vid, bool force)
 		last_sync = get_timer(0);
 	}
 #endif
+    if (ops->flush) {
+        ops->flush(vid);
+    }
 }
 
 void video_sync_all(void)
@@ -220,8 +325,6 @@ static int video_post_probe(struct udevice *dev)
 {
 	struct video_uc_platdata *plat = dev_get_uclass_platdata(dev);
 	struct video_priv *priv = dev_get_uclass_priv(dev);
-	char name[30], drv[15], *str;
-	const char *drv_name = drv;
 	struct udevice *cons;
 	int ret;
 
@@ -238,43 +341,19 @@ static int video_post_probe(struct udevice *dev)
 	if (!CONFIG_IS_ENABLED(NO_FB_CLEAR))
 		video_clear(dev);
 
-	/*
-	 * Create a text console device. For now we always do this, although
-	 * it might be useful to support only bitmap drawing on the device
-	 * for boards that don't need to display text. We create a TrueType
-	 * console if enabled, a rotated console if the video driver requests
-	 * it, otherwise a normal console.
-	 *
-	 * The console can be override by setting vidconsole_drv_name before
-	 * probing this video driver, or in the probe() method.
-	 *
-	 * TrueType does not support rotation at present so fall back to the
-	 * rotated console in that case.
-	 */
-	if (!priv->rot && IS_ENABLED(CONFIG_CONSOLE_TRUETYPE)) {
-		snprintf(name, sizeof(name), "%s.vidconsole_tt", dev->name);
-		strcpy(drv, "vidconsole_tt");
-	} else {
-		snprintf(name, sizeof(name), "%s.vidconsole%d", dev->name,
-			 priv->rot);
-		snprintf(drv, sizeof(drv), "vidconsole%d", priv->rot);
-	}
+	for (device_find_first_child(dev, &cons);
+	     cons != NULL;
+	     device_find_next_child(&cons)) {
+		if (cons->driver->id != UCLASS_VIDEO_CONSOLE) {
+			debug("%s: Child node is not binded to video console driver\n", __func__);
+			continue;
+		}
 
-	str = strdup(name);
-	if (!str)
-		return -ENOMEM;
-	if (priv->vidconsole_drv_name)
-		drv_name = priv->vidconsole_drv_name;
-	ret = device_bind_driver(dev, drv_name, str, &cons);
-	if (ret) {
-		debug("%s: Cannot bind console driver\n", __func__);
-		return ret;
-	}
-
-	ret = device_probe(cons);
-	if (ret) {
-		debug("%s: Cannot probe console driver\n", __func__);
-		return ret;
+		ret = device_probe(cons);
+		if (ret) {
+			debug("%s: Cannot probe console driver\n", __func__);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -302,7 +381,7 @@ static int video_post_bind(struct udevice *dev)
 	      __func__, size, addr, dev->name);
 	gd->video_bottom = addr;
 
-	return 0;
+	return dm_scan_fdt_dev(dev);
 }
 
 UCLASS_DRIVER(video) = {

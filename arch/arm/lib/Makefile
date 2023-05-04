@@ -51,6 +51,7 @@ else ifdef CONFIG_ARM64
 obj-$(CONFIG_FSL_LAYERSCAPE) += ccn504.o
 ifneq ($(CONFIG_GICV2)$(CONFIG_GICV3),)
 obj-y	+= gic_64.o
+obj-y	+= gic_v2.o
 endif
 obj-y	+= interrupts_64.o
 else

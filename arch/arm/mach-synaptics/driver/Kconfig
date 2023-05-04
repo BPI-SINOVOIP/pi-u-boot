@@ -1,0 +1,5 @@
+menu "Synaptics driver support"
+source "arch/arm/mach-synaptics/driver/nand/Kconfig"
+source "arch/arm/mach-synaptics/driver/fts/Kconfig"
+source "arch/arm/mach-synaptics/driver/fastboot/Kconfig"
+endmenu
