@@ -78,6 +78,8 @@ unsigned long tz_nw_get_mem_region_list(
 
 unsigned long tz_nw_rpmb_config_enable(void *fastcall_param, unsigned long parame_length);
 
+unsigned long tz_nw_rpmb_ops(void *fastcall_param, unsigned long param_length);
+
 /*
  * Bellow are for Linux
  */

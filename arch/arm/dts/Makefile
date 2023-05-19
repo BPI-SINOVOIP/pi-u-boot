@@ -819,6 +819,7 @@ dtb-$(CONFIG_TARGET_VS640) += vs640-fpga.dtb
 dtb-$(CONFIG_TARGET_VS640) += vs640-evk.dtb
 dtb-$(CONFIG_TARGET_VS640) += vs640-pek.dtb
 dtb-$(CONFIG_TARGET_VS640) += vs640-fastboot.dtb
+dtb-$(CONFIG_TARGET_VS640) += vs640-usbboot.dtb
 dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fpga.dtb
 dtb-$(CONFIG_TARGET_VS680_A0) += vs680-spi.dtb
 dtb-$(CONFIG_TARGET_VS680_A0) += vs680-usbboot.dtb

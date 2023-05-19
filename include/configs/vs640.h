@@ -19,10 +19,12 @@
 #define CONFIG_SYS_LOAD_ADDR		0xcf00000
 #define CONFIG_SYS_AUTOLOAD		"n"			/* disable autoload image via tftp after dhcp */
 
-
+//max malloc length is 1GB for VS640 fpga
+#ifdef CONFIG_SYNA_FASTBOOT
 #define CONFIG_SYS_MALLOC_LEN		(960 << 20)
-
-//#define CONFIG_SYS_MALLOC_F_LEN		(4 << 20) /* Serial is required before relocation */
+#else
+#define CONFIG_SYS_MALLOC_LEN		(1880 << 20)
+#endif
 
 #define CONFIG_SYS_FLASH_BASE		0xF0000000
 #define CONFIG_SYS_MAX_FLASH_BANKS		1

@@ -109,7 +109,11 @@ void init_ion_noncacheable_mempool(void)
 void get_mem_region_list_from_tz(void)
 {
 	int i;
-	region_count = tz_nw_get_mem_region_list(mem, MAX_REGION_COUNT, 0, 0);
+	struct mem_region *mem_r = (struct mem_region*)0x04600000;
+	region_count = tz_nw_get_mem_region_list(mem_r, MAX_REGION_COUNT, 0, 0);
+
+	memcpy(mem, mem_r, sizeof(struct mem_region) * region_count);
+
 	for(i=0;i<region_count;i++)
 		dbg_printf(PRN_RES, "pool[%d]: name: %s, base =0x%08x, size = 0x%08x, attr = 0x%08x, userdata0 = 0x%08x \n",
 		i, mem[i].name, mem[i].base, mem[i].size, mem[i].attr, mem[i].userdata[0]);

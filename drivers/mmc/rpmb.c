@@ -14,6 +14,11 @@
 #include <u-boot/sha256.h>
 #include "mmc_private.h"
 
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_RPMB_LOCK)
+#include "syna_rpmb.h"
+#include "tz_nw_boot.h"
+#endif
+
 /* Request codes */
 #define RPMB_REQ_KEY		1
 #define RPMB_REQ_WCOUNTER	2
@@ -295,6 +300,11 @@ int mmc_rpmb_write(struct mmc *mmc, void *addr, unsigned short blk,
 	ALLOC_CACHE_ALIGN_BUFFER(struct s_rpmb, rpmb_frame, 1);
 	unsigned long wcount;
 	int i;
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_RPMB_LOCK)
+	struct s_rpmb *rpmb_tz;
+	int rpmb_fastcall_generic_param_size = sizeof(struct rpmb_fastcall_generic_param);
+	struct rpmb_fastcall_generic_param *pGenericCallParam = (struct rpmb_fastcall_generic_param *)malloc_ion_cacheable(rpmb_fastcall_generic_param_size);
+#endif
 
 	for (i = 0; i < cnt; i++) {
 		if (mmc_rpmb_get_counter(mmc, &wcount)) {
@@ -302,16 +312,45 @@ int mmc_rpmb_write(struct mmc *mmc, void *addr, unsigned short blk,
 			break;
 		}
 
-		/* Fill the request */
-		memset(rpmb_frame, 0, sizeof(struct s_rpmb));
-		memcpy(rpmb_frame->data, addr + i * RPMB_SZ_DATA, RPMB_SZ_DATA);
-		rpmb_frame->address = cpu_to_be16(blk + i);
-		rpmb_frame->block_count = cpu_to_be16(1);
-		rpmb_frame->write_counter = cpu_to_be32(wcount);
-		rpmb_frame->request = cpu_to_be16(RPMB_REQ_WRITE_DATA);
-		/* Computes HMAC */
-		rpmb_hmac(key, rpmb_frame->data, 284, rpmb_frame->mac);
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_RPMB_LOCK)
+		if (key) {
+#endif
+			/* Fill the request */
+			memset(rpmb_frame, 0, sizeof(struct s_rpmb));
+			memcpy(rpmb_frame->data, addr + i * RPMB_SZ_DATA, RPMB_SZ_DATA);
+			rpmb_frame->address = cpu_to_be16(blk + i);
+			rpmb_frame->block_count = cpu_to_be16(1);
+			rpmb_frame->write_counter = cpu_to_be32(wcount);
+			rpmb_frame->request = cpu_to_be16(RPMB_REQ_WRITE_DATA);
+			/* Computes HMAC */
+			rpmb_hmac(key, rpmb_frame->data, 284, rpmb_frame->mac);
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_RPMB_LOCK)
+		} else {
+			/* SMC to Compute HMAC */
+			memset((void *)pGenericCallParam, 0x00, rpmb_fastcall_generic_param_size);
+			rpmb_tz = &pGenericCallParam->rpmb_param.frame;
 
+			memcpy(rpmb_tz->data, addr + i * RPMB_SZ_DATA, RPMB_SZ_DATA);
+
+			rpmb_tz->address = cpu_to_be16(blk + i);
+			rpmb_tz->block_count = cpu_to_be16(1);
+			rpmb_tz->write_counter = cpu_to_be32(wcount);
+			rpmb_tz->request = cpu_to_be16(RPMB_REQ_WRITE_DATA);
+
+			debug("INFO: Fastcall to PACK RPMB Frame!\n");
+			pGenericCallParam->sub_cmd_id = RPMB_FAST_CALL_SUB_ID;
+			pGenericCallParam->rpmb_param.rpmb_sub_cmd = RPMB_FRAME_PACK_CMD;
+			pGenericCallParam->param_len = sizeof(struct rpmb_fastcall_param);
+
+			if (tz_nw_rpmb_ops((void *)pGenericCallParam, rpmb_fastcall_generic_param_size)) {
+				debug("INFO: Fastcall to PACK RPMB Frame fail !\n");
+				break;
+			}
+			debug("INFO: Fastcall to PACK RPMB Frame Done!\n");
+
+			memcpy(rpmb_frame, rpmb_tz, sizeof(struct s_rpmb));
+		}
+#endif
 		if (mmc_rpmb_request(mmc, rpmb_frame, 1, true))
 			break;
 
@@ -319,6 +358,11 @@ int mmc_rpmb_write(struct mmc *mmc, void *addr, unsigned short blk,
 		if (mmc_rpmb_status(mmc, RPMB_RESP_WRITE_DATA))
 			break;
 	}
+
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_RPMB_LOCK)
+	free_ion_cacheable(pGenericCallParam);
+#endif
+
 	return i;
 }
 

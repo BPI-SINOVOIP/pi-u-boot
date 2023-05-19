@@ -2,4 +2,16 @@ menu "Synaptics driver support"
 source "arch/arm/mach-synaptics/driver/nand/Kconfig"
 source "arch/arm/mach-synaptics/driver/fts/Kconfig"
 source "arch/arm/mach-synaptics/driver/fastboot/Kconfig"
+
+choice
+	prompt "Synaptics GEN2/GENX flow select"
+
+config SYNA_GEN2_FLOW
+	bool "Synaptics GEN2 flow"
+	select USB_BOOT
+
+config SYNA_GENX_FLOW
+	bool "Synaptics GENX flow"
+	select USB_BOOT
+endchoice
 endmenu

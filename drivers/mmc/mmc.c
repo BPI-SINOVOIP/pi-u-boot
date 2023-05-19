@@ -33,6 +33,9 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint card_caps);
 
 static int mmc_wait_dat0(struct mmc *mmc, int state, int timeout_us)
 {
+	if (mmc->cfg->ops->wait_dat0)
+		return mmc->cfg->ops->wait_dat0(mmc, state, timeout_us);
+
 	return -ENOSYS;
 }
 
@@ -659,12 +662,15 @@ static int mmc_send_op_cond_iter(struct mmc *mmc, int use_arg)
 static int mmc_send_op_cond(struct mmc *mmc)
 {
 	int err, i;
+	int timeout = 1000;
+	uint start;
 
 	/* Some cards seem to need this */
 	mmc_go_idle(mmc);
 
- 	/* Asking to the card its capabilities */
-	for (i = 0; i < 2; i++) {
+	start = get_timer(0);
+	/* Asking to the card its capabilities */
+	for (i = 0; ; i++) {
 		err = mmc_send_op_cond_iter(mmc, i != 0);
 		if (err)
 			return err;
@@ -672,6 +678,10 @@ static int mmc_send_op_cond(struct mmc *mmc)
 		/* exit if not busy (flag seems to be inverted) */
 		if (mmc->ocr & OCR_BUSY)
 			break;
+
+		if (get_timer(start) > timeout)
+			return -ETIMEDOUT;
+		udelay(100);
 	}
 	mmc->op_cond_pending = 1;
 	return 0;
@@ -787,8 +797,13 @@ static int __mmc_switch(struct mmc *mmc, u8 set, u8 index, u8 value,
 	 * capable of polling by using mmc_wait_dat0, then rely on waiting the
 	 * stated timeout to be sufficient.
 	 */
-	if (ret == -ENOSYS && !send_status)
+	if (ret == -ENOSYS && !send_status) {
 		mdelay(timeout_ms);
+		return 0;
+	}
+
+	if (!send_status)
+		return 0;
 
 	/* Finally wait until the card is ready or indicates a failure
 	 * to switch. It doesn't hurt to use CMD13 here even if send_status
@@ -803,7 +818,11 @@ static int __mmc_switch(struct mmc *mmc, u8 set, u8 index, u8 value,
 				 value);
 			return -EIO;
 		}
-		if (!ret && (status & MMC_STATUS_RDY_FOR_DATA))
+		/* After issuing the switch command: Wait until 'current state' of the card
+			status becomes 'tran'. This prevents from response timeout at the next
+			command because of 'current state' = 'data'. */
+		if (!ret && (status & MMC_STATUS_RDY_FOR_DATA) &&
+		    (status & MMC_STATUS_CURR_STATE) == MMC_STATE_TRANS)
 			return 0;
 		udelay(100);
 	} while (get_timer(start) < timeout_ms);
@@ -1126,9 +1145,11 @@ int mmc_hwpart_config(struct mmc *mmc,
 
 		ext_csd[EXT_CSD_ERASE_GROUP_DEF] = 1;
 
+#if CONFIG_IS_ENABLED(MMC_WRITE)
 		/* update erase group size to be high-capacity */
 		mmc->erase_grp_size =
 			ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] * 1024;
+#endif
 
 	}
 
@@ -1444,6 +1465,21 @@ static int sd_read_ssr(struct mmc *mmc)
 	cmd.cmdarg = mmc->rca << 16;
 
 	err = mmc_send_cmd(mmc, &cmd, NULL);
+#ifdef CONFIG_MMC_QUIRKS
+	if (err && (mmc->quirks & MMC_QUIRK_RETRY_APP_CMD)) {
+		int retries = 4;
+		/*
+		 * It has been seen that APP_CMD may fail on the first
+		 * attempt, let's try a few more times
+		 */
+		do {
+			err = mmc_send_cmd(mmc, &cmd, NULL);
+			if (!err)
+				break;
+		} while (retries--);
+	}
+#endif
+
 	if (err)
 		return err;
 
@@ -1937,6 +1973,10 @@ static int mmc_select_hs400(struct mmc *mmc)
 	/* Set back to HS */
 	mmc_set_card_speed(mmc, MMC_HS, true);
 
+	err = mmc_hs400_prepare_ddr(mmc);
+	if (err)
+		return err;
+
 	err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BUS_WIDTH,
 			 EXT_CSD_BUS_WIDTH_8 | EXT_CSD_DDR_FLAG);
 	if (err)
@@ -2038,14 +2078,16 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint card_caps)
 	}
 
 #if CONFIG_IS_ENABLED(MMC_HS200_SUPPORT) || \
-    CONFIG_IS_ENABLED(MMC_HS400_SUPPORT)
+    CONFIG_IS_ENABLED(MMC_HS400_SUPPORT) || \
+    CONFIG_IS_ENABLED(MMC_HS400_ES_SUPPORT)
 	/*
 	 * In case the eMMC is in HS200/HS400 mode, downgrade to HS mode
 	 * before doing anything else, since a transition from either of
 	 * the HS200/HS400 mode directly to legacy mode is not supported.
 	 */
 	if (mmc->selected_mode == MMC_HS_200 ||
-	    mmc->selected_mode == MMC_HS_400)
+	    mmc->selected_mode == MMC_HS_400 ||
+	    mmc->selected_mode == MMC_HS_400_ES)
 		mmc_set_card_speed(mmc, MMC_HS, true);
 	else
 #endif
@@ -2667,8 +2709,11 @@ static void mmc_set_initial_state(struct mmc *mmc)
 
 	/* First try to set 3.3V. If it fails set to 1.8V */
 	err = mmc_set_signal_voltage(mmc, MMC_SIGNAL_VOLTAGE_330);
-	if (err != 0)
+	if (err != 0) {
 		err = mmc_set_signal_voltage(mmc, MMC_SIGNAL_VOLTAGE_180);
+		pr_warn("set 3.3v failed,try set 1.8v\n");
+	}
+
 	if (err != 0)
 		pr_warn("mmc: failed to set signal voltage\n");
 
@@ -2740,7 +2785,8 @@ int mmc_get_op_cond(struct mmc *mmc)
 
 #ifdef CONFIG_MMC_QUIRKS
 	mmc->quirks = MMC_QUIRK_RETRY_SET_BLOCKLEN |
-		      MMC_QUIRK_RETRY_SEND_CID;
+		      MMC_QUIRK_RETRY_SEND_CID |
+		      MMC_QUIRK_RETRY_APP_CMD;
 #endif
 
 	err = mmc_power_cycle(mmc);
@@ -2904,7 +2950,7 @@ int mmc_deinit(struct mmc *mmc)
 		return sd_select_mode_and_width(mmc, caps_filtered);
 	} else {
 		caps_filtered = mmc->card_caps &
-			~(MMC_CAP(MMC_HS_200) | MMC_CAP(MMC_HS_400));
+			~(MMC_CAP(MMC_HS_200) | MMC_CAP(MMC_HS_400) | MMC_CAP(MMC_HS_400_ES));
 
 		return mmc_select_mode_and_width(mmc, caps_filtered);
 	}

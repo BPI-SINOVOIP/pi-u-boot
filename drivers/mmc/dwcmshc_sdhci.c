@@ -34,6 +34,13 @@ DECLARE_GLOBAL_DATA_PTR;
 #define PHY_CNFG_REG   0x300
 #define PHY_CNFG_PHY_PWRGOOD_MASK 0x2
 
+#define PHY_SDCLKDL_DC  0x31e
+#define CCKDL_DC_MSK	0x7f
+
+#define PHY_SDCLKDL_CNFG 0x31d
+#define EXTDLY_EN		(1 << 0)
+#define UPDATE_DC       (1 << 4)
+
 /*PHY PAD GENERAL modes */
 #define PAD_SP_8    0x8
 #define PAD_SP_9    0x9
@@ -47,6 +54,50 @@ typedef struct {
 	unsigned int sp_value;
 	unsigned int sn_value;
 } PHY_PAD_GENERAL;
+
+// BG7 PHY RXSEL config structure
+typedef struct {
+	unsigned int addr;
+	unsigned int bit;
+	unsigned int mask;
+	unsigned int value;
+} PHY_RXSEL;
+
+/* PHY WEAKPULL_EN modes */
+#define WPE_DISABLE  0x0
+#define WPE_PULLUP   0x1
+#define WPE_PULLDOWN 0x2
+// BG7 PHY WEAKPULL_EN config structure
+typedef struct {
+	unsigned int addr;
+	unsigned int bit;
+	unsigned int mask;
+	unsigned int value;
+} PHY_WEAKPULL_EN;
+
+/* PHY TXSLEW_CTRL_P modes */
+#define TX_SLEW_P_0    0x0
+#define TX_SLEW_P_2    0x2
+#define TX_SLEW_P_3    0x3
+// BG7 PHY TXSLEW_CTRL_P config structure
+typedef struct {
+	unsigned int addr;
+	unsigned int bit;
+	unsigned int mask;
+	unsigned int value;
+} PHY_TXSLEW_CTRL_P;
+
+/* PHY TXSLEW_CTRL_N modes */
+#define TX_SLEW_N_2    0x2
+#define TX_SLEW_N_3    0x3
+// BG7 PHY TXSLEW_CTRL_N config structure
+typedef struct {
+	unsigned int addr;
+	unsigned int bit;
+	unsigned int mask;
+	unsigned int value;
+} PHY_TXSLEW_CTRL_N;
+
 
 struct phy_setting{
 	unsigned int addr;
@@ -63,11 +114,102 @@ struct dwcmshc_sdhci_plat {
 	struct phy_setting * phy_setting;
 };
 
+/* PHY RX SEL modes */
+#define RXSELOFF        0x0
+#define SCHMITT1P8		0x1
+#define SCHMITT3P3		0x2
+#define SCHMITT1P2		0x3
+#define COMPARATOR1P8		0x4
+#define COMPARATOR1P2		0x5
+#define COMPARATOR1P82		0x6
+#define INTERNALLPBK		0x7
+
+
 /* 1v8 default PHY config */
 PHY_PAD_GENERAL pad_general_1v8 =
 {
 	0x300, 16, 20, 0xF, PAD_SP_8, PAD_SN_8
 };
+
+PHY_RXSEL pad_rxsel_1v8[5] =
+{
+/*CMD*/	{0x304, 0, 	0x7, SCHMITT1P8},
+/*DAT*/	{0x304, 16, 	0x7, SCHMITT1P8},
+/*CLK*/	{0x308, 0, 	0x7, RXSELOFF},
+/*STB*/	{0x308, 16, 	0x7, SCHMITT1P8},
+/*RST*/	{0x30C, 0, 	0x7, SCHMITT1P8}
+};
+
+PHY_WEAKPULL_EN pad_weakpull_en_1v8[5] =
+{
+/*CMD*/	{0x304, 0 + 3, 	0x3, WPE_PULLUP},
+/*DAT*/	{0x304, 16 + 3, 	0x3, WPE_PULLUP},
+/*CLK*/	{0x308, 0 + 3, 	0x3, WPE_DISABLE},
+/*STB*/	{0x308, 16 + 3, 	0x3, WPE_PULLDOWN},
+/*RST*/	{0x30C, 0 + 3, 	0x3, WPE_PULLUP}
+};
+
+PHY_TXSLEW_CTRL_P pad_txslew_ctrl_p_1v8[5] =
+{
+/*CMD*/ {0x304, 0 + 5,	0xF, TX_SLEW_P_0},
+/*DAT*/ {0x304, 16 + 5, 	0xF, TX_SLEW_P_0},
+/*CLK*/ {0x308, 0 + 5,	0xF, TX_SLEW_P_0},
+/*STB*/ {0x308, 16 + 5, 	0xF, TX_SLEW_P_0},
+/*RST*/ {0x30C, 0 + 5,	0xF, TX_SLEW_P_0}
+};
+
+PHY_TXSLEW_CTRL_N pad_txslew_ctrl_n_1v8[5] =
+{
+/*CMD*/ {0x304, 0 + 9,	0xF, TX_SLEW_N_3},
+/*DAT*/ {0x304, 16 + 9, 	0xF, TX_SLEW_N_3},
+/*CLK*/ {0x308, 0 + 9,	0xF, TX_SLEW_N_3},
+/*STB*/ {0x308, 16 + 9, 	0xF, TX_SLEW_N_3},
+/*RST*/ {0x30C, 0 + 9,	0xF, TX_SLEW_N_3}
+};
+
+
+/* 3v3 default PHY config */
+PHY_PAD_GENERAL pad_general_3v3 =
+{
+	0x300, 16, 20, 0xF, PAD_SP_9, PAD_SN_8
+};
+
+PHY_RXSEL pad_rxsel_3v3[5] =
+{
+/*CMD*/	{0x304, 0, 	0x7, SCHMITT3P3},
+/*DAT*/	{0x304, 16, 	0x7, SCHMITT3P3},
+/*CLK*/	{0x308, 0, 	0x7, RXSELOFF},
+/*STB*/	{0x308, 16, 	0x7, SCHMITT3P3},
+/*RST*/	{0x30C, 0, 	0x7, SCHMITT3P3}
+};
+
+PHY_WEAKPULL_EN pad_weakpull_en_3v3[5] =
+{
+/*CMD*/	{0x304, 0 + 3, 	0x3, WPE_PULLUP},
+/*DAT*/	{0x304, 16 + 3, 	0x3, WPE_PULLUP},
+/*CLK*/	{0x308, 0 + 3, 	0x3, WPE_DISABLE},
+/*STB*/	{0x308, 16 + 3, 	0x3, WPE_PULLDOWN},
+/*RST*/	{0x30C, 0 + 3, 	0x3, WPE_PULLUP}
+};
+
+PHY_TXSLEW_CTRL_P pad_txslew_ctrl_p_3v3[5] =
+{
+/*CMD*/ {0x304, 0 + 5,	0xF, TX_SLEW_P_3},
+/*DAT*/ {0x304, 16 + 5, 	0xF, TX_SLEW_P_3},
+/*CLK*/ {0x308, 0 + 5,	0xF, TX_SLEW_P_3},
+/*STB*/ {0x308, 16 + 5, 	0xF, TX_SLEW_P_3},
+/*RST*/ {0x30C, 0 + 5,	0xF, TX_SLEW_P_3}
+};
+
+PHY_TXSLEW_CTRL_N pad_txslew_ctrl_n_3v3[5] =
+{
+/*CMD*/ {0x304, 0 + 9,	0xF, TX_SLEW_N_2},
+/*DAT*/ {0x304, 16 + 9, 	0xF, TX_SLEW_N_2},
+/*CLK*/ {0x308, 0 + 9,	0xF, TX_SLEW_N_2},
+/*STB*/ {0x308, 16 + 9, 	0xF, TX_SLEW_N_2},
+/*RST*/ {0x30C, 0 + 9,	0xF, TX_SLEW_N_2}
+};
+
 
 int dwcmsh_PHYconfig(struct sdhci_host *host, struct phy_setting *ps, int num)
 {
@@ -106,26 +248,318 @@ void dwcmsh_PHYreset(struct sdhci_host *host, int rst)
 	sdhci_writel(host, val, PHY_CNFG_REG);
 }
 
+static int dwcmsh_phy_switch_power(struct sdhci_host *host)
+{
+	int tmout=100, ret=0;
+	int i;
+	volatile unsigned int val;
+
+	if(host->mmc->signal_voltage == MMC_SIGNAL_VOLTAGE_180)
+	{
+		//config PHY_CNFG, general configuration
+	    //Dolphin_BG7_PHY_bring_up_sequence.xlsx
+	    //step 10
+		val = sdhci_readl(host, pad_general_1v8.addr);
+		val &= ~(pad_general_1v8.mask<<pad_general_1v8.sp_bit);
+		val |= (pad_general_1v8.sp_value<<pad_general_1v8.sp_bit);
+		val &= ~(pad_general_1v8.mask<<pad_general_1v8.sn_bit);
+		val |= (pad_general_1v8.sn_value<<pad_general_1v8.sn_bit);
+		sdhci_writel(host, val, pad_general_1v8.addr);
+
+		//Dolphin_BG7_PHY_bring_up_sequence.xlsx
+		//step 11~15
+		for(i=0; i<5; i++)
+		{
+			//config PHY RXSEL
+			val = sdhci_readl(host, pad_rxsel_1v8[i].addr);
+			val &= ~(pad_rxsel_1v8[i].mask<<pad_rxsel_1v8[i].bit);
+			val |= (pad_rxsel_1v8[i].value<<pad_rxsel_1v8[i].bit);
+			sdhci_writel(host, val, pad_rxsel_1v8[i].addr);
+
+
+			//config PHY WEAKPULL_EN
+			val = sdhci_readl(host, pad_weakpull_en_1v8[i].addr);
+			val &= ~(pad_weakpull_en_1v8[i].mask<<pad_weakpull_en_1v8[i].bit);
+			val |= (pad_weakpull_en_1v8[i].value<<pad_weakpull_en_1v8[i].bit);
+			sdhci_writel(host, val, pad_weakpull_en_1v8[i].addr);
+			//config PHY TXSLEW_CTRL_P
+			val = sdhci_readl(host, pad_txslew_ctrl_p_1v8[i].addr);
+			val &= ~(pad_txslew_ctrl_p_1v8[i].mask<<pad_txslew_ctrl_p_1v8[i].bit);
+			val |= (pad_txslew_ctrl_p_1v8[i].value<<pad_txslew_ctrl_p_1v8[i].bit);
+			sdhci_writel(host, val, pad_txslew_ctrl_p_1v8[i].addr);
+
+			//config PHY TXSLEW_CTRL_N
+			val = sdhci_readl(host, pad_txslew_ctrl_n_1v8[i].addr);
+			val &= ~(pad_txslew_ctrl_n_1v8[i].mask<<pad_txslew_ctrl_n_1v8[i].bit);
+			val |= (pad_txslew_ctrl_n_1v8[i].value<<pad_txslew_ctrl_n_1v8[i].bit);
+			sdhci_writel(host, val, pad_txslew_ctrl_n_1v8[i].addr);
+		}
+	}
+	else if(host->mmc->signal_voltage == MMC_SIGNAL_VOLTAGE_330)
+	{
+		//config PHY_CNFG, general configuration
+	    //Dolphin_BG7_PHY_bring_up_sequence.xlsx
+	    //step 10
+		val = sdhci_readl(host, pad_general_3v3.addr);
+		val &= ~(pad_general_3v3.mask<<pad_general_3v3.sp_bit);
+		val |= (pad_general_3v3.sp_value<<pad_general_3v3.sp_bit);
+		val &= ~(pad_general_3v3.mask<<pad_general_3v3.sn_bit);
+		val |= (pad_general_3v3.sn_value<<pad_general_3v3.sn_bit);
+		sdhci_writel(host, val, pad_general_3v3.addr);
+
+		//Dolphin_BG7_PHY_bring_up_sequence.xlsx
+		//step 11~15
+		for(i=0; i<5; i++)
+		{
+			//config PHY RXSEL
+			val = sdhci_readl(host, pad_rxsel_3v3[i].addr);
+			val &= ~(pad_rxsel_3v3[i].mask<<pad_rxsel_3v3[i].bit);
+			val |= (pad_rxsel_3v3[i].value<<pad_rxsel_3v3[i].bit);
+			sdhci_writel(host, val, pad_rxsel_3v3[i].addr);
+
+
+			//config PHY WEAKPULL_EN
+			val = sdhci_readl(host, pad_weakpull_en_3v3[i].addr);
+			val &= ~(pad_weakpull_en_3v3[i].mask<<pad_weakpull_en_3v3[i].bit);
+			val |= (pad_weakpull_en_3v3[i].value<<pad_weakpull_en_3v3[i].bit);
+			sdhci_writel(host, val, pad_weakpull_en_3v3[i].addr);
+
+			//config PHY TXSLEW_CTRL_P
+			val = sdhci_readl(host, pad_txslew_ctrl_p_3v3[i].addr);
+			val &= ~(pad_txslew_ctrl_p_3v3[i].mask<<pad_txslew_ctrl_p_3v3[i].bit);
+			val |= (pad_txslew_ctrl_p_3v3[i].value<<pad_txslew_ctrl_p_3v3[i].bit);
+			sdhci_writel(host, val, pad_txslew_ctrl_p_3v3[i].addr);
+
+			//config PHY TXSLEW_CTRL_N
+			val = sdhci_readl(host, pad_txslew_ctrl_n_3v3[i].addr);
+			val &= ~(pad_txslew_ctrl_n_3v3[i].mask<<pad_txslew_ctrl_n_3v3[i].bit);
+			val |= (pad_txslew_ctrl_n_3v3[i].value<<pad_txslew_ctrl_n_3v3[i].bit);
+			sdhci_writel(host, val, pad_txslew_ctrl_n_3v3[i].addr);
+		}
+	}
+	else
+	{
+		printf("EMMC PHY's Power signal_voltage %d not support!", host->mmc->signal_voltage);
+
+	}
+
+    //wait for PHY powergood
+    //Dolphin_BG7_PHY_bring_up_sequence.xlsx
+    //step 16
+	do {
+		val = sdhci_readl(host, PHY_CNFG_REG);
+		if(val & PHY_CNFG_PHY_PWRGOOD_MASK)
+			break;
+
+		mdelay(1);
+		if(!tmout) {
+			printf("EMMC PHY's PowerGood status is not ready !\n");
+			ret = -1;
+		}
+	}while(!ret && tmout--);
+
+	return ret;
+}
+
+static void dwcmshc_set_phy_tx_delay(struct sdhci_host *host, u8 delay)
+{
+	u8 valb, valdc;
+
+	valb = sdhci_readb(host, PHY_SDCLKDL_CNFG);
+	valb |= UPDATE_DC;
+	sdhci_writeb(host, valb, PHY_SDCLKDL_CNFG);
+
+	valdc = sdhci_readb(host, PHY_SDCLKDL_DC);
+	valdc &= ~CCKDL_DC_MSK;
+	valdc |= delay;
+	sdhci_writeb(host, valdc, PHY_SDCLKDL_DC);
+
+	//disable extdelay£¬from diag
+	valb = sdhci_readb(host, PHY_SDCLKDL_CNFG);
+	valb &= ~EXTDLY_EN;
+	sdhci_writeb(host, valb, PHY_SDCLKDL_CNFG);
+
+	valb = sdhci_readb(host, PHY_SDCLKDL_CNFG);
+	valb &= ~UPDATE_DC;
+	sdhci_writeb(host, valb, PHY_SDCLKDL_CNFG);
+}
+
+
 static void dwcmshc_sdhci_set_control_reg(struct sdhci_host *host)
 {
-	u32 reg;
+	volatile unsigned int val = 0;
+	u8 delay = 0;
 
-	if(host->mmc->signal_voltage == MMC_SIGNAL_VOLTAGE_180) {
-		reg = sdhci_readw(host, SDHCI_HOST_CONTROL2);
-		reg |= SDHCI_CTRL_VDD_180;
-		sdhci_writew(host, reg, SDHCI_HOST_CONTROL2);
-	}
+	//disable SD_CLK
+	val = sdhci_readw(host, SDHCI_EMMC_CTRL_OFFSET);
+	sdhci_writew(host, val & ~(0x1 << 2), SDHCI_EMMC_CTRL_OFFSET);
 
-	if(host->mmc->selected_mode == MMC_HS_52) {
-		reg = sdhci_readw(host, SDHCI_HOST_CONTROL2);
-		reg &= ~SDHCI_CTRL_UHS_MASK;
-		reg |= HIGH_SPEED_BUS_SPEED;
-		sdhci_writew(host, reg, SDHCI_HOST_CONTROL2);
-	}
+	//switch_phy_power
+	dwcmsh_phy_switch_power(host);
+
+	//set delay line
+	if(host->mmc->selected_mode == UHS_SDR104)
+		delay = 75; //val copy from kernel
+
+	if(delay)
+		dwcmshc_set_phy_tx_delay(host, delay);
+
+	sdhci_set_control_reg(host);
+
+	//recover SD_CLK
+	sdhci_writew(host, val, SDHCI_EMMC_CTRL_OFFSET);
+
+	return;
 }
+
+
+void dwcmshc_sdhci_reset_tuning(struct sdhci_host *host)
+{
+	u16 ctrl;
+
+	ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	ctrl &= ~SDHCI_CTRL_TUNED_CLK;
+	ctrl &= ~SDHCI_CTRL_EXEC_TUNING;
+	sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
+}
+
+#if TUNING_FUNCTION_OK //so far,tuning is not work,comment for build error
+
+#define SDHCI_TUNING_LOOP_COUNT	40
+
+static int dwcmshc_sdhci_execute_tuning(struct mmc *mmc, u8 opcode)
+{
+	struct sdhci_host *host = (struct sdhci_host *)mmc->priv;
+	char tuning_loop_counter = SDHCI_TUNING_LOOP_COUNT;
+	struct mmc_cmd cmd;
+	u32 ctrl, blk_size, val, i, int_en, signal_en;
+	u16 clk;
+	int ret = -1;
+
+
+	printf("opcode %d\n", opcode);
+
+	//1.prepare
+	dwcmshc_sdhci_reset_tuning(host);
+	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	sdhci_writew(host, clk & ~SDHCI_CLOCK_CARD_EN, SDHCI_CLOCK_CONTROL);
+	val = sdhci_readl(host, PHY_AT_CTRL_R);
+	val &= ~SWIN_TH_EN;
+	val &= ~RPT_TUNE_ERR;
+	val |= AT_EN;
+	sdhci_writel(host, PHY_AT_CTRL_R, val);
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+
+	//2. start tuning
+	ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	ctrl |= SDHCI_CTRL_EXEC_TUNING;
+	sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
+
+	int_en = sdhci_readl(host, SDHCI_INT_ENABLE);
+	signal_en = sdhci_readl(host, SDHCI_SIGNAL_ENABLE);
+
+	sdhci_writel(host, SDHCI_INT_DATA_AVAIL, SDHCI_INT_ENABLE);
+	sdhci_writel(host, SDHCI_INT_DATA_AVAIL, SDHCI_SIGNAL_ENABLE);
+
+
+	/*
+	 * In response to CMD19, the card sends 64 bytes of tuning
+	 * block to the Host Controller. So we set the block size
+	 * to 64 here.
+	 */
+
+	blk_size = SDHCI_MAKE_BLKSZ(SDHCI_DEFAULT_BOUNDARY_ARG, 64);
+	if (opcode == MMC_CMD_SEND_TUNING_BLOCK_HS200 && host->mmc->bus_width == 8)
+		blk_size = SDHCI_MAKE_BLKSZ(SDHCI_DEFAULT_BOUNDARY_ARG, 128);
+	sdhci_writew(host, blk_size, SDHCI_BLOCK_SIZE);
+
+	/*
+	 * The tuning block is sent by the card to the host controller.
+	 * So we set the TRNS_READ bit in the Transfer Mode register.
+	 * This also takes care of setting DMA Enable and Multi Block
+	 * Select in the same register to 0.
+	 */
+	sdhci_writew(host, SDHCI_TRNS_READ, SDHCI_TRANSFER_MODE);
+
+	cmd.cmdidx = opcode;
+	cmd.resp_type = MMC_RSP_R1;
+	cmd.cmdarg = 0;
+
+	for(i = 0; i < tuning_loop_counter; i++) {
+
+		mmc_send_cmd(mmc, &cmd, NULL);
+
+		mdelay(1);
+
+		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+		if (!(ctrl & SDHCI_CTRL_EXEC_TUNING)) {
+			if (ctrl & SDHCI_CTRL_TUNED_CLK) {
+				ret = 0; /* Success! */
+				printf("tuning Success\n");
+			}
+			else {
+				dwcmshc_sdhci_reset_tuning(host);
+				ret = -1;
+				printf("tuning failed\n");
+				break;
+			}
+		}
+	}
+
+#if 0
+	do {
+		if (tuning_loop_counter-- == 0)
+			break;
+
+		mmc_send_cmd(mmc, &cmd, NULL);
+
+		if (opcode == MMC_CMD_SEND_TUNING_BLOCK)
+			/*
+			 * For tuning command, do not do busy loop. As tuning
+			 * is happening (CLK-DATA latching for setup/hold time
+			 * requirements), give time to complete
+			 */
+			mdelay(1);
+
+		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	} while (ctrl & SDHCI_CTRL_EXEC_TUNING);
+
+	if (!(ctrl & SDHCI_CTRL_TUNED_CLK)) {
+		printf("%s:Tuning failed\n", __func__);
+		ret = -EIO;
+	}
+
+	if (tuning_loop_counter < 0) {
+		ctrl &= ~SDHCI_CTRL_TUNED_CLK;
+		sdhci_writel(host, ctrl, SDHCI_HOST_CONTROL2);
+	}
+
+
+	/* Enable only interrupts served by the SD controller */
+	sdhci_writel(host, SDHCI_INT_DATA_MASK | SDHCI_INT_CMD_MASK, SDHCI_INT_ENABLE);
+	/* Mask all sdhci interrupt sources */
+	sdhci_writel(host, 0x0, SDHCI_SIGNAL_ENABLE);
+#endif
+
+	//3.restor interrupts,end tuning
+	sdhci_writel(host, int_en, SDHCI_INT_ENABLE);
+	sdhci_writel(host, signal_en, SDHCI_SIGNAL_ENABLE);
+
+#if 0
+	/* Enable only interrupts served by the SD controller */
+	sdhci_writel(host, SDHCI_INT_DATA_MASK | SDHCI_INT_CMD_MASK, SDHCI_INT_ENABLE);
+	/* Mask all sdhci interrupt sources */
+	sdhci_writel(host, 0x0, SDHCI_SIGNAL_ENABLE);
+#endif
+
+
+	return ret;
+}
+#endif
 
 const struct sdhci_ops dwcmshc_ops = {
 	.set_control_reg = &dwcmshc_sdhci_set_control_reg,
+	//.platform_execute_tuning = &dwcmshc_sdhci_execute_tuning,
 };
 
 static void dwcmshc_sdhci_reset(struct dwcmshc_sdhci_plat *plat,
@@ -235,6 +669,17 @@ static int dwcmshc_sdhci_probe(struct udevice *dev)
 	host->quirks = SDHCI_QUIRK_NO_1_8_V;
 	if (dev_read_bool(dev, "1_8v-signalling"))
 		host->mmc->signal_voltage = MMC_SIGNAL_VOLTAGE_180;
+	if (dev_read_bool(dev, "3_3v-signalling"))
+		host->mmc->signal_voltage = MMC_SIGNAL_VOLTAGE_330;
+
+
+#ifdef CONFIG_DM_GPIO
+		struct gpio_desc desc;
+		ret = gpio_request_by_name(dev, "snps,select-sd-gpio", 0,
+			&desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
+		if(ret)
+			printf("snps,select-sd-gpio error,ret is %d\n", ret);
+#endif
 
 	ret = sdhci_setup_cfg(&plat->cfg, host, plat->cfg.f_max, 0);
 	if (ret)
@@ -251,12 +696,21 @@ static int dwcmshc_sdhci_probe(struct udevice *dev)
 	if(plat->num_phy_setting && plat->phy_setting) {
 		SDHC_PHYDelayLineSetup(dev);
 		SDHC_PHYTuningSetup(dev);
-		val = sdhci_readl(host, pad_general_1v8.addr);
-		val &= ~(pad_general_1v8.mask<<pad_general_1v8.sp_bit);
-		val |= (pad_general_1v8.sp_value<<pad_general_1v8.sp_bit);
-		val &= ~(pad_general_1v8.mask<<pad_general_1v8.sn_bit);
-		val |= (pad_general_1v8.sn_value<<pad_general_1v8.sn_bit);
-		sdhci_writel(host, val, pad_general_1v8.addr);
+		if(MMC_SIGNAL_VOLTAGE_180 == host->mmc->signal_voltage) {
+			val = sdhci_readl(host, pad_general_1v8.addr);
+			val &= ~(pad_general_1v8.mask<<pad_general_1v8.sp_bit);
+			val |= (pad_general_1v8.sp_value<<pad_general_1v8.sp_bit);
+			val &= ~(pad_general_1v8.mask<<pad_general_1v8.sn_bit);
+			val |= (pad_general_1v8.sn_value<<pad_general_1v8.sn_bit);
+			sdhci_writel(host, val, pad_general_1v8.addr);
+		} else if(MMC_SIGNAL_VOLTAGE_330 == host->mmc->signal_voltage) {
+			val = sdhci_readl(host, pad_general_3v3.addr);
+			val &= ~(pad_general_3v3.mask<<pad_general_3v3.sp_bit);
+			val |= (pad_general_3v3.sp_value<<pad_general_3v3.sp_bit);
+			val &= ~(pad_general_3v3.mask<<pad_general_3v3.sn_bit);
+			val |= (pad_general_3v3.sn_value<<pad_general_3v3.sn_bit);
+			sdhci_writel(host, val, pad_general_3v3.addr);
+		}
 		ret = dwcmsh_PHYconfig(host, plat->phy_setting, plat->num_phy_setting);
 		dwcmsh_PHYreset(host, 1);
 	}

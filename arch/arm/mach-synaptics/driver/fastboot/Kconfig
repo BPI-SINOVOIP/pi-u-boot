@@ -56,5 +56,12 @@ config SYNA_FASTBOOT_AB
 	select SYNA_BOOTFLAG_IN_FTS
 	help
 	  select this indicate that AB flow boot_ctrl Hal is enabled
+
+config SYNA_FASTBOOT_RPMB_LOCK
+	bool "Fastboot store lock flag in rpmb"
+	depends on FASTBOOT
+	select SUPPORT_EMMC_RPMB
+	help
+	  select this indicate that AB flow boot_ctrl Hal is enabled
 endmenu
 

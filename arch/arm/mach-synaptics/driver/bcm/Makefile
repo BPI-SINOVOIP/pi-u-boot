@@ -1,3 +1,3 @@
 # SPDX-License-Identifier:	GPL-2.0
 
-obj-$(CONFIG_USB_BOOT)	+= bcm_hal.o
+obj-$(CONFIG_SYNA_GEN2_FLOW)	+= bcm_hal.o

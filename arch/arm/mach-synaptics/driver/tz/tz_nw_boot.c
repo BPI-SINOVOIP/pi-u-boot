@@ -120,6 +120,11 @@ unsigned long tz_nw_rpmb_config_enable(void *fastcall_param, unsigned long param
 	return __smc(TOS_BOOT(TOS_BOOT_GENERAL_FASTCALL), fastcall_param, param_length, 0);
 }
 
+unsigned long tz_nw_rpmb_ops(void *fastcall_param, unsigned long param_length)
+{
+	return __smc(TOS_BOOT(TOS_BOOT_GENERAL_FASTCALL), fastcall_param, param_length, 0);
+}
+
 int tz_nw_outer_cache_enable(void)
 {
 	return __smc(SMC_FUNC_TOS_OUTER_CACHE_ENABLE, 0, 0, 0);

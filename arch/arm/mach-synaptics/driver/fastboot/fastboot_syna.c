@@ -45,6 +45,18 @@
 #define MISC_VIRTUAL_AB_MAGIC_HEADER              (0x56740AB0)
 
 
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_RPMB_LOCK)
+/* store lock flag in eMMC RPMB partition */
+#define FASTBOOT_LOCKFLAG_EMMC_DEV	0
+#define FASTBOOT_LOCKFLAG_RPMB_BLK_CNT	1
+
+#define RPMB_UNLOCK_FLAG	(0xa5)
+#define RPMB_AVB_MAGIC		(0x55595a59)
+#define RPMB_BLK_SIZE		(256)
+
+/* put flag info before Android RPMB blocks */
+#define ANDROID_RPMB_AVB_BLKS 8
+#endif
 
 /*
  * EP_BUFFER_SIZE must always be an integral multiple of maxpacket size
@@ -73,6 +85,15 @@ struct frp_lock_flag {
 	unsigned char lock_flag;
 };
 
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_RPMB_LOCK)
+struct rpmb_lock_flag {
+	uint32_t magic;
+	unsigned char reserve1[1];
+	unsigned char unlock;
+	unsigned char reserve2[250];
+} __attribute__((packed));
+#endif
+
 // Holds Virtual A/B merge status information. Current version is 1. New fields
 // must be added to the end.
 struct __attribute__((__packed__)) misc_virtual_ab_message {
@@ -91,6 +112,47 @@ extern bool devinfo_exist;  //devinfo partition exist
 
 int get_lock_flag(unsigned int *lock_flag, unsigned int *lock_critical_flag)
 {
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_RPMB_LOCK)
+	int ret = 0;
+	int rpmb_lock_flag_blk = 0;
+	struct rpmb_lock_flag p;
+	struct mmc *mmc = find_mmc_device(FASTBOOT_LOCKFLAG_EMMC_DEV);
+
+	if (!mmc) {
+		pr_err("fastboot no mmc device at slot %x\n", FASTBOOT_LOCKFLAG_EMMC_DEV);
+		return -1;
+	}
+
+	if (mmc_init(mmc)) {
+		pr_err("fastboot mmc device %x init failed\n", FASTBOOT_LOCKFLAG_EMMC_DEV);
+		return -1;
+	}
+
+	if (blk_select_hwpart_devnum(IF_TYPE_MMC, FASTBOOT_LOCKFLAG_EMMC_DEV, MMC_PART_RPMB)) {
+		pr_err("fastboot Failed to select mmc RPMB part on device %x\n", FASTBOOT_LOCKFLAG_EMMC_DEV);
+		return -1;
+	}
+
+	if (mmc->capacity_rpmb <= ANDROID_RPMB_AVB_BLKS * RPMB_BLK_SIZE) {
+		pr_err("fastboot PMB size error on mmc device %x\n", FASTBOOT_LOCKFLAG_EMMC_DEV);
+		return -1;
+	}
+	rpmb_lock_flag_blk = (mmc->capacity_rpmb/RPMB_BLK_SIZE) - ANDROID_RPMB_AVB_BLKS;
+
+	memset(&p, 0, sizeof(struct rpmb_lock_flag));
+	ret = mmc_rpmb_read(mmc, &p, rpmb_lock_flag_blk, FASTBOOT_LOCKFLAG_RPMB_BLK_CNT, NULL);
+	if (ret != FASTBOOT_LOCKFLAG_RPMB_BLK_CNT) {
+		pr_err("fastboot RPMB read failed\n");
+		return -1;
+	}
+
+	debug("fastboot RPMB read magic[%x] lock_flag[%x]\n", p.magic, p.unlock);
+
+	*lock_flag = (p.magic == RPMB_AVB_MAGIC && p.unlock == RPMB_UNLOCK_FLAG) ? 0 : 1;
+	*lock_critical_flag = (p.magic == RPMB_AVB_MAGIC && p.unlock == RPMB_UNLOCK_FLAG) ? 0 : 1;
+
+	return 0;
+#else
 	int ret = 0;
 
 	if (!lock_flag || !lock_critical_flag)
@@ -152,10 +214,63 @@ int get_lock_flag(unsigned int *lock_flag, unsigned int *lock_critical_flag)
 			p.lock_flag, p.lock_critical_flag);
 	}
 	return 0;
+#endif
 }
 
 int save_lock_flag(unsigned int lock_flag, unsigned lock_critical_flag)
 {
+#if CONFIG_IS_ENABLED(SYNA_FASTBOOT_RPMB_LOCK)
+	int ret = 0;
+	struct rpmb_lock_flag p;
+	int rpmb_lock_flag_blk = 0;
+	struct mmc *mmc = find_mmc_device(FASTBOOT_LOCKFLAG_EMMC_DEV);
+
+	if (!mmc) {
+		pr_err("fastboot no mmc device at slot %x\n", FASTBOOT_LOCKFLAG_EMMC_DEV);
+		return -1;
+	}
+
+	if (mmc_init(mmc)) {
+		pr_err("fastboot mmc device %x init failed\n", FASTBOOT_LOCKFLAG_EMMC_DEV);
+		return -1;
+	}
+
+	if (blk_select_hwpart_devnum(IF_TYPE_MMC, FASTBOOT_LOCKFLAG_EMMC_DEV, MMC_PART_RPMB)) {
+		pr_err("fastboot Failed to select mmc RPMB part on device %x\n", FASTBOOT_LOCKFLAG_EMMC_DEV);
+		return -1;
+	}
+
+	if (mmc->capacity_rpmb <= ANDROID_RPMB_AVB_BLKS * RPMB_BLK_SIZE) {
+		pr_err("fastboot PMB size error on mmc device %x\n", FASTBOOT_LOCKFLAG_EMMC_DEV);
+		return -1;
+	}
+	rpmb_lock_flag_blk = (mmc->capacity_rpmb/RPMB_BLK_SIZE) - ANDROID_RPMB_AVB_BLKS;
+
+	/* read rpmb_lock_flag struct from rpmb */
+	memset(&p, 0, sizeof(struct rpmb_lock_flag));
+	ret = mmc_rpmb_read(mmc, &p, rpmb_lock_flag_blk, FASTBOOT_LOCKFLAG_RPMB_BLK_CNT, NULL);
+	if (ret != FASTBOOT_LOCKFLAG_RPMB_BLK_CNT) {
+		pr_err("fastboot RPMB read failed\n");
+		return -1;
+	}
+
+	if (p.magic != RPMB_AVB_MAGIC) {
+		debug("fastboot, magic number is invalid, keep as is\n");
+		return 0;
+	}
+
+	if (p.unlock == (lock_flag ? 0 : RPMB_UNLOCK_FLAG)) {
+		debug("fastboot, unlock status is OK\n");
+		return 0;
+	}
+	p.unlock = lock_flag ? 0 : RPMB_UNLOCK_FLAG;
+
+	ret = mmc_rpmb_write(mmc, &p, rpmb_lock_flag_blk, FASTBOOT_LOCKFLAG_RPMB_BLK_CNT, NULL);
+	if (ret != FASTBOOT_LOCKFLAG_RPMB_BLK_CNT)
+		return -1;
+
+	debug("fastboot RPMB save lock_flag[%x]\n",	p.unlock);
+#else
 	int ret = 0;
 	struct oem_lock_flag p;
 	memset(&p, 0, sizeof(struct oem_lock_flag));
@@ -213,6 +328,8 @@ int save_lock_flag(unsigned int lock_flag, unsigned lock_critical_flag)
 		debug("fastboot frp save lock_flag[%x] lock_critical_flag[%x]\n",
 			p.lock_flag, p.lock_critical_flag);
 	}
+#endif
+
 #if CONFIG_IS_ENABLED(SYNA_FASTBOOT_GUI_ENABLE)
 	update_gui_lock_state(lock_flag, lock_critical_flag);
 #endif

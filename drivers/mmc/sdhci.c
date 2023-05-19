@@ -15,6 +15,7 @@
 #include <sdhci.h>
 #include <dm.h>
 
+#include <power/regulator.h>
 #if defined(CONFIG_FIXED_SDHCI_ALIGNED_BUFFER)
 void *aligned_buffer = (void *)CONFIG_FIXED_SDHCI_ALIGNED_BUFFER;
 #else
@@ -306,7 +307,23 @@ static int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 		flags = SDHCI_CMD_RESP_LONG;
 	else if (cmd->resp_type & MMC_RSP_BUSY) {
 		flags = SDHCI_CMD_RESP_SHORT_BUSY;
-		if (data)
+/*
+https://source.denx.de/u-boot/
+
+Commit 4a3ea75d
+authored 1 year ago by Yuezhang.Mo@sony.com's avatar Yuezhang.Mo@sony.com Committed by Peng Fan 1 year ago
+Revert "mmc: sdhci: set to INT_DATA_END when there are data"
+
+This reverts commit 17ea3c86
+
+In eMMC specification, for the response-with-busy(R1b, R5b)
+command, the DAT0 will driven to LOW as BUSY status, and in
+sdhci specification, the transfer complete bit should be wait
+for BUSY status de-assert.
+
+All response-with-busy commands don't contain data, the data
+judgement is no need.
+*/
 			mask |= SDHCI_INT_DATA_END;
 	} else
 		flags = SDHCI_CMD_RESP_SHORT;
@@ -414,6 +431,7 @@ int sdhci_set_clock(struct mmc *mmc, unsigned int clock)
 {
 	struct sdhci_host *host = mmc->priv;
 	unsigned int div, clk = 0, timeout;
+	int ret;
 
 	/* Wait max 20 ms */
 	timeout = 200;
@@ -434,8 +452,13 @@ int sdhci_set_clock(struct mmc *mmc, unsigned int clock)
 	if (clock == 0)
 		return 0;
 
-	if (host->ops && host->ops->set_delay)
-		host->ops->set_delay(host);
+	if (host->ops && host->ops->set_delay) {
+		ret = host->ops->set_delay(host);
+		if (ret) {
+			printf("%s: Error while setting tap delay\n", __func__);
+			return ret;
+		}
+	}
 
 	if (SDHCI_GET_VERSION(host) >= SDHCI_SPEC_300) {
 		/*
@@ -555,11 +578,109 @@ void sdhci_set_uhs_timing(struct sdhci_host *host)
 	case MMC_HS_200:
 		reg |= SDHCI_CTRL_UHS_SDR104;
 		break;
+	case MMC_HS_400:
+	case MMC_HS_400_ES:
+		reg |= SDHCI_CTRL_HS400;
+		break;
 	default:
 		reg |= SDHCI_CTRL_UHS_SDR12;
 	}
 
 	sdhci_writew(host, reg, SDHCI_HOST_CONTROL2);
+}
+
+static void sdhci_set_voltage(struct sdhci_host *host)
+{
+	if (IS_ENABLED(CONFIG_MMC_IO_VOLTAGE)) {
+		struct mmc *mmc = (struct mmc *)host->mmc;
+		u32 ctrl;
+
+		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+
+		switch (mmc->signal_voltage) {
+		case MMC_SIGNAL_VOLTAGE_330:
+#if CONFIG_IS_ENABLED(DM_REGULATOR)
+			if (mmc->vqmmc_supply) {
+				if (regulator_set_enable_if_allowed(mmc->vqmmc_supply, false)) {
+					pr_err("failed to disable vqmmc-supply\n");
+					return;
+				}
+
+				if (regulator_set_value(mmc->vqmmc_supply, 3300000)) {
+					pr_err("failed to set vqmmc-voltage to 3.3V\n");
+					return;
+				}
+
+				if (regulator_set_enable_if_allowed(mmc->vqmmc_supply, true)) {
+					pr_err("failed to enable vqmmc-supply\n");
+					return;
+				}
+			}
+#endif
+			if (IS_SD(mmc)) {
+				ctrl &= ~SDHCI_CTRL_VDD_180;
+				sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
+			}
+
+			/* Wait for 5ms */
+			mdelay(5);
+
+			/* 3.3V regulator output should be stable within 5 ms */
+			if (IS_SD(mmc)) {
+				if (ctrl & SDHCI_CTRL_VDD_180) {
+					pr_err("3.3V regulator output did not become stable\n");
+					return;
+				}
+			}
+
+			break;
+		case MMC_SIGNAL_VOLTAGE_180:
+#if CONFIG_IS_ENABLED(DM_REGULATOR)
+			if (mmc->vqmmc_supply) {
+				if (regulator_set_enable_if_allowed(mmc->vqmmc_supply, false)) {
+					pr_err("failed to disable vqmmc-supply\n");
+					return;
+				}
+
+				if (regulator_set_value(mmc->vqmmc_supply, 1800000)) {
+					pr_err("failed to set vqmmc-voltage to 1.8V\n");
+					return;
+				}
+
+				if (regulator_set_enable_if_allowed(mmc->vqmmc_supply, true)) {
+					pr_err("failed to enable vqmmc-supply\n");
+					return;
+				}
+			}
+#endif
+			if (IS_SD(mmc)) {
+				ctrl |= SDHCI_CTRL_VDD_180;
+				sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
+			}
+
+			/* Wait for 5 ms */
+			mdelay(5);
+
+			/* 1.8V regulator output has to be stable within 5 ms */
+			if (IS_SD(mmc)) {
+				if (!(ctrl & SDHCI_CTRL_VDD_180)) {
+					pr_err("1.8V regulator output did not become stable\n");
+					return;
+				}
+			}
+
+			break;
+		default:
+			/* No signal voltage switch required */
+			return;
+		}
+	}
+}
+
+void sdhci_set_control_reg(struct sdhci_host *host)
+{
+	sdhci_set_voltage(host);
+	sdhci_set_uhs_timing(host);
 }
 
 #ifdef CONFIG_DM_MMC
@@ -572,6 +693,7 @@ static int sdhci_set_ios(struct mmc *mmc)
 #endif
 	u32 ctrl;
 	struct sdhci_host *host = mmc->priv;
+	bool no_hispd_bit = false;
 
 	if (host->ops && host->ops->set_control_reg)
 		host->ops->set_control_reg(host);
@@ -599,14 +721,27 @@ static int sdhci_set_ios(struct mmc *mmc)
 			ctrl &= ~SDHCI_CTRL_4BITBUS;
 	}
 
-	if (mmc->clock > 26000000)
-		ctrl |= SDHCI_CTRL_HISPD;
-	else
-		ctrl &= ~SDHCI_CTRL_HISPD;
-
 	if ((host->quirks & SDHCI_QUIRK_NO_HISPD_BIT) ||
-	    (host->quirks & SDHCI_QUIRK_BROKEN_HISPD_MODE))
+	    (host->quirks & SDHCI_QUIRK_BROKEN_HISPD_MODE)) {
 		ctrl &= ~SDHCI_CTRL_HISPD;
+		no_hispd_bit = true;
+	}
+
+	if (!no_hispd_bit) {
+		if (mmc->selected_mode == MMC_HS ||
+		    mmc->selected_mode == SD_HS ||
+		    mmc->selected_mode == MMC_DDR_52 ||
+		    mmc->selected_mode == MMC_HS_200 ||
+		    mmc->selected_mode == MMC_HS_400 ||
+		    mmc->selected_mode == MMC_HS_400_ES ||
+		    mmc->selected_mode == UHS_SDR25 ||
+		    mmc->selected_mode == UHS_SDR50 ||
+		    mmc->selected_mode == UHS_SDR104 ||
+		    mmc->selected_mode == UHS_DDR50)
+			ctrl |= SDHCI_CTRL_HISPD;
+		else
+			ctrl &= ~SDHCI_CTRL_HISPD;
+	}
 
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 
@@ -690,12 +825,47 @@ int sdhci_get_cd(struct udevice *dev)
 		return value;
 }
 
+static int sdhci_wait_dat0(struct udevice *dev, int state,
+			   int timeout_us)
+{
+	int tmp;
+	struct mmc *mmc = mmc_get_mmc_dev(dev);
+	struct sdhci_host *host = mmc->priv;
+	unsigned long timeout = timer_get_us() + timeout_us;
+
+	// readx_poll_timeout is unsuitable because sdhci_readl accepts
+	// two arguments
+	do {
+		tmp = sdhci_readl(host, SDHCI_PRESENT_STATE);
+		if (!!(tmp & SDHCI_DATA_0_LVL_MASK) == !!state)
+			return 0;
+	} while (!timeout_us || !time_after(timer_get_us(), timeout));
+
+	return -ETIMEDOUT;
+}
+
+#if CONFIG_IS_ENABLED(MMC_HS400_ES_SUPPORT)
+static int sdhci_set_enhanced_strobe(struct udevice *dev)
+{
+	struct mmc *mmc = mmc_get_mmc_dev(dev);
+	struct sdhci_host *host = mmc->priv;
+
+	if (host->ops && host->ops->set_enhanced_strobe)
+		return host->ops->set_enhanced_strobe(host);
+
+	return -ENOTSUPP;
+}
+#endif
 const struct dm_mmc_ops sdhci_ops = {
 	.send_cmd	= sdhci_send_command,
 	.set_ios	= sdhci_set_ios,
 	.get_cd		= sdhci_get_cd,
 #ifdef MMC_SUPPORTS_TUNING
 	.execute_tuning	= sdhci_execute_tuning,
+#endif
+	.wait_dat0	= sdhci_wait_dat0,
+#if CONFIG_IS_ENABLED(MMC_HS400_ES_SUPPORT)
+	.set_enhanced_strobe = sdhci_set_enhanced_strobe,
 #endif
 };
 #else
@@ -814,7 +984,10 @@ int sdhci_setup_cfg(struct mmc_config *cfg, struct sdhci_host *host,
 	if (host->quirks & SDHCI_QUIRK_BROKEN_VOLTAGE)
 		cfg->voltages |= host->voltages;
 
-	cfg->host_caps |= MMC_MODE_HS | MMC_MODE_HS_52MHz | MMC_MODE_4BIT;
+	if (caps & SDHCI_CAN_DO_HISPD)
+		cfg->host_caps |= MMC_MODE_HS | MMC_MODE_HS_52MHz;
+
+	cfg->host_caps |= MMC_MODE_4BIT;
 
 	/* Since Host Controller Version3.0 */
 	if (SDHCI_GET_VERSION(host) >= SDHCI_SPEC_300) {

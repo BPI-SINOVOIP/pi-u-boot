@@ -1,0 +1,53 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * Copyright (C) 2020 Synaptics Incorporated
+ *
+ * Author: Jie Zhang <Jie.Zhang@synaptics.com>
+ *
+ */
+
+/dts-v1/;
+
+#include "vs640.dtsi"
+#include "include/dt-bindings/gpio/gpio.h"
+
+/ {
+	model = "Synaptics VS640 USBBOOT";
+	compatible = "Synaptics,vs640", "Synaptics,asserial";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0 0 0x80000000>;
+	};
+
+	chosen {
+        stdout-path = &smuart0;
+    };
+/*
+	config {
+		bootcmd = "runscript usbs u-boot-auto-cmd.txt;";
+		bootdelay = <0>;
+	};
+*/
+};
+
+&sdhci2 {
+    status = "okay";
+};
+
+&usbc0 {
+	status = "okay";
+};
+
+&smuart0 {
+	status = "okay";
+};
+/*
+&usb_phy0 {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};
+*/

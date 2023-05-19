@@ -13,6 +13,7 @@
 #include "vdec_com.h"
 
 #include "mmgr.h"
+#include "global.h"
 
 static bool initialized = false;
 const TEEC_UUID TAFastLogo_UUID = TA_FASTLOGO_UUID;
@@ -539,14 +540,15 @@ int VppOpenDispWin(int PlaneId, int WinX, int WinY, int WinW, int WinH, int BgCl
             TEEC_VALUE_INPUT,
             TEEC_VALUE_INOUT);
 
-    operation.params[0].value.a = PlaneId;
+    operation.params[0].value.a = 0;
+    VPP_ATTR_PARAM_SET_GLOBALPHA(operation.params[0].value.a, GlobalAlpha);
+    VPP_ATTR_PARAM_SET_PLANEID(operation.params[0].value.a, PlaneId);
     operation.params[0].value.b = WinX;
     operation.params[1].value.a = WinY;
     operation.params[1].value.b = WinW;
     operation.params[2].value.a = WinH;
     operation.params[2].value.b = BgClr;
     operation.params[3].value.a = Alpha;
-    operation.params[3].value.a |= (GlobalAlpha<<16);
 
     /* clear result */
     operation.params[3].value.b = 0xdeadbeef;
@@ -741,14 +743,15 @@ int VppChangeDispWin(int PlaneId, int WinX, int WinY, int WinW, int WinH, int Bg
             TEEC_VALUE_INPUT,
             TEEC_VALUE_INOUT);
 
-    operation.params[0].value.a = PlaneId;
+    operation.params[0].value.a = 0;
+    VPP_ATTR_PARAM_SET_GLOBALPHA(operation.params[0].value.a, GlobalAlpha);
+    VPP_ATTR_PARAM_SET_PLANEID(operation.params[0].value.a, PlaneId);
     operation.params[0].value.b = WinX;
     operation.params[1].value.a = WinY;
     operation.params[1].value.b = WinW;
     operation.params[2].value.a = WinH;
     operation.params[2].value.b = BgClr;
     operation.params[3].value.a = Alpha;
-    operation.params[3].value.a |= (GlobalAlpha<<16);
 
     /* clear result */
     operation.params[3].value.b = 0xdeadbeef;

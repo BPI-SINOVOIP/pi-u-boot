@@ -108,6 +108,37 @@ static int emmc_init(void)
 	return 0;
 }
 
+static int boot_dev_select(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	int ret = -1;
+	ulong index = 0;
+	if(argc < 2) {
+		printf("arguments ERROR\n");
+		return CMD_RET_FAILURE;
+	}
+
+	if (argc > 1 && !(str2long(argv[1], &index))){
+		printf("'%s' is not a number\n", argv[1]);
+		return CMD_RET_FAILURE;
+	}
+
+	ret = run_command("mmc rescan", 0);
+	if(ret) {
+		printf("MMC device rescan fail\n");
+		return CMD_RET_FAILURE;
+	}
+
+	mmc = find_mmc_device(index);
+	if (!mmc) {
+		printf("MMC device find fail\n");
+		return CMD_RET_FAILURE;
+	}
+
+	curr_device = index;
+
+	return 0;
+}
+
 static unsigned int get_blksize(void)
 {
 	int ret = -1;
@@ -470,7 +501,7 @@ static int dl_and_burn_img(char * src, char * path, char * imgname, char * pt)
 
 	sprintf(cmd, "imgload %s %s%s 0x%p", src, path, imgname, buff);
 
-	printf("allocated memory address 0x%llx \n", buff);
+	printf("allocated memory address %p \n", buff);
 	ret = run_command(cmd, 0);
 
 	if(ret) {
@@ -543,8 +574,8 @@ static int set_bootbus(void)
 	int ret = -1;
 	u8 ack = 1;
 	/* always set default boot part to boot partition 1 with ack enabled */
-#if defined(CONFIG_TARGET_VS680) || defined(CONFIG_TARGET_VS680_A0)
-	// FIXME: on vs680, we have to set the ack bit to 0
+#if defined(CONFIG_TARGET_VS680) || defined(CONFIG_TARGET_VS680_A0) || defined(CONFIG_TARGET_VS640)
+	// FIXME: on vs680 and vs640, we have to set the ack bit to 0
 	ack = 0;
 #endif
 	ret = mmc_set_part_conf(mmc, ack, 0x1, 0x0); //EXT_CSD[179]
@@ -1282,6 +1313,14 @@ static char list2emmc_usage[] =
 "    l2emmc -i factory eMMCimg --- (usbtool only)\n"
 "\n"
 ;
+
+U_BOOT_CMD(
+	bootdev_sel, 2, 0, boot_dev_select,
+	"select boot devices",
+	"bootdev_sel x\n"
+	"    - select mmc for boot devices\n"
+);
+
 
 #if defined(CONFIG_NET)
 U_BOOT_CMD(

@@ -217,10 +217,14 @@ extern "C" {
 /* OVP related macros */
 #define VPP_FRAME_IN_USE    0x10
 
+#define VPP_ATTR_PARAM_GET_GLOBALPHA(val)          _BFGET_(val,31,16)
+#define VPP_ATTR_PARAM_GET_PLANEID(val)            _BFGET_(val,15,0)
+#define VPP_ATTR_PARAM_SET_GLOBALPHA(addr,val)     _BFSET_(addr,31,16,val)
+#define VPP_ATTR_PARAM_SET_PLANEID(addr,val)       _BFSET_(addr,15,0,val)
+
 #define TOTAL_HDMI_TX_REGISTERS               0x56
 #define TOTAL_HDCP_TX_REGISTERS               0x19
 #define HDMI_DUMP_REG_COUNT (TOTAL_HDMI_TX_REGISTERS + TOTAL_HDCP_TX_REGISTERS)
-
 
 typedef struct VPP_INTR_MSG_T {
     UINT32 DhubSemMap;

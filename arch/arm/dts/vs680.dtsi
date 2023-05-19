@@ -151,6 +151,12 @@
 			clock-frequency = <400000000>;
 		};
 
+		sdclk: sdclk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <200000000>;
+		};
+
 		gmac0clk: gmac0clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -304,7 +310,7 @@
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&emmcclk>, <&clkgate CLK_EMMCSYS>;
 			clock-names = "core", "bus";
-			resets = <&reset 0x688 6 1 0>, <&reset 0x680 11 0 1>;
+			resets = <&reset 0x688 6 1 0>, <&reset 0x680 11 1 1>;
 			bus-width = <8>;
 			non-removable;
 			no-sd;
@@ -316,6 +322,17 @@
                                 <0x308 16 0x7 0x1>, <0x308 19 0x3 0x1>, <0x308 21 0xf 0x0>, <0x308 25 0xf 0x3>,
                                 <0x30c 0 0x7 0x1>, <0x30c 3 0x3 0x1>, <0x30c 5 0xf 0x0>, <0x30c 9 0xf 0x3>,
                                 <0x31c 16 0x7f 0x1a>;
+		};
+
+		sdhci1: sdhci@ab0000 {
+			compatible = "snps,dwcmshc-sdhci";
+			reg = <0xab0000 0x1000>;
+			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sdclk>, <&clkgate CLK_SDIOSYS>;
+			clock-names = "core", "bus";
+			resets = <&reset 0x688 5 1 0>, <&reset 0x680 2 1 1>;
+			bus-width = <4>;
+			status = "disabled";
 		};
 
 		usb0: usb@c00000 {

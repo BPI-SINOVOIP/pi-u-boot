@@ -63,6 +63,8 @@
 #define  SDHCI_CARD_STATE_STABLE	BIT(17)
 #define  SDHCI_CARD_DETECT_PIN_LEVEL	BIT(18)
 #define  SDHCI_WRITE_PROTECT	BIT(19)
+#define  SDHCI_DATA_LVL_MASK	0x00F00000
+#define  SDHCI_DATA_0_LVL_MASK BIT(20)
 
 #define SDHCI_HOST_CONTROL	0x28
 #define  SDHCI_CTRL_LED		BIT(0)
@@ -223,6 +225,12 @@
  * End of controller registers.
  */
 
+
+#define PHY_AT_CTRL_R     0x540
+#define AT_EN			(1 << 0)
+#define SWIN_TH_EN		(1 << 2)
+#define RPT_TUNE_ERR	(1 << 3)
+
 #define SDHCI_MAX_DIV_SPEC_200	256
 #define SDHCI_MAX_DIV_SPEC_300	2046
 
@@ -266,7 +274,19 @@ struct sdhci_ops {
 	int	(*set_ios_post)(struct sdhci_host *host);
 	void	(*set_clock)(struct sdhci_host *host, u32 div);
 	int (*platform_execute_tuning)(struct mmc *host, u8 opcode);
-	void (*set_delay)(struct sdhci_host *host);
+	int (*set_delay)(struct sdhci_host *host);
+
+	/**
+	 * set_enhanced_strobe() - Set HS400 Enhanced Strobe config
+	 *
+	 * This is called after setting the card speed and mode to
+	 * HS400 ES, and should set any host-specific configuration
+	 * necessary for it.
+	 *
+	 * @host: SDHCI host structure
+	 * Return: 0 if successful, -ve on error
+	 */
+	int	(*set_enhanced_strobe)(struct sdhci_host *host);
 };
 
 #if CONFIG_IS_ENABLED(MMC_SDHCI_ADMA)
@@ -488,6 +508,16 @@ void sdhci_set_uhs_timing(struct sdhci_host *host);
 /* Export the operations to drivers */
 int sdhci_probe(struct udevice *dev);
 int sdhci_set_clock(struct mmc *mmc, unsigned int clock);
+
+/**
+ * sdhci_set_control_reg - Set control registers
+ *
+ * This is used set up control registers for voltage level and UHS speed
+ * mode.
+ *
+ * @host: SDHCI host structure
+ */
+void sdhci_set_control_reg(struct sdhci_host *host);
 extern const struct dm_mmc_ops sdhci_ops;
 #else
 #endif

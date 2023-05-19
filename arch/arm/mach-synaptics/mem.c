@@ -66,7 +66,9 @@ void get_mem_from_tzk(void)
 	u64 sys_base = 0, sys_size = 0;
 	u64 ns_nc_base = 0, ns_nc_size = 0;
 	u64 map_size = 0;
+	u64 bl_base = 0, bl_size = 0;
 
+	get_mem_region_by_name(&bl_base, &bl_size, "bootloader");
 	get_mem_region_by_name(&sys_base, &sys_size, "system");
 	get_mem_region_by_name(&ns_nc_base, &ns_nc_size, "NonSecure-NC");
 	if (ns_nc_base == sys_base + sys_size) {
@@ -75,6 +77,10 @@ void get_mem_from_tzk(void)
 	else {
 		map_size = sys_size;
 		printf("NonSecure-NC memory pool doesn't next to system memory pool\n");
+	}
+
+	if (sys_base == bl_base + bl_size) {
+		sys_base = bl_base;
 	}
 
 	if (sys_size) {
@@ -200,6 +206,7 @@ int get_mem_from_fdt(void)
 		debug("   attrs = %016llx\n", mem_map[b].attrs);
 	}
 
+	return 0;
 }
 #endif
 

@@ -73,7 +73,7 @@ const struct g_aClock_info_t g_aClocks[] =
     DEF_ACLOCK_INFO(    nocsClk                     ,   SYSPLL0_PLLOUT      ,   6       ),  // 18
     DEF_ACLOCK_INFO(    apbCoreClk                  ,   SYSPLL0_PLLOUT      ,   6       ),  // 19
     DEF_ACLOCK_INFO(    emmcClk                     ,   SYSPLL0_PLLOUT      ,   3       ),  // 20
-    DEF_ACLOCK_INFO(    sd0Clk                      ,   SYSPLL0_PLLOUT      ,   12      ),  // 21
+    DEF_ACLOCK_INFO(    sd0Clk                      ,   SYSPLL0_PLLOUT      ,   6       ),  // 21
     DEF_ACLOCK_INFO(    gethRgmiiClk                ,   SYSPLL2_PLLOUT      ,   4       ),  // 22
     DEF_ACLOCK_INFO(    avioOvpClk                  ,   SYSPLL0_PLLOUTF     ,   1       ),  // 23
     DEF_ACLOCK_INFO(    perifTestClk125mGroup0      ,   SYSPLL2_PLLOUT      ,   8       ),  // 24
