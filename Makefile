@@ -817,7 +817,7 @@ DO_STATIC_RELA =
 endif
 
 # Always append ALL so that arch config.mk's can add custom ones
-ALL-y += u-boot.bin.subimg u-boot.srec u-boot.bin u-boot.sym System.map binary_size_check
+ALL-y += u-boot.srec u-boot.bin u-boot.sym System.map binary_size_check
 
 ALL-$(CONFIG_ONENAND_U_BOOT) += u-boot-onenand.bin
 ifeq ($(CONFIG_SPL_FSL_PBL),y)
@@ -1098,11 +1098,9 @@ u-boot-fit-dtb.bin: u-boot-nodtb.bin $(FINAL_DTB_CONTAINER)
 	$(call if_changed,cat)
 endif
 
-u-boot.bin.subimg: u-boot.bin FORCE
-	./prepend_image_info.sh u-boot.bin u-boot.bin.subimg
-
 u-boot.bin: u-boot-fit-dtb.bin FORCE
 	$(call if_changed,copy)
+	./prepend_image_info.sh u-boot.bin u-boot.bin.subimg
 
 u-boot-dtb.bin: u-boot-nodtb.bin dts/dt.dtb FORCE
 	$(call if_changed,cat)
