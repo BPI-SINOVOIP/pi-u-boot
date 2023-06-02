@@ -74,7 +74,7 @@ len_s=$(be2le_4 "$len_hex")
 
 # Generate encrypted image information data structure
 echo "$enc_img_info_ver" "$enc_img_info_magic" "$pad_2" "${len_s}" \
-	"$enc_img_offset" "$pad_48" | xxd -r -p > $out_file
+	"$enc_img_offset" "$pad_48" | ./xxd -r -p > $out_file
 
 # Padding to 1KiB
 #dd if=/dev/zero bs=$(( 1024-64 )) count=1 >> $out_file
