@@ -1100,7 +1100,6 @@ endif
 
 u-boot.bin: u-boot-fit-dtb.bin FORCE
 	$(call if_changed,copy)
-	./prepend_image_info.sh u-boot.bin u-boot.bin.subimg
 
 u-boot-dtb.bin: u-boot-nodtb.bin dts/dt.dtb FORCE
 	$(call if_changed,cat)
@@ -1111,6 +1110,7 @@ u-boot-dtb.bin: u-boot-nodtb.bin dts/dt.dtb FORCE
 
 u-boot.bin: u-boot-dtb.bin FORCE
 	$(call if_changed,copy)
+	./prepend_image_info.sh u-boot.bin u-boot.bin.subimg
 else
 u-boot.bin: u-boot-nodtb.bin FORCE
 	$(call if_changed,copy)
