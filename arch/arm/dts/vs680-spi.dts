@@ -12,7 +12,7 @@
 #include "include/dt-bindings/gpio/gpio.h"
 
 / {
-	model = "Synaptics VS680 EVK (BPI-M6) 20230602";
+	model = "Synaptics VS680 EVK (BPI-M6) 20230602A";
 	compatible = "Synaptics,vs680", "Synaptics,asserial";
 
 	memory {
@@ -38,7 +38,7 @@
 			regulator-name = "usb0_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			//gpio = <&expander2 3 GPIO_ACTIVE_HIGH>;
+			gpio = <&expander2 3 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 
@@ -47,7 +47,7 @@
 			regulator-name = "xhci0_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			//gpio = <&expander2 2 GPIO_ACTIVE_HIGH>;
+			gpio = <&expander2 2 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 	};
@@ -183,7 +183,7 @@
 
 &xhci0 {
 	vbus-supply = <&xhci0_vbus>;
-//	snps,reset-gpio = <&expander2 0 GPIO_ACTIVE_HIGH>;
+	snps,reset-gpio = <&expander2 0 GPIO_ACTIVE_HIGH>;
 	snps,reset-active-high;
 	status = "okay";
 };
