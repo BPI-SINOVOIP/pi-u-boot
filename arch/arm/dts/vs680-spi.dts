@@ -12,7 +12,7 @@
 #include "include/dt-bindings/gpio/gpio.h"
 
 / {
-	model = "Synaptics VS680 EVK (BPI-M6) 20230602A";
+	model = "Synaptics VS680 EVK (BPI-M6) 20230602B";
 	compatible = "Synaptics,vs680", "Synaptics,asserial";
 
 	memory {
@@ -141,7 +141,8 @@
 	status="okay";
 	pinctrl-0 = <&sdhci1_pmux>;
 	pinctrl-names = "default";
-	snps,select-sd-gpio = <&expander2 0 GPIO_ACTIVE_HIGH>;
+	/* snps,select-sd-gpio = <&expander2 0 GPIO_ACTIVE_HIGH>; */
+	non-removable;
 	cap-sd-highspeed;
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;
