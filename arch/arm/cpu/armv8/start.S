@@ -10,6 +10,7 @@
 #include <linux/linkage.h>
 #include <asm/macro.h>
 #include <asm/armv8/mmu.h>
+#include <asm/arch/cpu.h>
 
 /*************************************************************************
  *
@@ -43,6 +44,24 @@ _bss_end_ofs:
 	.quad	__bss_end - _start
 
 reset:
+
+	/*
+	 * In B0X chip, bl31 will not set up sp.
+	 * Uboot needs to set up sp in the beginning.
+	 * The function of dcache_disable will use the value of sp.
+	 */
+#if defined(CONFIG_BOOT_FROM_SD)
+	b skip_set_sp
+#endif
+	ldr x0, =__bss_end
+	mov sp, x0
+skip_set_sp:
+
+#ifdef CONFIG_TARGET_RTD1295
+	branch_if_slave x0, slave_start
+	bl	dcache_disable		// WA for ROM code not turning off MMU
+slave_start:				// Be aware that SP used is from inherit from ROM code
+#endif /* CONFIG_TARGET_RTD1295 */
 	/*
 	 * Could be EL3/EL2/EL1, Initial State:
 	 * Little Endian, MMU Disabled, i/dCache Disabled
@@ -77,7 +96,16 @@ reset:
 	 */
 
 	/* Processor specific initialization */
+	/* When bootcode is in el2, not to set gic. */
+	switch_el x1, 3f, 2f, 1f
+3:	
+#ifdef CONFIG_GICV3_REALTEK
+	bl	gic_v3_realtek_init
+#else
 	bl	lowlevel_init
+#endif
+2:
+1:
 
 #ifdef CONFIG_ARMV8_MULTIENTRY
 	branch_if_master x0, x1, master_cpu
@@ -87,10 +115,28 @@ reset:
 	 */
 slave_cpu:
 	wfe
+	mov	x0, #0
 	ldr	x1, =CPU_RELEASE_ADDR
-	ldr	x0, [x1]
+	ldr	w0, [x1]
 	cbz	x0, slave_cpu
+#ifdef CONFIG_TARGET_RTD1295
+	//A01 Jump to BL31 at EL3
+	
+#if defined(CONFIG_SYS_RTK_SPI_FLASH) || defined(CONFIG_SYS_RTK_SD_FLASH) || defined(CONFIG_SYS_NO_BL31)
+	mov w2, #RTD129x_CHIP_REVISION_A00
+#else
+ 	ldr x1, =SB2_CHIP_INFO
+ 	ldr	w2, [x1]
+#endif
+ 	cmp w2, #RTD129x_CHIP_REVISION_A01
+ 	bne JUMP_TO_KERNEL   /*Just A01 need to go BL31*/
+JUMP_TO_BL31:
+    ldr x30, =BL31_ENTRY_ADDR
+	ret
+#endif /* CONFIG_TARGET_RTD1295 */
+JUMP_TO_KERNEL:
 	br	x0			/* branch to the given address */
+
 master_cpu:
 	/* On the master CPU */
 #endif /* CONFIG_ARMV8_MULTIENTRY */
@@ -144,12 +190,40 @@ ENDPROC(apply_core_errata)
 WEAK(lowlevel_init)
 	mov	x29, lr			/* Save LR */
 
+#ifndef CONFIG_CORTEX_A55
+	mov	x0, #0x1
+	lsl	x0, x0, #6
+	msr	S3_1_C15_C2_1, x0       /* set up each core CPUECTLR.SMPEN bit for Cache Coherency */
+#endif
+
+	/* setup ACTLR_EL3(2).CPUECTLR_EL1 bit*/
+	mov	x0, #0x2
+	
+	mrs     x1, CurrentEL
+    lsr     x1, x1, #2
+	switch_el x1, 1f, 2f, 3f   /*B00 is at EL2, it does not have privilege to set EL3 */
+	
+3:	mrs x1, ACTLR_EL3
+	orr	x1, x1, x0
+	msr	ACTLR_EL3, x1   
+	
+2:	mrs	x1, ACTLR_EL2
+	orr	x1, x1, x0
+	msr	ACTLR_EL2, x1
+
+1:  mrs	x1, ACTLR_EL1
+	orr	x1, x1, x0
+	msr	ACTLR_EL1, x1
+
 #ifndef CONFIG_ARMV8_MULTIENTRY
 	/*
 	 * For single-entry systems the lowlevel init is very simple.
 	 */
 	ldr	x0, =GICD_BASE
 	bl	gic_init_secure
+	ldr	x0, =GICD_BASE
+	ldr	x1, =GICC_BASE
+	bl	gic_init_secure_percpu
 
 #else /* CONFIG_ARMV8_MULTIENTRY is set */
 
@@ -185,7 +259,19 @@ WEAK(lowlevel_init)
 	/*
 	 * All slaves will enter EL2 and optionally EL1.
 	 */
+
+	//A01 Jump to BL31 at EL3
+	
+#if defined(CONFIG_SYS_RTK_SPI_FLASH) || defined(CONFIG_SYS_RTK_SD_FLASH) || defined(CONFIG_SYS_NO_BL31)
+	mov w0, #RTD129x_CHIP_REVISION_A00
+#else
+ 	ldr x1, =SB2_CHIP_INFO
+ 	ldr	w0, [x1]
+#endif
+ 	cmp w0, #RTD129x_CHIP_REVISION_A01
+ 	bge 2f
 	bl	armv8_switch_to_el2
+
 #ifdef CONFIG_ARMV8_SWITCH_TO_EL1
 	bl	armv8_switch_to_el1
 #endif
@@ -223,3 +309,41 @@ ENTRY(c_runtime_cpu_setup)
 
 	ret
 ENDPROC(c_runtime_cpu_setup)
+
+#ifdef CONFIG_GICV3_REALTEK
+
+ENTRY(gic_v3_realtek_init)
+	mov	x29, lr			/* Save LR */
+
+	mrs	x0, mpidr_el1
+	and x0, x0, 0xffff
+	lsr	x1, x0, #0x8
+	/* The cpu id in cortex-a55 is at [11:8] */
+	mov x0, #0x0
+	cmp x1, x0
+	bne slave_gic_init
+	/* To decide this is the master or slave core */
+	
+	ldr	x0, =GICD_BASE
+	bl rtk_arm_gic_init_percpu_v3
+	b end_gic_init
+
+slave_gic_init:
+	mov x2, #0x20000
+	mul x3, x2, x1
+	/* x1 is the cpu id for computing offset */
+	/* x3 is the offset of RD and SGI base for each core */
+	
+	ldr	x0, =GICR_RD_BASE
+	add x0, x0, x3
+	ldr	x1, =GICR_SGI_BASE
+	add x1, x1, x3
+	bl rtk_arm_gic_init_slavecpu_v3
+	
+end_gic_init:
+
+	mov	lr, x29			/* Restore LR */
+	ret
+ENDPROC(gic_v3_realtek_init)
+
+#endif /* CONFIG_GICV3_REALTEK */
