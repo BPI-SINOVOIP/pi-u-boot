@@ -88,7 +88,7 @@ void ephy_poweron(void)
 int board_init(void)
 {
 	//board related things like clock may be inited here
-#if !CONFIG_IS_ENABLED(SYNA_FASTBOOT)
+#if !(CONFIG_IS_ENABLED(SYNA_FASTBOOT) || CONFIG_IS_ENABLED(SYNA_OEMBOOT))
 	early_clock_config();
 #endif
 	set_drive_strength();

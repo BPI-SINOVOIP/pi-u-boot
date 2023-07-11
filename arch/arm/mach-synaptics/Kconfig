@@ -64,6 +64,11 @@ config SYNA_SPIBOOT
 	help
 	  Support Synaptics fastboot
 
+config SYNA_OEMBOOT
+	bool "synaptics OEMBOOT support"
+	help
+		Support Synaptics OEMBOOT solution
+
 endchoice
 
 config CMD_IRQ_SYNA
