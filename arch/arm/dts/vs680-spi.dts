@@ -12,7 +12,7 @@
 #include "include/dt-bindings/gpio/gpio.h"
 
 / {
-	model = "Synaptics VS680 EVK (BPI-M6) 20230711";
+	model = "Synaptics VS680 EVK (BPI-M6) 20230806";
 	compatible = "Synaptics,vs680", "Synaptics,asserial";
 
 	memory {
