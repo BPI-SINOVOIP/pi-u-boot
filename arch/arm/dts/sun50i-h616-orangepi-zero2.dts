@@ -194,8 +194,8 @@
 
 			reg_dcdcd: dcdcd {
 				regulator-always-on;
-				regulator-min-microvolt = <1500000>;
-				regulator-max-microvolt = <1500000>;
+				regulator-min-microvolt = <1350000>;
+				regulator-max-microvolt = <1350000>;
 				regulator-name = "vdd-dram";
 			};
 
@@ -214,7 +214,7 @@
 };
 
 &spi0  {
-	status = "okay";
+	status = "disable";
 
 	flash@0 {
 		#address-cells = <1>;

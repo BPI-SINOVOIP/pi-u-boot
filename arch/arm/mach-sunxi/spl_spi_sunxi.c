@@ -7,6 +7,7 @@
 #include <image.h>
 #include <log.h>
 #include <spl.h>
+#include <asm/arch/spl.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <linux/bitops.h>
@@ -77,7 +78,7 @@
 
 #define CCM_AHB_GATING0             (0x01C20000 + 0x60)
 #define CCM_H6_SPI_BGR_REG          (0x03001000 + 0x96c)
-#ifdef CONFIG_MACH_SUN50I_H6
+#ifdef CONFIG_SUN50I_GEN_H6
 #define CCM_SPI0_CLK                (0x03001000 + 0x940)
 #else
 #define CCM_SPI0_CLK                (0x01C20000 + 0xA0)
@@ -95,7 +96,7 @@
 /*
  * Allwinner A10/A20 SoCs were using pins PC0,PC1,PC2,PC23 for booting
  * from SPI Flash, everything else is using pins PC0,PC1,PC2,PC3.
- * The H6 uses PC0, PC2, PC3, PC5.
+ * The H6 uses PC0, PC2, PC3, PC5, the H616 PC0, PC2, PC3, PC4.
  */
 static void spi0_pinmux_setup(unsigned int pin_function)
 {
@@ -103,11 +104,15 @@ static void spi0_pinmux_setup(unsigned int pin_function)
 	sunxi_gpio_set_cfgpin(SUNXI_GPC(0), pin_function);
 	sunxi_gpio_set_cfgpin(SUNXI_GPC(2), pin_function);
 
-	/* All chips except H6 use PC1, and only H6 uses PC5. */
-	if (!IS_ENABLED(CONFIG_MACH_SUN50I_H6))
+	/* All chips except H6 and H616 use PC1. */
+	if (!IS_ENABLED(CONFIG_SUN50I_GEN_H6))
 		sunxi_gpio_set_cfgpin(SUNXI_GPC(1), pin_function);
-	else
+
+	if (IS_ENABLED(CONFIG_SUN50I_GEN_H6))
 		sunxi_gpio_set_cfgpin(SUNXI_GPC(5), pin_function);
+
+	if (IS_ENABLED(CONFIG_SUN50I_GEN_H616))
+		sunxi_gpio_set_cfgpin(SUNXI_GPC(4), pin_function);
 
 	/* Older generations use PC23 for CS, newer ones use PC3. */
 	if (IS_ENABLED(CONFIG_MACH_SUN4I) || IS_ENABLED(CONFIG_MACH_SUN7I) ||
@@ -120,7 +125,7 @@ static void spi0_pinmux_setup(unsigned int pin_function)
 static bool is_sun6i_gen_spi(void)
 {
 	return IS_ENABLED(CONFIG_SUNXI_GEN_SUN6I) ||
-	       IS_ENABLED(CONFIG_MACH_SUN50I_H6);
+	       IS_ENABLED(CONFIG_SUN50I_GEN_H6);
 }
 
 static uintptr_t spi0_base_address(void)
@@ -128,7 +133,7 @@ static uintptr_t spi0_base_address(void)
 	if (IS_ENABLED(CONFIG_MACH_SUN8I_R40))
 		return 0x01C05000;
 
-	if (IS_ENABLED(CONFIG_MACH_SUN50I_H6))
+	if (IS_ENABLED(CONFIG_SUN50I_GEN_H6))
 		return 0x05010000;
 
 	if (!is_sun6i_gen_spi())
@@ -145,14 +150,14 @@ static void spi0_enable_clock(void)
 	uintptr_t base = spi0_base_address();
 
 	/* Deassert SPI0 reset on SUN6I */
-	if (IS_ENABLED(CONFIG_MACH_SUN50I_H6))
+	if (IS_ENABLED(CONFIG_SUN50I_GEN_H6))
 		setbits_le32(CCM_H6_SPI_BGR_REG, (1U << 16) | 0x1);
 	else if (is_sun6i_gen_spi())
 		setbits_le32(SUN6I_BUS_SOFT_RST_REG0,
 			     (1 << AHB_RESET_SPI0_SHIFT));
 
 	/* Open the SPI0 gate */
-	if (!IS_ENABLED(CONFIG_MACH_SUN50I_H6))
+	if (!IS_ENABLED(CONFIG_SUN50I_GEN_H6))
 		setbits_le32(CCM_AHB_GATING0, (1 << AHB_GATE_OFFSET_SPI0));
 
 	/* Divide by 4 */
@@ -193,11 +198,11 @@ static void spi0_disable_clock(void)
 	writel(0, CCM_SPI0_CLK);
 
 	/* Close the SPI0 gate */
-	if (!IS_ENABLED(CONFIG_MACH_SUN50I_H6))
+	if (!IS_ENABLED(CONFIG_SUN50I_GEN_H6))
 		clrbits_le32(CCM_AHB_GATING0, (1 << AHB_GATE_OFFSET_SPI0));
 
 	/* Assert SPI0 reset on SUN6I */
-	if (IS_ENABLED(CONFIG_MACH_SUN50I_H6))
+	if (IS_ENABLED(CONFIG_SUN50I_GEN_H6))
 		clrbits_le32(CCM_H6_SPI_BGR_REG, (1U << 16) | 0x1);
 	else if (is_sun6i_gen_spi())
 		clrbits_le32(SUN6I_BUS_SOFT_RST_REG0,
@@ -209,7 +214,7 @@ static void spi0_init(void)
 	unsigned int pin_function = SUNXI_GPC_SPI0;
 
 	if (IS_ENABLED(CONFIG_MACH_SUN50I) ||
-	    IS_ENABLED(CONFIG_MACH_SUN50I_H6))
+	    IS_ENABLED(CONFIG_SUN50I_GEN_H6))
 		pin_function = SUN50I_GPC_SPI0;
 
 	spi0_pinmux_setup(pin_function);
@@ -326,10 +331,13 @@ static int spl_spi_load_image(struct spl_image_info *spl_image,
 	int ret = 0;
 	struct image_header *header;
 	header = (struct image_header *)(CONFIG_SYS_TEXT_BASE);
+	int load_offset = readl(SPL_ADDR + 0x10);
+
+	load_offset = max(load_offset, CONFIG_SYS_SPI_U_BOOT_OFFS);
 
 	spi0_init();
 
-	spi0_read_data((void *)header, CONFIG_SYS_SPI_U_BOOT_OFFS, 0x40);
+	spi0_read_data((void *)header, load_offset, 0x40);
 
         if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&
 		image_get_magic(header) == FDT_MAGIC) {
@@ -342,14 +350,14 @@ static int spl_spi_load_image(struct spl_image_info *spl_image,
 		load.bl_len = 1;
 		load.read = spi_load_read;
 		ret = spl_load_simple_fit(spl_image, &load,
-					  CONFIG_SYS_SPI_U_BOOT_OFFS, header);
+					  load_offset, header);
 	} else {
 		ret = spl_parse_image_header(spl_image, header);
 		if (ret)
 			return ret;
 
 		spi0_read_data((void *)spl_image->load_addr,
-			       CONFIG_SYS_SPI_U_BOOT_OFFS, spl_image->size);
+			       load_offset, spl_image->size);
 	}
 
 	spi0_deinit();

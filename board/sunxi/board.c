@@ -233,7 +233,7 @@ static void mmc_pinmux_setup(int sdc);
 /* add board specific code here */
 int board_init(void)
 {
-	__maybe_unused int id_pfr1, ret, satapwr_pin, macpwr_pin;
+	__maybe_unused int id_pfr1, ret, satapwr_pin, macpwr_pin, pwrled_pin;
 
 	gd->bd->bi_boot_params = (PHYS_SDRAM_0 + 0x100);
 
@@ -292,6 +292,24 @@ int board_init(void)
 			gpio_direction_output(macpwr_pin, 1);
 		}
 	}
+
+	if (CONFIG_PWRLED[0]) {
+		pwrled_pin = sunxi_name_to_gpio(CONFIG_PWRLED);
+		if (pwrled_pin >= 0) {
+			gpio_request(pwrled_pin, "pwrled");
+			gpio_direction_output(pwrled_pin, 1);
+		}
+	}
+
+#if CONFIG_MACH_SUN50I_H616
+	/*
+	 * The bit[16] of register reg[0x03000000] must be zero for the THS
+	 * driver to work properly in the kernel. The BSP u-boot is putting
+	 * the whole register to zero so we are doing the same.
+	 */
+	writel(0x0, SUNXI_SRAMC_BASE);
+	writel(0x0, 0x07010254);
+#endif
 
 #if CONFIG_IS_ENABLED(DM_I2C)
 	/*
@@ -645,24 +663,34 @@ void sunxi_board_init(void)
 {
 	int power_failed = 0;
 
+#ifdef CONFIG_MACH_SUN8I_H3
+	/* turn on power LED (PL10) on H3 boards */
+	gpio_direction_output(SUNXI_GPL(10), 1);
+#endif
+
 #ifdef CONFIG_SY8106A_POWER
 	power_failed = sy8106a_set_vout1(CONFIG_SY8106A_VOUT1_VOLT);
 #endif
 
 #if defined CONFIG_AXP152_POWER || defined CONFIG_AXP209_POWER || \
 	defined CONFIG_AXP221_POWER || defined CONFIG_AXP305_POWER || \
-	defined CONFIG_AXP809_POWER || defined CONFIG_AXP818_POWER
+	defined CONFIG_AXP809_POWER || defined CONFIG_AXP818_POWER || \
+	defined CONFIG_AXP313A_POWER
 	power_failed = axp_init();
 
 #if defined CONFIG_AXP221_POWER || defined CONFIG_AXP809_POWER || \
 	defined CONFIG_AXP818_POWER
 	power_failed |= axp_set_dcdc1(CONFIG_AXP_DCDC1_VOLT);
 #endif
-#if !defined(CONFIG_AXP305_POWER)
+#if !defined(CONFIG_AXP305_POWER) && !defined(CONFIG_AXP313A_POWER)
 	power_failed |= axp_set_dcdc2(CONFIG_AXP_DCDC2_VOLT);
 	power_failed |= axp_set_dcdc3(CONFIG_AXP_DCDC3_VOLT);
 #endif
-#if !defined(CONFIG_AXP209_POWER) && !defined(CONFIG_AXP818_POWER)
+#if defined(CONFIG_AXP313A_POWER)
+	power_failed |= axp_set_dcdc3(CONFIG_AXP_DCDC3_VOLT);
+#endif
+#if !defined(CONFIG_AXP209_POWER) && !defined(CONFIG_AXP818_POWER) && \
+    !defined(CONFIG_AXP313A_POWER)
 	power_failed |= axp_set_dcdc4(CONFIG_AXP_DCDC4_VOLT);
 #endif
 #if defined CONFIG_AXP221_POWER || defined CONFIG_AXP809_POWER || \
@@ -674,10 +702,11 @@ void sunxi_board_init(void)
 	defined CONFIG_AXP818_POWER
 	power_failed |= axp_set_aldo1(CONFIG_AXP_ALDO1_VOLT);
 #endif
-#if !defined(CONFIG_AXP305_POWER)
+#if !defined(CONFIG_AXP305_POWER) && !defined(CONFIG_AXP313A_POWER)
 	power_failed |= axp_set_aldo2(CONFIG_AXP_ALDO2_VOLT);
 #endif
-#if !defined(CONFIG_AXP152_POWER) && !defined(CONFIG_AXP305_POWER)
+#if !defined(CONFIG_AXP152_POWER) && !defined(CONFIG_AXP305_POWER) && \
+    !defined(CONFIG_AXP313A_POWER)
 	power_failed |= axp_set_aldo3(CONFIG_AXP_ALDO3_VOLT);
 #endif
 #ifdef CONFIG_AXP209_POWER
@@ -888,6 +917,74 @@ static void setup_environment(const void *fdt)
 	}
 }
 
+#if defined(CONFIG_BOOT_PROCESS_MULTI_DTB) && !defined(CONFIG_SPL_BUILD)
+
+#define NP_NEO2_DT_SS			"nanopi-neo2."
+
+#define NP_NEO2_DT_EXT_V1_1		"-v1.1.dtb"
+
+#define NP_NEO2_BOARD_ID_GPIO		"PL3"
+#define NP_NEO2_BOARD_ID_1_0		1
+#define NP_NEO2_BOARD_ID_1_1		0
+
+void boot_process_multi_dtb(void)
+{
+	const char *fdtfile = env_get("fdtfile");
+	if (fdtfile == NULL) {
+		return;
+	}
+
+	/* check for a NanoPi NEO2 */
+	if (strstr(fdtfile, NP_NEO2_DT_SS) != NULL) {
+		int board_id_pin, prev_cfg, ret, rev_1_1;
+
+		/* NEO2 DT found; process board revision and select corresponding DT */
+
+		board_id_pin = sunxi_name_to_gpio(NP_NEO2_BOARD_ID_GPIO);
+		if (board_id_pin < 0) {
+			return;
+		}
+
+		ret = gpio_request(board_id_pin, "board_id_pin");
+		if (ret) {
+			return;
+		}
+
+		prev_cfg = sunxi_gpio_get_cfgpin(board_id_pin);
+
+		gpio_direction_input(board_id_pin);
+		sunxi_gpio_set_pull(board_id_pin, SUNXI_GPIO_PULL_DISABLE);
+
+		mdelay(2);
+
+		rev_1_1 = gpio_get_value(board_id_pin) == NP_NEO2_BOARD_ID_1_1;
+
+		sunxi_gpio_set_cfgpin(board_id_pin, prev_cfg);
+		gpio_free(board_id_pin);
+
+		printf("NanoPi NEO2 v1.%d detected\n", rev_1_1);
+
+		if (rev_1_1) {
+			int ddt_len = sizeof(CONFIG_DEFAULT_DEVICE_TREE);
+			int fdt_len = strlen(fdtfile);
+
+			char *n_fdtfile = (char *)malloc(max(fdt_len, ddt_len) + sizeof(NP_NEO2_DT_EXT_V1_1) + 1);
+			if (n_fdtfile != NULL) {
+				char *cp = strstr(strcpy(n_fdtfile, fdtfile), CONFIG_DEFAULT_DEVICE_TREE);
+				if (cp != NULL) {
+					cp[ddt_len - 1] = '\0';
+					strcat(cp, NP_NEO2_DT_EXT_V1_1);
+
+					env_set("fdtfile", n_fdtfile);
+				}
+
+				free(n_fdtfile);
+			}
+		}
+	}
+}
+#endif
+
 int misc_init_r(void)
 {
 	const char *spl_dt_name;
@@ -930,6 +1027,10 @@ int board_late_init(void)
 	usb_ether_init();
 #endif
 
+#if defined(CONFIG_BOOT_PROCESS_MULTI_DTB) && !defined(CONFIG_SPL_BUILD)
+	boot_process_multi_dtb();
+#endif
+
 	return 0;
 }
 
@@ -970,10 +1071,12 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 	int __maybe_unused r;
 
 	/*
-	 * Call setup_environment again in case the boot fdt has
-	 * ethernet aliases the u-boot copy does not have.
+	 * Call setup_environment and fdt_fixup_ethernet again
+	 * in case the boot fdt has ethernet aliases the u-boot
+	 * copy does not have.
 	 */
 	setup_environment(blob);
+	fdt_fixup_ethernet(blob);
 
 	bluetooth_dt_fixup(blob);
 
