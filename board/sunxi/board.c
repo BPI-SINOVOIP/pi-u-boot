@@ -582,7 +582,7 @@ static void mmc_pinmux_setup(int sdc)
 				continue;
 			sunxi_gpio_set_cfgpin(pin, SUNXI_GPC_SDC2);
 			sunxi_gpio_set_pull(pin, SUNXI_GPIO_PULL_UP);
-			sunxi_gpio_set_drv(pin, 2);
+			sunxi_gpio_set_drv(pin, 3);
 		}		
 #elif defined(CONFIG_MACH_SUN9I)
 		/* SDC2: PC6-PC16 */

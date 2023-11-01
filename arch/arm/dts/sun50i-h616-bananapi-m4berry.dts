@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "sun50i-h616.dtsi"
-#include "sunxi-common-regulators.dtsi"
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/leds/common.h>
@@ -28,9 +28,9 @@
 		compatible = "gpio-leds";
 
 		led-0 {
-			function = LED_FUNCTION_POWER;
-			color = <LED_COLOR_ID_RED>;
-			gpios = <&pio 2 12 GPIO_ACTIVE_HIGH>; /* PC12 */
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&pio 2 12 GPIO_ACTIVE_LOW>; /* PC12 */
 			default-state = "on";
 		};
 
@@ -45,6 +45,16 @@
 		regulator-always-on;
 	};
 
+	reg_usb1_vbus: usb1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb1-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&reg_vcc5v>;
+		regulator-always-on;
+
+		status = "okay";
+	};
 };
 
 &ehci0 {
@@ -75,7 +85,7 @@
 };
 
 &mmc0 {
-	vmmc-supply = <&reg_vcc3v3>;
+
 	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;	/* PF6 */
 	bus-width = <4>;
 	status = "okay";
@@ -85,8 +95,7 @@
 &mmc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins>;
-	vmmc-supply = <&reg_vcc3v3>;
-	vqmmc-supply = <&reg_vcc3v3>;
+
 	bus-width = <8>;
 	non-removable;
 	status = "okay";
@@ -174,3 +183,7 @@
 	status = "okay";
 };
 
+&usbphy {
+	usb1_vbus-supply = <&reg_usb1_vbus>;
+	status = "okay";
+};
