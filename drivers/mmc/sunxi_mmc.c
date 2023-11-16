@@ -86,6 +86,7 @@ static int mmc_resource_init(int sdc_no)
 	}
 	priv->mmc_no = sdc_no;
 
+#ifdef BPI
 	cd_pin = sunxi_mmc_getcd_gpio(sdc_no);
 	if (cd_pin >= 0) {
 		ret = gpio_request(cd_pin, "mmc_cd");
@@ -94,6 +95,12 @@ static int mmc_resource_init(int sdc_no)
 			ret = gpio_direction_input(cd_pin);
 		}
 	}
+#else
+	if(1) {
+		printf("BPI: skip sunxi_mmc_getcd_gpio %d\n", sdc_no);
+		ret=0;
+	}
+#endif
 
 	return ret;
 }

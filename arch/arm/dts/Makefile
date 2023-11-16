@@ -646,7 +646,8 @@ dtb-$(CONFIG_MACH_SUN50I_H6) += \
 	sun50i-h6-pine-h64-model-b.dtb \
 	sun50i-h6-tanix-tx6.dtb
 dtb-$(CONFIG_MACH_SUN50I_H616) += \
-	sun50i-h616-bananapi-m4berry.dtb \
+	sun50i-h618-bananapi-m4berry.dtb \
+	sun50i-h618-bananapi-m4zero.dtb \
 	sun50i-h616-orangepi-zero2.dtb \
 	sun50i-h616-orangepi-zero2-b.dtb \
 	sun50i-h616-orangepi-zero2-lts.dtb \
