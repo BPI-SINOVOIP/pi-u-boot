@@ -374,7 +374,7 @@ static void dwcmshc_set_phy_tx_delay(struct sdhci_host *host, u8 delay)
 	valdc |= delay;
 	sdhci_writeb(host, valdc, PHY_SDCLKDL_DC);
 
-	//disable extdelay£¬from diag
+	//disable extdelay,from diag
 	valb = sdhci_readb(host, PHY_SDCLKDL_CNFG);
 	valb &= ~EXTDLY_EN;
 	sdhci_writeb(host, valb, PHY_SDCLKDL_CNFG);

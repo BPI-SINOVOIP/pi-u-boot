@@ -1605,6 +1605,12 @@ int image_setup_linux(bootm_headers_t *images)
 	struct lmb *lmb = &images->lmb;
 	int ret;
 
+#ifdef CONFIG_CMD_SYNA_FDT_UPDATE
+	extern int fdt_update(struct fdt_header *fdt);
+	if (IMAGE_ENABLE_OF_LIBFDT)
+		fdt_update(*of_flat_tree);
+#endif
+
 	if (IMAGE_ENABLE_OF_LIBFDT)
 		boot_fdt_add_mem_rsv_regions(lmb, *of_flat_tree);
 

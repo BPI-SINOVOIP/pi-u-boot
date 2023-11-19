@@ -34,6 +34,7 @@
 #include <common.h>
 #include <linux/types.h>
 #include <malloc.h>
+#include <string.h>
 #include "genimg.h"
 #include "fastboot_syna.h"
 #include "tz_comm.h"
@@ -54,6 +55,9 @@
 	((unsigned int)(char)(ch2) << 16) | ((unsigned int)(char)(ch3) << 24))
 
 #define IMAGE_CHUNK_ID_FASTLOGO		MAKE_FOURCC('L', 'O', 'G', 'O')
+#define IMAGE_CHUNK_ID_DHUB			MAKE_FOURCC('D', 'H', 'U', 'B')
+
+#define IMAGE_HEADER_MAGIC			MAKE_FOURCC('I', 'M', '*', 'H')
 
 #if CONFIG_IS_ENABLED(SYNA_FASTBOOT_AB)
 #define BL_A_NAME			"bl_a"
@@ -79,6 +83,8 @@ struct img_info
 static unsigned char * buf = NULL;
 static unsigned char * logotabuf = NULL;
 static unsigned int logotasize = 0;
+static unsigned char * dhubtabuf = NULL;
+static unsigned int dhubtasize = 0;
 static struct img_header * ta_header = NULL;
 
 static inline unsigned get_aligned(unsigned address, unsigned page_size) {
@@ -130,6 +136,12 @@ int load_ta(void)
 	}
 	fb_mmc_flash_read_from_offset(partition, buf, to_read, ta_offset);
 	ta_header = (struct img_header *)(buf);
+
+	if(ta_header->header_magic_num != IMAGE_HEADER_MAGIC) {
+		printf("invalid TA header_magic_num\n");
+		goto failure;
+	}
+
 	ta_size = ta_header->chunk[ta_header->chunk_num - 1].offset + ta_header->chunk[ta_header->chunk_num - 1].size;
 
 	buf = malloc_ion_cacheable(ta_size);
@@ -143,17 +155,16 @@ int load_ta(void)
 		chunk = &(ta_header->chunk[i]);
 		//only load fastlogo ta
 		if(IMAGE_CHUNK_ID_FASTLOGO == chunk->id) {
-
 			printf("####find ta LOGO  %x\n", chunk->id);
 
 			logotasize = chunk->size;
+			logotabuf = buf + chunk->offset;
 
-			logotabuf = (unsigned char *)(uintptr_t)get_aligned((uintptr_t)buf, 16);
-			p = (buf + chunk->offset);
-			for(i = 0; i < logotasize; i++) {
-				logotabuf[i] = p[i];
-			}
-			break;
+		} else if(IMAGE_CHUNK_ID_DHUB == chunk->id) {
+
+			printf("####find ta DHUB  %x\n", chunk->id);
+			dhubtabuf = chunk->size;
+			dhubtabuf = buf + chunk->offset;
 		}
 	}
 
@@ -176,10 +187,22 @@ int reg_preload_tas(void)
 		return -1;
 	}
 
-	result = register_ta(logotabuf, logotasize);
-	if (result != TEEC_SUCCESS) {
-		printf("register TA failed, ret = 0x%08x\n", result);
-		return -2;
+	if(logotasize && logotabuf){
+		result = register_ta(logotabuf, logotasize);
+		if (result != TEEC_SUCCESS) {
+			printf("register LOGO TA failed, ret = 0x%08x\n", result);
+			return -2;
+		}
+		printf("register LOGO TA success, ret = 0x%08x\n", result);
+	}
+
+	if(dhubtasize && dhubtabuf){
+		result = register_ta(dhubtabuf, dhubtasize);
+		if (result != TEEC_SUCCESS) {
+			printf("register DHUB TA failed, ret = 0x%08x\n", result);
+			return -2;
+		}
+		printf("register DHUB TA success, ret = 0x%08x\n", result);
 	}
 
 	return 0;

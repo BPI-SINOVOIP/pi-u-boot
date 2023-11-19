@@ -58,6 +58,9 @@
 #define ANDROID_RPMB_AVB_BLKS 8
 #endif
 
+#if defined(CONFIG_SYNA_OEMBOOT_FLASH_MMC_DEV)
+#define CONFIG_FASTBOOT_FLASH_MMC_DEV CONFIG_SYNA_OEMBOOT_FLASH_MMC_DEV
+#endif
 /*
  * EP_BUFFER_SIZE must always be an integral multiple of maxpacket size
  * (64 or 512 or 1024), else we break on certain controllers like DWC3
@@ -1377,6 +1380,15 @@ int f_mmc_get_part_info(char *part_name, struct blk_desc **dev_desc,
 	}
 
 	return r;
+}
+
+int f_mmc_get_part_index(char *part_name)
+{
+	int r;
+	struct blk_desc *dev_desc;
+	disk_partition_t part_info;
+
+	return f_mmc_get_part_info(part_name, &dev_desc, &part_info);
 }
 
 static int is_ext4_type(char *part_name)

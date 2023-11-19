@@ -27,7 +27,9 @@
 #include <fdtdec.h>
 #include <asm/armv8/mmu.h>
 #include <lmb.h>
+#include "include/tz_boot_cmd.h"
 #include "mem_init.h"
+#include "tz_nw_boot.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -60,7 +62,7 @@ int dram_init_banksize(void)
 	return 0;
 }
 
-#ifdef CONFIG_SYNA_FASTBOOT
+#if defined(CONFIG_SYNA_FASTBOOT) || defined(CONFIG_CMD_SYNA_PRELOAD_TA)
 void get_mem_from_tzk(void)
 {
 	u64 sys_base = 0, sys_size = 0;
@@ -71,6 +73,7 @@ void get_mem_from_tzk(void)
 	get_mem_region_by_name(&bl_base, &bl_size, "bootloader");
 	get_mem_region_by_name(&sys_base, &sys_size, "system");
 	get_mem_region_by_name(&ns_nc_base, &ns_nc_size, "NonSecure-NC");
+
 	if (ns_nc_base == sys_base + sys_size) {
 		map_size = sys_size + ns_nc_size;
 	}
@@ -79,20 +82,25 @@ void get_mem_from_tzk(void)
 		printf("NonSecure-NC memory pool doesn't next to system memory pool\n");
 	}
 
-	if (sys_base == bl_base + bl_size) {
-		sys_base = bl_base;
-	}
 
 	if (sys_size) {
 		gd->ram_top = sys_base;
 		gd->ram_base = sys_base;
 		gd->ram_size = sys_size;
-		bank_nr = 1;
-		mem_map[0].virt = sys_base;
-		mem_map[0].phys = sys_base;
-		mem_map[0].size = map_size;
+		bank_nr = 2;
+
+		mem_map[0].virt = bl_base;
+		mem_map[0].phys = bl_base;
+		mem_map[0].size = bl_size;
 		mem_map[0].attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
 				   PTE_BLOCK_INNER_SHARE;
+
+		mem_map[1].virt = sys_base;
+		mem_map[1].phys = sys_base;
+		mem_map[1].size = map_size;
+		mem_map[1].attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+				   PTE_BLOCK_INNER_SHARE;
+
 		mem_map[bank_nr].virt = 0xF0000000UL;
 		mem_map[bank_nr].phys = 0xF0000000UL;
 		mem_map[bank_nr].size = 0x10000000UL;
@@ -212,7 +220,7 @@ int get_mem_from_fdt(void)
 
 int dram_init(void)
 {
-#ifdef CONFIG_SYNA_FASTBOOT
+#if defined(CONFIG_SYNA_FASTBOOT) || defined(CONFIG_CMD_SYNA_PRELOAD_TA)
 	get_mem_from_tzk();
 #else
 	get_mem_from_fdt();
@@ -220,6 +228,7 @@ int dram_init(void)
 
 	debug("%s: Initial DRAM size %llx\n", __func__, (u64)gd->ram_size);
 
+	tz_nw_enter_boot_stage(TZ_BOOT_STAGE_LINUX, TZ_BOOT_MODE_NORMAL);
 	return 0;
 }
 

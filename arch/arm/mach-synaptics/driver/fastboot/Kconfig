@@ -9,7 +9,7 @@ config SYNA_FASTBOOT_GUI_ENABLE
 
 config SYNA_DISPLAY_TA
 	bool "Using TA to display GUI"
-	depends on SYNA_FASTBOOT_GUI_ENABLE
+	depends on SYNA_FASTBOOT_GUI_ENABLE || SYNA_OEMBOOT
 	default y
 	help
 		for security reason, we need call display driver through fastlogo ta
