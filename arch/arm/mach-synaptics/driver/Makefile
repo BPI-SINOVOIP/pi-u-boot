@@ -6,6 +6,7 @@ obj-y += nand/		\
 	ext4/		\
 	tz/		\
 	fastboot/	\
-	fts/
+	fts/	\
+	fdt/
 
 obj-$(CONFIG_USBCONSOLE) += ring_buffer.o

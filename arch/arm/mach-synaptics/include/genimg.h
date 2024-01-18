@@ -34,6 +34,32 @@
 #ifndef _GENIMG_H
 #define _GENIMG_H
 
+#define	IMAGE_INFO_VERSION_1_0_0_0 0x01000000
+#define	IMG_INFO_MAGIC 0xE11D
+struct img_info {
+	unsigned int	version;
+	unsigned short	magic;
+	unsigned char		reserved1[2];
+	unsigned int	image_size;
+	unsigned int	image_offset;
+	unsigned char		reserved2[48];
+};
+
+#define PREPEND_IMAGE_INFO_SIZE sizeof(struct img_info)
+
+#define MAKE_FOURCC(ch0, ch1, ch2, ch3) \
+	((unsigned int)(char)(ch0) | ((unsigned int)(char)(ch1) << 8) | \
+	((unsigned int)(char)(ch2) << 16) | ((unsigned int)(char)(ch3) << 24))
+
+#define IMAGE_CHUNK_ID_SM_FW		MAKE_FOURCC('S', 'M', 'F', 'W')
+#define IMAGE_CHUNK_ID_FASTLOGO		MAKE_FOURCC('L', 'O', 'G', 'O')
+#define IMAGE_CHUNK_ID_KEYMASTER	MAKE_FOURCC('C', 'Y', 'P', 'T')
+#define IMAGE_CHUNK_ID_LINUX_DTB	MAKE_FOURCC('L', 'D', 'T', 'B')
+#define IMAGE_CHUNK_ID_DHUB			MAKE_FOURCC('D', 'H', 'U', 'B')
+#define IMAGE_HEADER_MAGIC			MAKE_FOURCC('I', 'M', '*', 'H')
+
+#define MAX_IMAGE_CHUNK_ENTRY 128
+
 struct img_header {
 	unsigned int header_magic_num;	/* 'IM*H' */
 	unsigned int header_size;
@@ -58,5 +84,7 @@ struct img_header {
 		unsigned int attr1;
 	} chunk[0];
 };
+
+extern int find_chunk(unsigned int id, struct img_header *buff);
 
 #endif //_GENIMG_H

@@ -44,6 +44,19 @@
  *                                 definition.
  */
 
+/* enum tee_mr_ion_types - list of all possible ION types
+ * need to sync the definition with Linux kernel ion driver !
+ */
+enum tee_mr_ion_type {
+	ION_TYPE_SYSTEM,
+	ION_TYPE_SYSTEM_CONTIG,
+	ION_TYPE_CARVEOUT,
+	ION_TYPE_CHUNK,
+	ION_TYPE_DMA,
+	ION_TYPE_BERLIN,
+	ION_TYPE_CUSTOM,
+};
+
 /* The ion memory pool attribute flag bits */
 #define ION_A_FS                0x0001      /* For secure memory */
 #define ION_A_NS                0x0002      /* For non-secure memory */
@@ -79,6 +92,10 @@
 /* MACRO functions for ION memory region userdata processing */
 #define TEE_MR_ION_ALG(mr)              (((mr)->userdata[0] & 0x00FFFFFF))
 #define TEE_MR_ION_ATTRIB(mr)           ((mr)->userdata[1])
+
+/* MACRO functions for ION region type aligned with Linux kernel */
+#define TEE_MR_ION_TYPE(mr)		(((mr)->userdata[0] & 0x000000FF))
+#define TEE_MR_ION_IS_CMA(mr)		(TEE_MR_ION_TYPE(mr) == ION_TYPE_DMA)
 
 /* MACRO functions for ION pool attributes */
 #define TEE_MR_ION_FOR_SECURE(mr)       (((mr)->userdata[1] & ION_A_FS))

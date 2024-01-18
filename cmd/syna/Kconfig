@@ -16,4 +16,12 @@ config CMD_SYNA_FTS
 	depends on MISC
 	help
 	  Enable Flash-based transactional key-value based on MMC.
+
+config CMD_SYNA_PRELOAD_TA
+	bool "Enable register ta command"
+	depends on SYNA_OEMBOOT
+
+config CMD_SYNA_FDT_UPDATE
+	bool "Enable FDT update before booting Kernel"
+	depends on SYNA_OEMBOOT
 endmenu
