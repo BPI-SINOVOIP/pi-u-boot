@@ -12,7 +12,7 @@
 #include "include/dt-bindings/gpio/gpio.h"
 
 / {
-	model = "Synaptics VS680 EVK";
+	model = "Banana Pi BPI-M6 (20240115)";
 	compatible = "Synaptics,vs680", "Synaptics,asserial";
 
 	memory {
@@ -25,8 +25,8 @@
 	};
 
 	chosen {
-                stdout-path = &smuart0;
-        };
+        stdout-path = &smuart0;
+    };
 
 	regulators {
 		compatible = "simple-bus";
@@ -38,7 +38,7 @@
 			regulator-name = "usb0_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			gpio = <&expander2 3 GPIO_ACTIVE_HIGH>;
+			// gpio = <&expander0 3 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 
@@ -47,7 +47,7 @@
 			regulator-name = "xhci0_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			gpio = <&expander2 2 GPIO_ACTIVE_HIGH>;
+			// gpio = <&expander0 2 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 	};
@@ -62,9 +62,9 @@
 
 &pinctrl {
 	emmc_pmux: emmc-pmux {
-                groups = "NAND_IO0", "NAND_IO1", "NAND_IO2", "NAND_IO3", "NAND_IO4", "NAND_IO5", "ND_IO6", "NAND_IO7", "NAND_ALE", "NAND_CLE", "NAND_WPn";
-                function = "emmc";
-        };
+		groups = "NAND_IO0", "NAND_IO1", "NAND_IO2", "NAND_IO3", "NAND_IO4", "NAND_IO5", "ND_IO6", "NAND_IO7", "NAND_ALE", "NAND_CLE", "NAND_WPn";
+		function = "emmc";
+    };
 
 	usb_vbus_pmux: usb_vbus_pmux {
 		groups = "USB2_DRV_VBUS";
@@ -111,6 +111,12 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&sm_i2c_tw3_pmux>;
+	// expander0: gpio@43 {
+	// 	compatible = "fcs,fxl6408";
+	// 	reg = <0x43>;
+	// 	gpio-controller;
+	// 	#gpio-cells = <2>;
+	// };
 	expander1: gpio@44 {
 		compatible = "fcs,fxl6408";
 		reg = <0x44>;
@@ -125,24 +131,23 @@
 	phy-mode = "rgmii-id";
 	phy-handle = <&phy0>;
 	phy = <&phy0>;
-	snps,reset-gpio = <&expander1 0 GPIO_ACTIVE_LOW>;
-	snps,reset-active-low;
+	snps,reset-gpio = <&portd 8 GPIO_ACTIVE_HIGH>;
+	snps,reset-active-high;
 	snps,reset-delays-us = <0 10000 50000>;
 };
 
 &sdhci2 {
 	status = "okay";
-	max-frequency = <200000000>;
+	max-frequency = <50000000>;
 	cap-mmc-highspeed;
 	1_8v-signalling;
-	mmc-ddr-1_8v;
 };
 
 &sdhci1 {
 	status="okay";
 	pinctrl-0 = <&sdhci1_pmux>;
 	pinctrl-names = "default";
-	snps,select-sd-gpio = <&expander2 0 GPIO_ACTIVE_HIGH>;
+	// snps,select-sd-gpio = <&expander0 0 GPIO_ACTIVE_HIGH>;
 	cap-sd-highspeed;
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;
@@ -161,12 +166,6 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_tw0_pmux>;
-	expander2: gpio@43 {
-		compatible = "fcs,fxl6408";
-		reg = <0x43>;
-		gpio-controller;
-		#gpio-cells = <2>;
-	};
 };
 
 &usb_phy0 {
@@ -184,7 +183,7 @@
 
 &xhci0 {
 	vbus-supply = <&xhci0_vbus>;
-	snps,reset-gpio = <&expander2 0 GPIO_ACTIVE_HIGH>;
-	snps,reset-active-high;
+	// snps,reset-gpio = <&expander0 0 GPIO_ACTIVE_HIGH>;
+	// snps,reset-active-high;
 	status = "okay";
 };

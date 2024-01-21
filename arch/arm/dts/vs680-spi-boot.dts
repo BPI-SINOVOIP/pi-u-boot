@@ -12,12 +12,12 @@
 #include "include/dt-bindings/gpio/gpio.h"
 
 / {
-	model = "Synaptics VS680 (BPI-M6 20231119)";
+	model = "Synaptics VS680 (BPI-M6 20240115)";
 	compatible = "Synaptics,vs680", "Synaptics,asserial";
 
 	memory {
 		device_type = "memory";
-		reg = <0 0x4a00000 0 0x6c200000>;
+		reg = <0 0x4a00000 0 0x16c200000>;
 	};
 
 	fts {

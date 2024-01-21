@@ -67,19 +67,6 @@
 #define BL_R_NAME			"bl_recovery"
 #endif
 
-#define	IMAGE_INFO_VERSION_1_0_0_0	0x01000000
-#define	IMG_INFO_MAGIC		0xE11D
-
-struct img_info
-{
-	uint32_t	version;
-	uint16_t	magic;
-	uint8_t		reserved1[2];
-	uint32_t	image_size;
-	uint32_t	image_offset;
-	uint8_t		reserved2[48];
-};
-
 static unsigned char * buf = NULL;
 static unsigned char * logotabuf = NULL;
 static unsigned int logotasize = 0;

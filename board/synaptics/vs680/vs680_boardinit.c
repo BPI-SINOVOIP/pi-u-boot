@@ -72,3 +72,33 @@ int board_init(void)
 	set_drive_strength();
 	return 0;
 }
+
+#ifdef CONFIG_SYNA_OEMBOOT
+//extern int reg_preload_tas(void);
+
+#ifdef CONFIG_SYNA_SM
+extern int syna_init_sm(void);
+#endif
+#endif
+
+int board_late_init(void) {
+	unsigned int result = 0;
+
+#ifdef CONFIG_SYNA_OEMBOOT
+	//result = reg_preload_tas();
+	//if (result) {
+	//	printf("register TA failed, ret = 0x%08x\n", result);
+	//}
+
+#ifdef CONFIG_SYNA_SM
+	result = syna_init_sm();
+	if (result) {
+		printf("Init SM failed, ret= 0x%08x\n", result);
+	}
+#endif
+
+	writel(0x01, 0xF7FE2050); //for vcore pmic i2c port select
+#endif
+
+	return result;
+}

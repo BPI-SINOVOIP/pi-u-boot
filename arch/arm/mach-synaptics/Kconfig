@@ -84,6 +84,14 @@ config CMD_IRQ_SYNA
 
 config USE_IRQ_SYNA
 	bool "Support IRQ function of Synaptics' chip"
+
+config SYNA_SM
+	bool "Support System Manager in U-Boot"
+	depends on SYNA_OEMBOOT
+
+config SYNA_INCLUDE_SM_FW
+	bool "Build System Manager firmware into U-Boot"
+	depends on SYNA_SM
 endmenu
 
 endif

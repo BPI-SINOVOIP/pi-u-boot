@@ -566,6 +566,10 @@ void sdhci_set_uhs_timing(struct sdhci_host *host)
 	reg &= ~SDHCI_CTRL_UHS_MASK;
 
 	switch (mmc->selected_mode) {
+	case UHS_SDR25:
+	case MMC_HS:
+		reg |= SDHCI_CTRL_UHS_SDR25;
+		break;
 	case UHS_SDR50:
 	case MMC_HS_52:
 		reg |= SDHCI_CTRL_UHS_SDR50;
@@ -587,6 +591,31 @@ void sdhci_set_uhs_timing(struct sdhci_host *host)
 	}
 
 	sdhci_writew(host, reg, SDHCI_HOST_CONTROL2);
+
+	if (mmc->selected_mode == MMC_HS_400) {
+		u8 valb;
+
+		sdhci_writew(host, 0x8000, DLLLBT_CNFG);
+
+		valb = 0;
+		valb |= (0x3 << SLVDLY_SFT);
+		valb |= (0x3 << WAITCYCLE_SFT);
+		sdhci_writeb(host, valb, DLL_CNFG1);
+
+		valb = 0;
+		valb |= 0xa;
+		sdhci_writeb(host, valb, DLL_CNFG2);
+
+		valb = 0;
+		valb |= (0x3 << SLV_INPSEL_SFT);
+		sdhci_writeb(host, valb, DLLDL_CNFG);
+
+		valb = sdhci_readb(host, DLL_CTRL);
+		valb |= DLL_EN;
+		sdhci_writeb(host, valb, DLL_CTRL);
+	}
+
+
 }
 
 static void sdhci_set_voltage(struct sdhci_host *host)
@@ -617,21 +646,21 @@ static void sdhci_set_voltage(struct sdhci_host *host)
 				}
 			}
 #endif
-			if (IS_SD(mmc)) {
+			//if (IS_SD(mmc)) {
 				ctrl &= ~SDHCI_CTRL_VDD_180;
 				sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
-			}
+			//}
 
 			/* Wait for 5ms */
 			mdelay(5);
-
+			ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 			/* 3.3V regulator output should be stable within 5 ms */
-			if (IS_SD(mmc)) {
+			//if (IS_SD(mmc)) {
 				if (ctrl & SDHCI_CTRL_VDD_180) {
 					pr_err("3.3V regulator output did not become stable\n");
 					return;
 				}
-			}
+			//}
 
 			break;
 		case MMC_SIGNAL_VOLTAGE_180:
@@ -653,25 +682,26 @@ static void sdhci_set_voltage(struct sdhci_host *host)
 				}
 			}
 #endif
-			if (IS_SD(mmc)) {
+			//if (IS_SD(mmc)) {
 				ctrl |= SDHCI_CTRL_VDD_180;
 				sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
-			}
+			//}
 
 			/* Wait for 5 ms */
 			mdelay(5);
-
+			ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 			/* 1.8V regulator output has to be stable within 5 ms */
-			if (IS_SD(mmc)) {
+			//if (IS_SD(mmc)) {
 				if (!(ctrl & SDHCI_CTRL_VDD_180)) {
 					pr_err("1.8V regulator output did not become stable\n");
 					return;
 				}
-			}
+			//}
 
 			break;
 		default:
 			/* No signal voltage switch required */
+			printf("No signal voltage switch required\n");
 			return;
 		}
 	}
@@ -730,6 +760,7 @@ static int sdhci_set_ios(struct mmc *mmc)
 	if (!no_hispd_bit) {
 		if (mmc->selected_mode == MMC_HS ||
 		    mmc->selected_mode == SD_HS ||
+			mmc->selected_mode == MMC_HS_52 ||
 		    mmc->selected_mode == MMC_DDR_52 ||
 		    mmc->selected_mode == MMC_HS_200 ||
 		    mmc->selected_mode == MMC_HS_400 ||

@@ -228,7 +228,10 @@ int dram_init(void)
 
 	debug("%s: Initial DRAM size %llx\n", __func__, (u64)gd->ram_size);
 
+#if (defined(CONFIG_SYNA_DISPLAY_TA) && defined(CONFIG_SYNA_OEMBOOT))
 	tz_nw_enter_boot_stage(TZ_BOOT_STAGE_LINUX, TZ_BOOT_MODE_NORMAL);
+#endif
+
 	return 0;
 }
 

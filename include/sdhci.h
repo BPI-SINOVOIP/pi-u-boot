@@ -153,7 +153,7 @@
 #define  SDHCI_CTRL_UHS_SDR50	0x0002
 #define  SDHCI_CTRL_UHS_SDR104	0x0003
 #define  SDHCI_CTRL_UHS_DDR50	0x0004
-#define  SDHCI_CTRL_HS400	0x0005 /* Non-standard */
+#define  SDHCI_CTRL_HS400	0x0007
 #define  SDHCI_CTRL_VDD_180	0x0008
 #define  SDHCI_CTRL_DRV_TYPE_MASK	0x0030
 #define  SDHCI_CTRL_DRV_TYPE_B	0x0000
@@ -226,10 +226,56 @@
  */
 
 
-#define PHY_AT_CTRL_R     0x540
-#define AT_EN			(1 << 0)
-#define SWIN_TH_EN		(1 << 2)
-#define RPT_TUNE_ERR	(1 << 3)
+/*
+ * Start of PHY registers.
+ */
+#define PHY_OFFSET		(0x300)
+#define DLL_CTRL			(PHY_OFFSET + 0x24)
+#define  DLL_EN				(1 << 0)
+#define DLL_CNFG1			(PHY_OFFSET + 0x25)
+#define  WAITCYCLE_SFT			0
+#define  WAITCYCLE_MSK			(0x7 << WAITCYCLE_SFT)
+#define  SLVDLY_SFT			4
+#define  SLVDLY_MSK			(0x3 << SLVDLY_SFT)
+#define DLL_CNFG2			(PHY_OFFSET + 0x26)
+#define DLLDL_CNFG			(PHY_OFFSET + 0x28)
+#define  SLV_INPSEL_SFT			5
+#define  SLV_INPSEL_MSK			(0x3 << SLV_INPSEL_SFT)
+#define DLLLBT_CNFG			(PHY_OFFSET + 0x2c)
+#define DLL_STATUS			(PHY_OFFSET + 0x2e)
+#define  LOCK_STS			(1 << 0)
+#define  ERROR_STS			(1 << 1)
+#define DLLDBG_MLKDC			(PHY_OFFSET + 0x30)
+#define DLLDBG_SLKDC			(PHY_OFFSET + 0x32)
+/*
+ * End of PHY registers.
+ */
+
+/*
+ * Start of VENDOR1 registers.
+ */
+#define EMMC_VENDOR1_OFFSET (0x500)
+#define EMMC_CTRL_R	(EMMC_VENDOR1_OFFSET + 0x2C)
+#define  CARD_IS_EMMC			(1 << 0)
+#define  ENH_STROBE_ENABLE		(1 << 8)
+#define AT_CTRL_R     (EMMC_VENDOR1_OFFSET +0x40)
+#define  AT_EN				(1 << 0)
+#define  CI_SEL				(1 << 1)
+#define  SWIN_TH_EN			(1 << 2)
+#define  RPT_TUNE_ERR			(1 << 3)
+#define  SW_TUNE_EN			(1 << 4)
+#define  TUNE_CLK_STOP_EN		(1 << 16)
+#define  PRE_CHANGE_DLY_SFT		17
+#define  PRE_CHANGE_DLY_MSK		(0x3 << PRE_CHANGE_DLY_SFT)
+#define  POST_CHANGE_DLY_SFT		19
+#define  POST_CHANGE_DLY_MSK		(0x3 << POST_CHANGE_DLY_SFT)
+#define  SWIN_TH_VAL_SFT		24
+#define  SWIN_TH_VAL_MSK		(0x3f << SWIN_TH_VAL_SFT)
+
+/*
+ * End of VENDOR1 registers.
+ */
+
 
 #define SDHCI_MAX_DIV_SPEC_200	256
 #define SDHCI_MAX_DIV_SPEC_300	2046

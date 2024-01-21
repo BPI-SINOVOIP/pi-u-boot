@@ -41,10 +41,22 @@ DECLARE_GLOBAL_DATA_PTR;
 #define EXTDLY_EN		(1 << 0)
 #define UPDATE_DC       (1 << 4)
 
+#define PHY_DLL_CTRL			0x324
+#define  DLL_EN				(1 << 0)
+
+#define PHY_DLL_STATUS			0x32e
+#define  LOCK_STS			(1 << 0)
+
+#define PHY_DLLDBG_MLKDC			0x330
+#define PHY_DLLDBG_SLKDC			0x332
+
 /*PHY PAD GENERAL modes */
 #define PAD_SP_8    0x8
 #define PAD_SP_9    0x9
+#define PAD_SP_E    0xE
+
 #define PAD_SN_8    0x8
+#define PAD_SN_E    0xE
 
 typedef struct {
 	unsigned int addr;
@@ -128,7 +140,7 @@ struct dwcmshc_sdhci_plat {
 /* 1v8 default PHY config */
 PHY_PAD_GENERAL pad_general_1v8 =
 {
-	0x300, 16, 20, 0xF, PAD_SP_8, PAD_SN_8
+	0x300, 16, 20, 0xF, PAD_SP_E, PAD_SN_E
 };
 
 PHY_RXSEL pad_rxsel_1v8[5] =
@@ -374,7 +386,7 @@ static void dwcmshc_set_phy_tx_delay(struct sdhci_host *host, u8 delay)
 	valdc |= delay;
 	sdhci_writeb(host, valdc, PHY_SDCLKDL_DC);
 
-	//disable extdelay,from diag
+	//disable extdelay，from diag
 	valb = sdhci_readb(host, PHY_SDCLKDL_CNFG);
 	valb &= ~EXTDLY_EN;
 	sdhci_writeb(host, valb, PHY_SDCLKDL_CNFG);
@@ -384,11 +396,59 @@ static void dwcmshc_set_phy_tx_delay(struct sdhci_host *host, u8 delay)
 	sdhci_writeb(host, valb, PHY_SDCLKDL_CNFG);
 }
 
+static int dwcmshc_phy_dll_cal(struct sdhci_host *host)
+{
+	u8 val, valm, vals;
+	int ret,i;
+	static int cal_val = 0;
+	if(cal_val > 0)
+		return cal_val;
+
+	val = sdhci_readb(host, PHY_DLL_CTRL);
+	val &= ~DLL_EN;
+	sdhci_writeb(host, val, PHY_DLL_CTRL);
+	val |= DLL_EN;
+	sdhci_writeb(host, val, PHY_DLL_CTRL);
+
+	for(i=0; i < 20; i++){
+		val = sdhci_readb(host, PHY_DLL_STATUS);
+		if(val & LOCK_STS){
+			ret = 0;
+			break;
+		}
+
+		mdelay(1);
+	}
+
+	if (ret)
+		return -1;
+
+	valm = sdhci_readb(host, PHY_DLLDBG_MLKDC);
+	vals = sdhci_readb(host, PHY_DLLDBG_SLKDC);
+	if (!valm || !vals)
+		return -EINVAL;
+	val = valm / vals;
+	if (val == 4)
+		ret = 5000 / valm;
+	else if (val == 2)
+		ret = 5000 / 2 / valm;
+	else
+		ret = 5000 / 4 / vals;
+	if (!ret)
+		return -EINVAL;
+	ret = 1400 / ret;
+	ret++;
+
+	if(ret > 0)
+		cal_val = ret;
+
+	printf("dll-calibration result: %d\n", ret);
+	return ret;
+}
 
 static void dwcmshc_sdhci_set_control_reg(struct sdhci_host *host)
 {
 	volatile unsigned int val = 0;
-	u8 delay = 0;
 
 	//disable SD_CLK
 	val = sdhci_readw(host, SDHCI_EMMC_CTRL_OFFSET);
@@ -396,14 +456,6 @@ static void dwcmshc_sdhci_set_control_reg(struct sdhci_host *host)
 
 	//switch_phy_power
 	dwcmsh_phy_switch_power(host);
-
-	//set delay line
-	if(host->mmc->selected_mode == UHS_SDR104)
-		delay = 75; //val copy from kernel
-
-	if(delay)
-		dwcmshc_set_phy_tx_delay(host, delay);
-
 	sdhci_set_control_reg(host);
 
 	//recover SD_CLK
@@ -412,6 +464,33 @@ static void dwcmshc_sdhci_set_control_reg(struct sdhci_host *host)
 	return;
 }
 
+static int dwcmshc_sdhci_set_delay(struct sdhci_host *host)
+{
+	u8 delay = 0;
+	//set delay line
+	if(host->mmc->selected_mode == UHS_SDR104)
+		delay = 75; //val copy from kernel
+	else if (host->mmc->selected_mode ==  MMC_HS)
+		//delay = 100;
+		delay = 26; //evk test ok
+	else if (host->mmc->selected_mode ==  MMC_DDR_52)
+		//delay = 90; //copy from kernel,can't working
+		delay = 26; //evk test ok
+	else if (host->mmc->selected_mode == MMC_HS_200)
+		//delay = 40; //work ok
+		delay = 26; //evk test ok. value from diag
+	else if (host->mmc->selected_mode == MMC_HS_400)
+	{
+		sdhci_writew(host,  0x103, SDHCI_CLOCK_CONTROL);
+		delay = dwcmshc_phy_dll_cal(host);
+	}
+		//delay = 29;// from evk dwcmshc_phy_dll_cal
+
+	if(delay)
+		dwcmshc_set_phy_tx_delay(host, delay);
+
+	return 0;
+}
 
 void dwcmshc_sdhci_reset_tuning(struct sdhci_host *host)
 {
@@ -423,34 +502,61 @@ void dwcmshc_sdhci_reset_tuning(struct sdhci_host *host)
 	sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
 }
 
-#if TUNING_FUNCTION_OK //so far,tuning is not work,comment for build error
+void debug_dump_reg(struct sdhci_host *host)
+{
 
-#define SDHCI_TUNING_LOOP_COUNT	40
+printf("SDHCI_HOST_CONTROL(%x):     0x%x\n",SDHCI_HOST_CONTROL,
+		   sdhci_readb(host, SDHCI_HOST_CONTROL));
 
+printf("SDHCI_POWER_CONTROL(%x):     0x%x\n",SDHCI_POWER_CONTROL,
+		   sdhci_readb(host, SDHCI_POWER_CONTROL));
+
+printf("SDHCI_CLOCK_CONTROL(%x):     0x%x\n",SDHCI_CLOCK_CONTROL,
+		   sdhci_readw(host, SDHCI_CLOCK_CONTROL));
+
+printf("SDHCI_HOST_CONTROL2(%x):     0x%x\n",SDHCI_HOST_CONTROL2,
+		   sdhci_readw(host, SDHCI_HOST_CONTROL2));
+
+//phy
+printf("(%x):     0x%x\n",0x300,sdhci_readl(host, 0x300));
+printf("(%x):     0x%x\n",0x304,sdhci_readw(host, 0x304));
+printf("(%x):     0x%x\n",0x306,sdhci_readw(host, 0x306));
+printf("(%x):     0x%x\n",0x308,sdhci_readw(host, 0x308));
+printf("(%x):     0x%x\n",0x30a,sdhci_readw(host, 0x30a));
+printf("(%x):     0x%x\n",0x30c,sdhci_readw(host, 0x30c));
+printf("(%x):     0x%x\n",0x31d,sdhci_readb(host, 0x31d));
+printf("(%x):     0x%x\n",0x31e,sdhci_readb(host, 0x31e));
+
+//vendor1
+printf("(%x):     0x%x\n",0x30c,sdhci_readw(host, 0x52c));
+printf("(%x):     0x%x\n",0x540,sdhci_readl(host, 0x540));
+printf("(%x):     0x%x\n",0x544,sdhci_readl(host, 0x544));
+
+}
+
+#define SDHCI_MAX_TUNING_LOOP_COUNT	150//40
 static int dwcmshc_sdhci_execute_tuning(struct mmc *mmc, u8 opcode)
 {
 	struct sdhci_host *host = (struct sdhci_host *)mmc->priv;
-	char tuning_loop_counter = SDHCI_TUNING_LOOP_COUNT;
+	char tuning_loop_counter = SDHCI_MAX_TUNING_LOOP_COUNT;
 	struct mmc_cmd cmd;
 	u32 ctrl, blk_size, val, i, int_en, signal_en;
 	u16 clk;
 	int ret = -1;
 
-
-	printf("opcode %d\n", opcode);
-
 	//1.prepare
 	dwcmshc_sdhci_reset_tuning(host);
 	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
 	sdhci_writew(host, clk & ~SDHCI_CLOCK_CARD_EN, SDHCI_CLOCK_CONTROL);
-	val = sdhci_readl(host, PHY_AT_CTRL_R);
+	val = sdhci_readl(host, AT_CTRL_R);
 	val &= ~SWIN_TH_EN;
 	val &= ~RPT_TUNE_ERR;
 	val |= AT_EN;
-	sdhci_writel(host, PHY_AT_CTRL_R, val);
+	sdhci_writel(host, val, AT_CTRL_R);
 	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
 
-	//2. start tuning
+
+	//2. start tuning,sdhci_execute_tuning
 	ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 	ctrl |= SDHCI_CTRL_EXEC_TUNING;
 	sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
@@ -462,30 +568,29 @@ static int dwcmshc_sdhci_execute_tuning(struct mmc *mmc, u8 opcode)
 	sdhci_writel(host, SDHCI_INT_DATA_AVAIL, SDHCI_SIGNAL_ENABLE);
 
 
-	/*
-	 * In response to CMD19, the card sends 64 bytes of tuning
-	 * block to the Host Controller. So we set the block size
-	 * to 64 here.
-	 */
-
-	blk_size = SDHCI_MAKE_BLKSZ(SDHCI_DEFAULT_BOUNDARY_ARG, 64);
-	if (opcode == MMC_CMD_SEND_TUNING_BLOCK_HS200 && host->mmc->bus_width == 8)
-		blk_size = SDHCI_MAKE_BLKSZ(SDHCI_DEFAULT_BOUNDARY_ARG, 128);
-	sdhci_writew(host, blk_size, SDHCI_BLOCK_SIZE);
-
-	/*
-	 * The tuning block is sent by the card to the host controller.
-	 * So we set the TRNS_READ bit in the Transfer Mode register.
-	 * This also takes care of setting DMA Enable and Multi Block
-	 * Select in the same register to 0.
-	 */
-	sdhci_writew(host, SDHCI_TRNS_READ, SDHCI_TRANSFER_MODE);
-
 	cmd.cmdidx = opcode;
 	cmd.resp_type = MMC_RSP_R1;
 	cmd.cmdarg = 0;
 
 	for(i = 0; i < tuning_loop_counter; i++) {
+	/*
+		* In response to CMD19, the card sends 64 bytes of tuning
+		* block to the Host Controller. So we set the block size
+		* to 64 here.
+		*/
+
+		blk_size = SDHCI_MAKE_BLKSZ(SDHCI_DEFAULT_BOUNDARY_ARG, 64);
+		if (opcode == MMC_CMD_SEND_TUNING_BLOCK_HS200 && host->mmc->bus_width == 8)
+			blk_size = SDHCI_MAKE_BLKSZ(SDHCI_DEFAULT_BOUNDARY_ARG, 128);
+		sdhci_writew(host, blk_size, SDHCI_BLOCK_SIZE);
+
+		/*
+		* The tuning block is sent by the card to the host controller.
+		* So we set the TRNS_READ bit in the Transfer Mode register.
+		* This also takes care of setting DMA Enable and Multi Block
+		* Select in the same register to 0.
+		*/
+		sdhci_writew(host, SDHCI_TRNS_READ, SDHCI_TRANSFER_MODE);
 
 		mmc_send_cmd(mmc, &cmd, NULL);
 
@@ -495,7 +600,7 @@ static int dwcmshc_sdhci_execute_tuning(struct mmc *mmc, u8 opcode)
 		if (!(ctrl & SDHCI_CTRL_EXEC_TUNING)) {
 			if (ctrl & SDHCI_CTRL_TUNED_CLK) {
 				ret = 0; /* Success! */
-				printf("tuning Success\n");
+				break;
 			}
 			else {
 				dwcmshc_sdhci_reset_tuning(host);
@@ -506,60 +611,27 @@ static int dwcmshc_sdhci_execute_tuning(struct mmc *mmc, u8 opcode)
 		}
 	}
 
-#if 0
-	do {
-		if (tuning_loop_counter-- == 0)
-			break;
-
-		mmc_send_cmd(mmc, &cmd, NULL);
-
-		if (opcode == MMC_CMD_SEND_TUNING_BLOCK)
-			/*
-			 * For tuning command, do not do busy loop. As tuning
-			 * is happening (CLK-DATA latching for setup/hold time
-			 * requirements), give time to complete
-			 */
-			mdelay(1);
-
-		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
-	} while (ctrl & SDHCI_CTRL_EXEC_TUNING);
-
-	if (!(ctrl & SDHCI_CTRL_TUNED_CLK)) {
-		printf("%s:Tuning failed\n", __func__);
-		ret = -EIO;
-	}
-
-	if (tuning_loop_counter < 0) {
-		ctrl &= ~SDHCI_CTRL_TUNED_CLK;
-		sdhci_writel(host, ctrl, SDHCI_HOST_CONTROL2);
-	}
-
-
-	/* Enable only interrupts served by the SD controller */
-	sdhci_writel(host, SDHCI_INT_DATA_MASK | SDHCI_INT_CMD_MASK, SDHCI_INT_ENABLE);
-	/* Mask all sdhci interrupt sources */
-	sdhci_writel(host, 0x0, SDHCI_SIGNAL_ENABLE);
-#endif
-
 	//3.restor interrupts,end tuning
 	sdhci_writel(host, int_en, SDHCI_INT_ENABLE);
 	sdhci_writel(host, signal_en, SDHCI_SIGNAL_ENABLE);
 
-#if 0
-	/* Enable only interrupts served by the SD controller */
-	sdhci_writel(host, SDHCI_INT_DATA_MASK | SDHCI_INT_CMD_MASK, SDHCI_INT_ENABLE);
-	/* Mask all sdhci interrupt sources */
-	sdhci_writel(host, 0x0, SDHCI_SIGNAL_ENABLE);
-#endif
-
-
 	return ret;
 }
-#endif
+
+static int dwcmshc_hs400_enhanced_strobe(struct sdhci_host *host)
+{
+	u32 val = 0;
+	val = sdhci_readl(host, EMMC_CTRL_R);
+	val |= ENH_STROBE_ENABLE;
+	sdhci_writel(host, val, EMMC_CTRL_R);
+	return 0;
+}
 
 const struct sdhci_ops dwcmshc_ops = {
 	.set_control_reg = &dwcmshc_sdhci_set_control_reg,
-	//.platform_execute_tuning = &dwcmshc_sdhci_execute_tuning,
+	.platform_execute_tuning = &dwcmshc_sdhci_execute_tuning,
+	.set_delay = &dwcmshc_sdhci_set_delay,
+	.set_enhanced_strobe = &dwcmshc_hs400_enhanced_strobe,
 };
 
 static void dwcmshc_sdhci_reset(struct dwcmshc_sdhci_plat *plat,
@@ -678,7 +750,7 @@ static int dwcmshc_sdhci_probe(struct udevice *dev)
 		ret = gpio_request_by_name(dev, "snps,select-sd-gpio", 0,
 			&desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 		if(ret)
-			printf("snps,select-sd-gpio error,ret is %d\n", ret);
+			pr_debug("snps,select-sd-gpio error,ret is %d\n", ret);
 #endif
 
 	ret = sdhci_setup_cfg(&plat->cfg, host, plat->cfg.f_max, 0);

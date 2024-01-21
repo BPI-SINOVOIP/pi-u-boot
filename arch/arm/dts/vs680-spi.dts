@@ -12,7 +12,7 @@
 #include "include/dt-bindings/gpio/gpio.h"
 
 / {
-	model = "Synaptics VS680 EVK (BPI-M6) 20230806";
+	model = "Synaptics VS680 EVK (BPI-M6) 20240115";
 	compatible = "Synaptics,vs680", "Synaptics,asserial";
 
 	memory {
@@ -132,9 +132,10 @@
 
 &sdhci2 {
 	status = "okay";
-	max-frequency = <50000000>;
+	max-frequency = <200000000>;
 	cap-mmc-highspeed;
 	1_8v-signalling;
+	mmc-ddr-1_8v;
 };
 
 &sdhci1 {

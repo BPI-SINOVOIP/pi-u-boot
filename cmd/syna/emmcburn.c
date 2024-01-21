@@ -27,7 +27,6 @@
 static int curr_device = -1;
 static struct mmc *mmc;
 static int curr_part = -1;
-static int super_pt_erased = 0;
 
 static int is_gpt_ready = 0;
 static gpt_header g_gpt_h;
@@ -489,6 +488,7 @@ static int dl_and_burn_img(char * src, char * path, char * imgname, char * pt)
 	uint64_t max_alloc = 0;
 	uint32_t image_size = 0;
 	struct pt_info pi;
+	static char spit_image[64] = {0};
 
 	ret = get_partition_info(pt, &pi);
 	if(ret)
@@ -511,21 +511,27 @@ static int dl_and_burn_img(char * src, char * path, char * imgname, char * pt)
 	image_size = env_get_hex("filesize", 0);
 
 	//erase the whole partition
-	if (!(!strncmp(pi.partition_name, "super", 5) && super_pt_erased == 1)) {
-		if (!strncmp(pi.partition_name, "super", 5))
-			super_pt_erased = 1;
-
+	if(0 == strlen(spit_image) || strncmp(spit_image, imgname, strlen(spit_image))) {
 		ret = emmc_erase(pi.part, pi.start_lba, pi.cnt);
 		if(ret) {
 			free(buff);
 			return -1;
 		}
+		printf("erase partition %s success\n", pt);
+	} else {
+		printf("Split image sequence %s detected,skip partition erase\n", spit_image);
 	}
 
 	ret = burn_images(pi, buff, image_size);
 	if(ret) {
 		free(buff);
 		return -1;
+	}
+
+	if(NULL != strstr(imgname,".0")) {
+		memset(spit_image, 0, sizeof(spit_image));
+		strncpy(spit_image, imgname, strlen(imgname)-strlen(strstr(imgname,".0")));
+		printf("Split image sequence %s identified\n", spit_image);
 	}
 
 	printf("write image data success!\n");
@@ -1236,7 +1242,6 @@ static int do_list2emmc(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 
 	printf("CMD_PART: list2emmc success.\n");
 
-	super_pt_erased = 0;
 	timer = get_timer(timer);
 	printf("%s: time cost %ld ms\n", __func__, timer);
 
@@ -1249,7 +1254,6 @@ static int do_list2emmc(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 	return 0;
 
 ERROR:
-	super_pt_erased = 0;
 	printf("CMD_PART: list2emmc failed\n");
 	printf("fail to write image\n");
 	return CMD_RET_USAGE;
