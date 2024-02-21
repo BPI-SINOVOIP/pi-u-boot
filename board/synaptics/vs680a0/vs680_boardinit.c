@@ -1,10 +1,27 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *
- * Copyright (C) 2019 Synaptics Incorporated
- *
- * Author: Shaojun Feng <Shaojun.feng@synaptics.com>
- */
+ * Copyright (C) 2016~2023 Synaptics Incorporated. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 or
+ * later as published by the Free Software Foundation.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND
+ * SYNAPTICS EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES,
+ * INCLUDING ANY IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE, AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY
+ * INTELLECTUAL PROPERTY RIGHTS. IN NO EVENT SHALL SYNAPTICS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, PUNITIVE, OR
+ * CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION WITH THE USE
+ * OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED AND
+ * BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF
+ * COMPETENT JURISDICTION DOES NOT PERMIT THE DISCLAIMER OF DIRECT
+ * DAMAGES OR ANY OTHER DAMAGES, SYNAPTICS' TOTAL CUMULATIVE LIABILITY
+ * TO ANY PARTY SHALL NOT EXCEED ONE HUNDRED U.S. DOLLARS.
+ */
+
 #include <common.h>
 #include <asm/io.h>
 #if !CONFIG_IS_ENABLED(SYNA_FASTBOOT)
@@ -63,6 +80,29 @@ static void early_clock_config(void)
 }
 #endif
 
+extern int get_chip_type(void);
+extern int get_chip_rev(void);
+extern unsigned long long get_chip_id(void);
+int checkboard(void)
+{
+	int chip_type = get_chip_type();
+	int chip_rev = get_chip_rev();
+	unsigned long long chip_id = get_chip_id();
+
+	if (chip_type == -1)
+		return 0;
+
+	printf("Chip:  %s", chip_type & BIT(4) ? "SL1680": "VS680");
+
+	if (chip_rev == -1)
+		printf("\n");
+	else
+		printf(" %2X\n", chip_rev);
+
+	printf("CHIP_ID (byte[0:7]) = %16llx\n", chip_id);
+	return 0;
+}
+
 int board_init(void)
 {
 	//board related things like clock may be inited here
@@ -99,6 +139,8 @@ int board_late_init(void) {
 
 	writel(0x01, 0xF7FE2050); //for vcore pmic i2c port select
 #endif
+
+	env_set("chip", get_chip_type() & BIT(4) ? "SL1680": "VS680");
 
 	return result;
 }
