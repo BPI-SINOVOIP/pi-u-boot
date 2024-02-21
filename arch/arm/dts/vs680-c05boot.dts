@@ -12,7 +12,7 @@
 #include "include/dt-bindings/gpio/gpio.h"
 
 / {
-	model = "Synaptics VS680 C05";
+	model = "Banana Pi BPI-M6 (20240115A)";
 	compatible = "Synaptics,vs680", "Synaptics,asserial";
 
 	memory {
@@ -131,7 +131,7 @@
 	phy-mode = "rgmii-id";
 	phy-handle = <&phy0>;
 	phy = <&phy0>;
-	//snps,reset-gpio = <&expander1 0 GPIO_ACTIVE_LOW>;
+	snps,reset-gpio = <&portd 8 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 50000>;
 };
