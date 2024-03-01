@@ -699,6 +699,7 @@ void sunxi_board_init(void)
 #endif
 #if defined(CONFIG_AXP313A_POWER)
 	power_failed |= axp_set_dcdc3(CONFIG_AXP_DCDC3_VOLT);
+	printf("BPI: AXP313A AXP_DCDC3_VOLT:%d\n",CONFIG_AXP_DCDC3_VOLT);
 #endif
 #if !defined(CONFIG_AXP209_POWER) && !defined(CONFIG_AXP818_POWER) && \
     !defined(CONFIG_AXP313A_POWER)
