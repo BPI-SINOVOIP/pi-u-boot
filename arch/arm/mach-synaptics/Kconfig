@@ -30,6 +30,13 @@ config TARGET_VS680_A0
 	  The Synaptics VS680 is a ARM64-based SoC with a quad-core Cortex-A73.
 	  including UART, SPI, USB2.0 and OTG, NAND, EMMC, USB Ethernet, etc.
 
+config TARGET_VS680_C05
+	bool "Synaptics VS680 SoC"
+	select ARM64
+	help
+	  The Synaptics VS680 is a ARM64-based SoC with a quad-core Cortex-A73.
+	  including UART, SPI, USB2.0 and OTG, NAND, EMMC, USB Ethernet, etc.
+
 config TARGET_VS640
 	bool "Synaptics VS640 SoC"
 	select ARM64
@@ -40,10 +47,12 @@ endchoice
 
 source "arch/arm/mach-synaptics/driver/Kconfig"
 
-source "board/synaptics/as370/Kconfig"
+# source "board/synaptics/as370/Kconfig"
 source "board/synaptics/vs680/Kconfig"
 source "board/synaptics/vs680a0/Kconfig"
-source "board/synaptics/vs640/Kconfig"
+source "board/synaptics/vs680_c05/Kconfig"
+# source "board/synaptics/vs640/Kconfig"
+
 
 menu "Synaptics Specific Setup"
 

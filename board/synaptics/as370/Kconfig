@@ -1,9 +1,0 @@
-if TARGET_AS370
-
-config SYS_BOARD
-	default "as370"
-
-config SYS_CONFIG_NAME
-	default "as370"
-
-endif

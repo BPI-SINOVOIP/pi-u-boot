@@ -117,6 +117,20 @@ ifdef CONFIG_TARGET_VS680_A0
     obj-y += vpp_ca/avpll/vs680/avpll.o
 endif
 
+ifdef CONFIG_TARGET_VS680_C05
+    B_CHIP_CFLAGS +=-DBERLIN_CHIP_VERSION=BERLIN_VS680
+    B_CHIP_CFLAGS +=-DBERLIN_SOC_VS680
+    B_CHIP_CFLAGS +=-DCONFIG_VPP_ENABLE_AVPLL
+    B_CHIP_CFLAGS +=-DCONFIG_VPP_ENABLE_AVPLL_LOCAL
+
+    PLATFORM_CPPFLAGS += -I$(srctree)/../common/inc/chip/vs680/Z1
+    PLATFORM_CPPFLAGS += -I$(srctree)/board/synaptics/vs680_c05/include/
+    PLATFORM_CPPFLAGS += -I$(srctree)/drivers/video/syna/vpp_ca/avpll/vs680/
+
+    obj-y += vpp_ca/avpll/vs680/avpll.o
+endif
+
+
 ifdef CONFIG_TARGET_VS640
     B_CHIP_CFLAGS +=-DBERLIN_CHIP_VERSION=BERLIN_VS640
     B_CHIP_CFLAGS +=-DBERLIN_SOC_VS640

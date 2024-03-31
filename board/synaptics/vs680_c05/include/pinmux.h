@@ -1,0 +1,151 @@
+/*
+ * NDA AND NEED-TO-KNOW REQUIRED
+ *
+ * Copyright © 2013-2020 Synaptics Incorporated. All rights reserved.
+ *
+ * This file contains information that is proprietary to Synaptics
+ * Incorporated ("Synaptics"). The holder of this file shall treat all
+ * information contained herein as confidential, shall use the
+ * information only for its intended purpose, and shall not duplicate,
+ * disclose, or disseminate any of this information in any manner
+ * unless Synaptics has otherwise provided express, written
+ * permission.
+ *
+ * Use of the materials may require a license of intellectual property
+ * from a third party or from Synaptics. This file conveys no express
+ * or implied licenses to any intellectual property rights belonging
+ * to Synaptics.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND
+ * SYNAPTICS EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES,
+ * INCLUDING ANY IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE, AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY
+ * INTELLECTUAL PROPERTY RIGHTS. IN NO EVENT SHALL SYNAPTICS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, PUNITIVE, OR
+ * CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION WITH THE USE
+ * OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED AND
+ * BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF
+ * COMPETENT JURISDICTION DOES NOT PERMIT THE DISCLAIMER OF DIRECT
+ * DAMAGES OR ANY OTHER DAMAGES, SYNAPTICS' TOTAL CUMULATIVE LIABILITY
+ * TO ANY PARTY SHALL NOT EXCEED ONE HUNDRED U.S. DOLLARS.
+ */
+#ifndef __PINMUX_H_
+#define __PINMUX_H_
+
+#define PINMUX_TW1_SELECT(_val)	pinmux_TW1_sel_set(_val)
+#define PINMUX_TW2_SELECT(_val)	pinmux_TW2_sel_set(_val)
+
+enum pinmuxIndexList
+{
+        //SOC 0xF7EA8000
+	SOC_PINMUX_INDEX_START = 0,
+	SDIO_CDn = 0,
+	SDIO_WP,
+	SPI1_SS0n,
+	SPI1_SS1n,
+	SPI1_SS2n,
+	SPI1_SS3n,
+	SPI1_SDO,
+	SPI1_SCLK,
+	SPI1_SDI,
+	TW0_SCL,
+
+	//SOC 0xF7EA8004
+	TW0_SDA,
+	STS0_CLK,
+	STS0_SOP,
+	STS0_SD,
+	STS0_VALD,
+	STS1_CLK,
+	STS1_SOP,
+	STS1_SD,
+	STS1_VALD,
+	USB2_DRV_VBUS,
+
+	//SOC 0xF7EA8008
+	RGMII_MDC,
+	RGMII_MDIO,
+	RGMII_TXC,
+	RGMII_TXD0,
+	RGMII_TXD1,
+	RGMII_TXD2,
+	RGMII_TXD3,
+	RGMII_TXCTL,
+	RGMII_RXC,
+	RGMII_RXD0,
+
+	//SOC 0xF7EA800C
+	RGMII_RXD1,
+	RGMII_RXD2,
+	RGMII_RXD3,
+	RGMII_RXCTL,
+	SOC_PINMUX_INDEX_MAX,
+
+	//AVIO 0xF7EA8400
+	AVIO_PINMUX_INDEX_START = 100,
+	I2S1_DO0 = 100,
+	I2S1_DO1,
+	I2S1_DO2,
+	I2S1_DO3,
+	I2S1_LRCKIO,
+	I2S1_BCLKIO,
+	SPDIFO,
+	SPDIFI,
+	I2S2_LRCKIO,
+	I2S2_BCLKIO,
+
+	//AVIO 0xF7EA8404
+	I2S2_DI0,
+	I2S2_DI1,
+	I2S2_DI2,
+	I2S2_DI3,
+	I2S1_MCLK,
+	I2S2_MCLK,
+	TX_EDDC_SCL,
+	TX_EDDC_SDA,
+	I2S3_DO,
+	I2S3_LRCKIO,
+
+	//AVIO 0xF7EA8408
+	I2S3_BCLKIO,
+	I2S3_DI,
+	AVIO_PINMUX_INDEX_MAX,
+
+	//SM 0xF7FE2C10
+	SM_PINMUX_INDEX_START = 200,
+	SM_TW2_SCL = 200,
+	SM_TW2_SDA,
+	SM_URT1_TXD,
+	SM_URT1_RXD,
+	SM_HDMI_HPD,
+	SM_HDMI_CEC,
+	SM_TMS,
+	SM_TDI,
+	SM_TDO,
+	SM_TW3_SCL,
+
+	//SM 0xF7FE2C14
+	SM_TW3_SDA,
+	SM_SPI2_SS0n,
+	SM_SPI2_SS1n,
+	SM_SPI2_SS2n,
+	SM_SPI2_SS3n,
+	SM_SPI2_SDO,
+	SM_SPI2_SDI,
+	SM_SPI2_SCLK,
+	SM_URT0_TXD,
+	SM_URT0_RXD,
+
+	//SM 0xF7FE2C18
+	SM_HDMIRX_HPD,
+	SM_HDMIRX_PWR5V,
+	SM_PINMUX_INDEX_MAX
+};
+
+int pinmux_write(unsigned int index, unsigned int value);
+int pinmux_read(unsigned int index);
+void pinmux_TW1_sel_set(int id);
+void pinmux_TW2_sel_set(int id);
+#endif

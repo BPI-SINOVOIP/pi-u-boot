@@ -1,7 +1,7 @@
-if TARGET_VS680
+if TARGET_VS680_C05
 
 config SYS_BOARD
-	default "vs680"
+	default "vs680_c05"
 
 config SYS_CONFIG_NAME
 	default "vs680"

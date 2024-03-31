@@ -805,7 +805,7 @@ dtb-$(CONFIG_TARGET_AS370) += as370-spi-emmc.dtb
 dtb-$(CONFIG_TARGET_VS680) += vs680-fpga.dtb
 dtb-$(CONFIG_TARGET_VS680) += vs680-spi.dtb
 dtb-$(CONFIG_TARGET_VS680) += vs680-oemboot.dtb
-dtb-$(CONFIG_TARGET_VS680) += vs680-c05boot.dtb
+dtb-$(CONFIG_TARGET_VS680) += vs680-bananapi-m6.dtb
 dtb-$(CONFIG_TARGET_VS680) += vs680-spi-pek.dtb
 dtb-$(CONFIG_TARGET_VS680) += vs680-usbboot.dtb
 dtb-$(CONFIG_TARGET_VS680) += vs680-fastboot.dtb
@@ -824,7 +824,6 @@ dtb-$(CONFIG_TARGET_VS640) += vs640-fastboot.dtb
 dtb-$(CONFIG_TARGET_VS640) += vs640-usbboot.dtb
 dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fpga.dtb
 dtb-$(CONFIG_TARGET_VS680_A0) += vs680-spi.dtb
-dtb-$(CONFIG_TARGET_VS680_A0) += vs680-spi-boot.dtb
 dtb-$(CONFIG_TARGET_VS680_A0) += vs680-usbboot.dtb
 dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fastboot.dtb
 dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fastboot-iommu.dtb
@@ -836,6 +835,8 @@ dtb-$(CONFIG_TARGET_VS680_A0) += vs680-fastboot-720p.dtb
 dtb-$(CONFIG_TARGET_VS680_A0) += vs680-spi-lgu.dtb
 dtb-$(CONFIG_TARGET_VS680_A0) += vs680-spi-dennis.dtb
 dtb-$(CONFIG_TARGET_VS680_A0) += vs680-spi-elektra.dtb
+
+dtb-$(CONFIG_TARGET_VS680_C05) += vs680-bananapi-m6.dtb
 
 targets += $(dtb-y)
 
