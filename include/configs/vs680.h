@@ -18,16 +18,19 @@
 #define FAT_ENV_DEVICE_AND_PART	"1:1"
 #define FAT_ENV_FILE		"uboot.env"
 /* bootstrap + u-boot + env in sd card */
-#define CONFIG_BOOTCOMMAND	"echo bootcmd; " \
-				"mmc rescan ; mmc list; mmc dev 1; " \
-				"fatload mmc 1:1 0x04a80000 boot.scr; " \
+#define CONFIG_BOOTCOMMAND	"echo BPI: get boot.scr (20240425 support SD/EMMC); " \
+				"setenv devnum 1:1; " \
+				"mmc rescan ; mmc list; echo BPI:try SD; " \
+				"if mmc dev 1; then echo BPI:do SD; " \
+				"else setenv devnum 0:1; mmc dev 0; " \
+				"echo BPI:try EMMC; fi ; " \
+				"load mmc ${devnum} 0x04a80000 boot.scr; " \
 				"source 0x04a80000; " \
-				"mmc rescan ; mmc list; mmc dev 1; " \
-				"fatload mmc 1:1 0x4b800000 dtb/synaptics/vs680-a0-evk.dtb; " \
-				"sleep 1; " \
-				"fatload mmc 1:1 0x04c80000 Image; " \
-				"sleep 1; " \
-				"echo booti 0x04c80000 - 0x4b80000;"
+				"mmc rescan ; mmc list; mmc dev 0; " \
+				"load mmc 0:1 0x15a00000 dtb/synaptics/vs680-a0-bananapi-m6.dtb; " \
+				"load mmc 0:1 0x0ca00000 uInitrd; " \
+				"load mmc 0:1 0x04a80000 Image; " \
+				"booti 0x04a80000 0x0ca00000 0x15a00000;"
 #undef CONFIG_BOOTARGS
 #define CONFIG_BOOTARGS \
 	"rootfstype=ext4 root=/dev/mmcblk1p2 rw rootwait"
