@@ -91,6 +91,7 @@ int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
 
 	/* read image header to find the image size & load address */
 	count = blk_dread(bd, sector, 1, header);
+	printf("BPI:hdr read sector %lx, count=%lu\n", sector, count);
 	debug("hdr read sector %lx, count=%lu\n", sector, count);
 	if (count == 0) {
 		ret = -EIO;
@@ -222,11 +223,27 @@ static int mmc_load_image_raw_partition(struct spl_image_info *spl_image,
 		}
 	}
 #endif
+	printf("BPI: partition=%d part_name[%s]\n",partition ,part_name);
 
 	for (int p = 1; p <= MAX_SEARCH_PARTITIONS; p++) {
 		err = part_get_info(mmc_get_blk_desc(mmc), p, &info);
-		if (err)
-			continue;
+		if (err) {
+#ifdef BPI
+#else
+		        if (!strcmp(part_name, "opensbi")){
+				info.start = 0x500;
+				strcpy(info.name,"opensbi");
+			}
+			else 
+		        if (!strcmp(part_name, "uboot")){
+				info.start = 0x800;
+				strcpy(info.name,"uboot");
+			}
+			else
+#endif
+				continue;
+		}
+		printf("BPI: p=%d info.name=[%s] info.start[%lx]\n",p ,info.name,info.start);
 		if (!strcmp(part_name, info.name)){
 			if (mmc_load_image_raw_sector(spl_image, bootdev, mmc, info.start) == 0)
 				return 0;
@@ -245,6 +262,7 @@ static int mmc_load_image_raw_partition(struct spl_image_info *spl_image,
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 	return mmc_load_image_raw_sector(spl_image, bootdev, mmc, info.start + sector);
 #else
+	printf("BPI2: info.name=[%s] info.start[%lx]\n" ,info.name,info.start);
 	return mmc_load_image_raw_sector(spl_image, bootdev, mmc, info.start);
 #endif
 }

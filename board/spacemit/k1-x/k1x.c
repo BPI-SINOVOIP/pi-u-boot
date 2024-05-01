@@ -263,6 +263,7 @@ void _load_env_from_blk(struct blk_desc *dev_desc, const char *dev_name, int dev
 	char cmd[128];
 	struct disk_partition info;
 
+	printf("BPI: :%s\n", "_load_env_from_blk");
 	for (part = 1; part <= MAX_SEARCH_PARTITIONS; part++) {
 		err = part_get_info(dev_desc, part, &info);
 		if (err)
@@ -272,8 +273,13 @@ void _load_env_from_blk(struct blk_desc *dev_desc, const char *dev_name, int dev
 			break;
 		}
 	}
-	if (part > MAX_SEARCH_PARTITIONS)
+	if (part > MAX_SEARCH_PARTITIONS) {
+#ifdef BPI
 		return;
+#else
+		part = 1;
+#endif
+	}
 
 	env_set("bootfs_part", simple_itoa(part));
 	env_set("bootfs_devname", dev_name);
@@ -283,12 +289,14 @@ void _load_env_from_blk(struct blk_desc *dev_desc, const char *dev_name, int dev
 	sprintf(cmd, "load %s %d:%d 0x%x env_%s.txt", dev_name,
 			dev, part, CONFIG_SPL_LOAD_FIT_ADDRESS, CONFIG_SYS_CONFIG_NAME);
 	pr_debug("cmd:%s\n", cmd);
+	printf("BPI: cmd:%s\n", cmd);
 	if (run_command(cmd, 0))
 		return;
 
 	memset(cmd, '\0', 128);
 	sprintf(cmd, "env import -t 0x%x", CONFIG_SPL_LOAD_FIT_ADDRESS);
 	pr_debug("cmd:%s\n", cmd);
+	printf("BPI: cmd:%s\n", cmd);
 	if (!run_command(cmd, 0)){
 		pr_info("load env_%s.txt from bootfs successful\n", CONFIG_SYS_CONFIG_NAME);
 	}
