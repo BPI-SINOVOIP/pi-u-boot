@@ -5,6 +5,7 @@
 
 obj-$(CONFIG_$(SPL_TPL_)DM_SPI_FLASH) += sf-uclass.o
 spi-nor-y := sf_probe.o spi-nor-ids.o
+obj-$(CONFIG_SPINOR_BLOCK_SUPPORT) += spi-nor-blk.o
 
 ifdef CONFIG_SPL_BUILD
 obj-$(CONFIG_SPL_SPI_BOOT)	+= fsl_espi_spl.o

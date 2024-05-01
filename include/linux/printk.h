@@ -15,6 +15,12 @@
 #define KERN_DEBUG
 #define KERN_CONT
 
+#if defined (CONFIG_SPL_BUILD)
+#define PRINTK_LOGLEVEL CONFIG_SPL_LOGLEVEL
+#else
+#define PRINTK_LOGLEVEL CONFIG_LOGLEVEL
+#endif
+
 #define printk(fmt, ...) \
 	printf(fmt, ##__VA_ARGS__)
 
@@ -35,39 +41,39 @@
 
 #define pr_emerg(fmt, ...)						\
 ({									\
-	CONFIG_LOGLEVEL > 0 ? log_emerg(fmt, ##__VA_ARGS__) : 0;	\
+	PRINTK_LOGLEVEL > 0 ? log_emerg(fmt, ##__VA_ARGS__) : 0;	\
 })
 #define pr_alert(fmt, ...)						\
 ({									\
-	CONFIG_LOGLEVEL > 1 ? log_alert(fmt, ##__VA_ARGS__) : 0;	\
+	PRINTK_LOGLEVEL > 1 ? log_alert(fmt, ##__VA_ARGS__) : 0;	\
 })
 #define pr_crit(fmt, ...)						\
 ({									\
-	CONFIG_LOGLEVEL > 2 ? log_crit(fmt, ##__VA_ARGS__) : 0;		\
+	PRINTK_LOGLEVEL > 2 ? log_crit(fmt, ##__VA_ARGS__) : 0;		\
 })
 #define pr_err(fmt, ...)						\
 ({									\
-	CONFIG_LOGLEVEL > 3 ? log_err(fmt, ##__VA_ARGS__) : 0;		\
+	PRINTK_LOGLEVEL > 3 ? log_err(fmt, ##__VA_ARGS__) : 0;		\
 })
 #define pr_warn(fmt, ...)						\
 ({									\
-	CONFIG_LOGLEVEL > 4 ? log_warning(fmt, ##__VA_ARGS__) : 0;	\
+	PRINTK_LOGLEVEL > 4 ? log_warning(fmt, ##__VA_ARGS__) : 0;	\
 })
 #define pr_notice(fmt, ...)						\
 ({									\
-	CONFIG_LOGLEVEL > 5 ? log_notice(fmt, ##__VA_ARGS__) : 0;	\
+	PRINTK_LOGLEVEL > 5 ? log_notice(fmt, ##__VA_ARGS__) : 0;	\
 })
 #define pr_info(fmt, ...)						\
 ({									\
-	CONFIG_LOGLEVEL > 6 ? log_info(fmt, ##__VA_ARGS__) : 0;		\
+	PRINTK_LOGLEVEL > 6 ? log_info(fmt, ##__VA_ARGS__) : 0;		\
 })
 #define pr_debug(fmt, ...)						\
 ({									\
-	CONFIG_LOGLEVEL > 7 ? log_debug(fmt, ##__VA_ARGS__) : 0;	\
+	PRINTK_LOGLEVEL > 7 ? log_debug(fmt, ##__VA_ARGS__) : 0;	\
 })
 #define pr_devel(fmt, ...)						\
 ({									\
-	CONFIG_LOGLEVEL > 7 ? log_debug(fmt, ##__VA_ARGS__) : 0;	\
+	PRINTK_LOGLEVEL > 7 ? log_debug(fmt, ##__VA_ARGS__) : 0;	\
 })
 
 #ifdef CONFIG_LOG

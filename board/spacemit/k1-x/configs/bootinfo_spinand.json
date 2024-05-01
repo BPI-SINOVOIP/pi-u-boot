@@ -1,0 +1,50 @@
+{
+  "_comment": {
+    "info": "bootinfo build configuration script",
+    "key word": {
+      "image": "image definition",
+      "module": "image module definition",
+      "data": "image item data config"
+    }
+  },
+  "info": {
+    "arch": "RISCV64",
+    "description": "spacemit k1x spinand bootinfo image"
+  },
+  "image": [
+    {
+      "module": "bootinfo",
+      "data": [
+        {
+          "structure": [
+            "name, header, 0",
+            "magic, 0xB00714F0, 4",
+            "version, 0x00010001, 4",
+            "flash_type, NAND, 4",
+            "mid, 0, 1",
+            "reserved, 0, 1",
+            "did, 0, 2",
+            "page_size, 2048, 4",
+            "block_size, 0x20000, 4",
+            "total_size, 0x10000000, 4",
+            "multi_plane, 0, 1",
+            "reserved, 0, 3",
+            "spl0_offset, 0x20000, 4",
+            "spl1_offset, 0x80000, 4",
+            "spl_size_limit, 0x36000, 4",
+            "partitiontable0_offset, 0, 4",
+            "partitiontable1_offset, 0, 4",
+            "reserved, 0, 12"
+          ]
+        },
+        {
+          "structure": [
+            "name, crc32_sum, 0",
+            "crc, crc32(header), 4",
+            "pad, 0, 12"
+          ]
+        }
+      ]
+    }
+  ]
+}

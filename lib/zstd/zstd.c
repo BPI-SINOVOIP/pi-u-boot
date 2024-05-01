@@ -23,7 +23,7 @@ int zstd_decompress(struct abuf *in, struct abuf *out)
 	wsize = ZSTD_DStreamWorkspaceBound(abuf_size(in));
 	workspace = malloc(wsize);
 	if (!workspace) {
-		debug("%s: cannot allocate workspace of size %zu\n", __func__,
+		pr_err("%s: cannot allocate workspace of size %zu\n", __func__,
 			wsize);
 		return -ENOMEM;
 	}

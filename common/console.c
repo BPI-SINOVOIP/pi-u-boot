@@ -22,6 +22,7 @@
 #include <watchdog.h>
 #include <asm/global_data.h>
 #include <linux/delay.h>
+#include <command.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -59,7 +60,7 @@ static int on_console(const char *name, const char *value, enum env_op op,
 
 	case env_op_delete:
 		if ((flags & H_FORCE) == 0)
-			printf("Can't delete \"%s\"\n", name);
+			pr_err("Can't delete \"%s\"\n", name);
 		return 1;
 
 	default:
@@ -655,13 +656,42 @@ static inline void pre_console_puts(const char *s) {}
 static inline void print_pre_console_buffer(int flushpoint) {}
 #endif
 
+#ifdef CONFIG_FASTBOOT_CMD_OEM_READ
+void handle_console_log(const char *s) {
+	if (!gd || !gd->console_log.buffer) {
+		return;
+	}
+
+	while (*s) {
+		/* To ensure that the write pointer does not overlap with the read pointer,
+		the log buffer maintains at least 1 byte free. */
+		if (gd->console_log.write_ptr == gd->console_log.read_ptr - 1 ||
+			(gd->console_log.write_ptr == gd->console_log.buffer + LOG_BUFFER_SIZE - 1 &&
+			 gd->console_log.read_ptr == gd->console_log.buffer)) {
+			break;
+		}
+
+		*gd->console_log.write_ptr++ = *s;
+
+		if (gd->console_log.write_ptr >= gd->console_log.buffer + LOG_BUFFER_SIZE) {
+			gd->console_log.write_ptr = gd->console_log.buffer;
+		}
+
+		s++;
+	}
+}
+#endif
+
 void putc(const char c)
 {
 	if (!gd)
 		return;
 
 	console_record_putc(c);
-
+#ifdef CONFIG_FASTBOOT_CMD_OEM_READ
+	char str[2] = {c, '\0'};
+	handle_console_log(str);
+#endif
 	/* sandbox can send characters to stdout before it has a console */
 	if (IS_ENABLED(CONFIG_SANDBOX) && !(gd->flags & GD_FLG_SERIAL_READY)) {
 		os_putc(c);
@@ -703,6 +733,9 @@ void puts(const char *s)
 
 	console_record_puts(s);
 
+#ifdef CONFIG_FASTBOOT_CMD_OEM_READ
+	handle_console_log(s);
+#endif
 	/* sandbox can send characters to stdout before it has a console */
 	if (IS_ENABLED(CONFIG_SANDBOX) && !(gd->flags & GD_FLG_SERIAL_READY)) {
 		os_puts(s);

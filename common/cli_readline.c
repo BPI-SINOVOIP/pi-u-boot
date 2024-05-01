@@ -243,7 +243,7 @@ static void cread_add_str(char *str, int strsize, int insert,
 		str++;
 	}
 }
-
+int is_direction_key = 0;
 static int cread_line(const char *const prompt, char *buf, unsigned int *len,
 		int timeout)
 {
@@ -297,6 +297,7 @@ static int cread_line(const char *const prompt, char *buf, unsigned int *len,
 			} else if (esc_len == 2) {
 				switch (ichar) {
 				case 'D':	/* <- key */
+					is_direction_key = 1;
 					ichar = CTL_CH('b');
 					act = ESC_CONVERTED;
 					break;	/* pass off to ^B handler */

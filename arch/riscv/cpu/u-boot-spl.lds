@@ -28,7 +28,9 @@ SECTIONS
 
 	. = ALIGN(4);
 	.data : {
+		__data_start = .;
 		*(.data*)
+		__data_end = .;
 	} > .spl_mem
 	. = ALIGN(4);
 

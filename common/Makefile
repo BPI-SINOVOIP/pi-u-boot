@@ -10,6 +10,7 @@ obj-y += main.o
 obj-y += exports.o
 obj-$(CONFIG_HUSH_PARSER) += cli_hush.o
 obj-$(CONFIG_AUTOBOOT) += autoboot.o
+obj-$(CONFIG_SPL_FASTBOOT) += cli.o
 
 # # boards
 obj-y += board_f.o
@@ -59,6 +60,7 @@ obj-$(CONFIG_$(SPL_TPL_)OF_LIBFDT) += fdt_support.o
 obj-$(CONFIG_SPL_USB_HOST) += usb.o usb_hub.o
 obj-$(CONFIG_SPL_USB_STORAGE) += usb_storage.o
 obj-$(CONFIG_SPL_MUSB_NEW) += usb.o
+obj-$(CONFIG_SPL_FASTBOOT) += usb.o
 endif # CONFIG_SPL_BUILD
 
 #others

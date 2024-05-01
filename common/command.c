@@ -79,7 +79,7 @@ int _do_help(struct cmd_tbl *cmd_start, int cmd_items, struct cmd_tbl *cmdtp,
 		if (cmdtp != NULL) {
 			rcode |= cmd_usage(cmdtp);
 		} else {
-			printf("Unknown command '%s' - try 'help' without arguments for list of all known commands\n\n",
+			pr_debug("Unknown command '%s' - try 'help' without arguments for list of all known commands\n\n",
 			       argv[i]);
 			rcode = 1;
 		}
@@ -132,10 +132,10 @@ struct cmd_tbl *find_cmd(const char *cmd)
 
 int cmd_usage(const struct cmd_tbl *cmdtp)
 {
-	printf("%s - %s\n\n", cmdtp->name, cmdtp->usage);
+	pr_info("%s - %s\n\n", cmdtp->name, cmdtp->usage);
 
 #ifdef	CONFIG_SYS_LONGHELP
-	printf("Usage:\n%s ", cmdtp->name);
+	pr_info("Usage:\n%s ", cmdtp->name);
 
 	if (!cmdtp->help) {
 		puts ("- No additional help available.\n");
@@ -508,7 +508,7 @@ void fixup_cmdtable(struct cmd_tbl *cmdtp, int size)
 
 		addr = (ulong)(cmdtp->cmd) + gd->reloc_off;
 #ifdef DEBUG_COMMANDS
-		printf("Command \"%s\": 0x%08lx => 0x%08lx\n",
+		pr_debug("Command \"%s\": 0x%08lx => 0x%08lx\n",
 		       cmdtp->name, (ulong)(cmdtp->cmd), addr);
 #endif
 		cmdtp->cmd = (int (*)(struct cmd_tbl *, int, int,
@@ -606,7 +606,7 @@ enum command_ret_t cmd_process(int flag, int argc, char *const argv[],
 	/* Look up command in command table */
 	cmdtp = find_cmd(argv[0]);
 	if (cmdtp == NULL) {
-		printf("Unknown command '%s' - try 'help'\n", argv[0]);
+		pr_debug("Unknown command '%s' - try 'help'\n", argv[0]);
 		return 1;
 	}
 
@@ -648,7 +648,7 @@ int cmd_process_error(struct cmd_tbl *cmdtp, int err)
 		return CMD_RET_USAGE;
 
 	if (err) {
-		printf("Command '%s' failed: Error %d\n", cmdtp->name, err);
+		pr_err("Command '%s' failed: Error %d\n", cmdtp->name, err);
 		return CMD_RET_FAILURE;
 	}
 

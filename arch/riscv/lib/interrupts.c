@@ -28,25 +28,25 @@ static void show_efi_loaded_images(uintptr_t epc)
 static void show_regs(struct pt_regs *regs)
 {
 #ifdef CONFIG_SHOW_REGS
-	printf("\nSP:  " REG_FMT " GP:  " REG_FMT " TP:  " REG_FMT "\n",
+	pr_crit("\nSP:  " REG_FMT " GP:  " REG_FMT " TP:  " REG_FMT "\n",
 	       regs->sp, regs->gp, regs->tp);
-	printf("T0:  " REG_FMT " T1:  " REG_FMT " T2:  " REG_FMT "\n",
+	pr_crit("T0:  " REG_FMT " T1:  " REG_FMT " T2:  " REG_FMT "\n",
 	       regs->t0, regs->t1, regs->t2);
-	printf("S0:  " REG_FMT " S1:  " REG_FMT " A0:  " REG_FMT "\n",
+	pr_crit("S0:  " REG_FMT " S1:  " REG_FMT " A0:  " REG_FMT "\n",
 	       regs->s0, regs->s1, regs->a0);
-	printf("A1:  " REG_FMT " A2:  " REG_FMT " A3:  " REG_FMT "\n",
+	pr_crit("A1:  " REG_FMT " A2:  " REG_FMT " A3:  " REG_FMT "\n",
 	       regs->a1, regs->a2, regs->a3);
-	printf("A4:  " REG_FMT " A5:  " REG_FMT " A6:  " REG_FMT "\n",
+	pr_crit("A4:  " REG_FMT " A5:  " REG_FMT " A6:  " REG_FMT "\n",
 	       regs->a4, regs->a5, regs->a6);
-	printf("A7:  " REG_FMT " S2:  " REG_FMT " S3:  " REG_FMT "\n",
+	pr_crit("A7:  " REG_FMT " S2:  " REG_FMT " S3:  " REG_FMT "\n",
 	       regs->a7, regs->s2, regs->s3);
-	printf("S4:  " REG_FMT " S5:  " REG_FMT " S6:  " REG_FMT "\n",
+	pr_crit("S4:  " REG_FMT " S5:  " REG_FMT " S6:  " REG_FMT "\n",
 	       regs->s4, regs->s5, regs->s6);
-	printf("S7:  " REG_FMT " S8:  " REG_FMT " S9:  " REG_FMT "\n",
+	pr_crit("S7:  " REG_FMT " S8:  " REG_FMT " S9:  " REG_FMT "\n",
 	       regs->s7, regs->s8, regs->s9);
-	printf("S10: " REG_FMT " S11: " REG_FMT " T3:  " REG_FMT "\n",
+	pr_crit("S10: " REG_FMT " S11: " REG_FMT " T3:  " REG_FMT "\n",
 	       regs->s10, regs->s11, regs->t3);
-	printf("T4:  " REG_FMT " T5:  " REG_FMT " T6:  " REG_FMT "\n",
+	pr_crit("T4:  " REG_FMT " T5:  " REG_FMT " T6:  " REG_FMT "\n",
 	       regs->t4, regs->t5, regs->t6);
 #endif
 }
@@ -75,12 +75,14 @@ static void show_code(ulong epc)
 	u16 *pos = (u16 *)(epc & ~1UL);
 	int i, len = instr_len(*pos);
 
-	printf("\nCode: ");
-	for (i = -8; i; ++i)
-		printf("%04x ", pos[i]);
-	printf("(");
-	for (i = 0; i < len; ++i)
-		printf("%04x%s", pos[i], i + 1 == len ? ")\n" : " ");
+	pr_crit("\nCode: ");
+	for (i = -8; i; ++i){
+		pr_crit("%04x ", pos[i]);
+	}
+	pr_crit("(");
+	for (i = 0; i < len; ++i){
+		pr_crit("%04x%s", pos[i], i + 1 == len ? ")\n" : " ");
+	}
 }
 
 static void _exit_trap(ulong code, ulong epc, ulong tval, struct pt_regs *regs)
@@ -104,17 +106,20 @@ static void _exit_trap(ulong code, ulong epc, ulong tval, struct pt_regs *regs)
 		"Store/AMO page fault",
 	};
 
-	if (code < ARRAY_SIZE(exception_code))
-		printf("Unhandled exception: %s\n", exception_code[code]);
-	else
-		printf("Unhandled exception code: %ld\n", code);
+	if (code < ARRAY_SIZE(exception_code)){
+		pr_crit("Unhandled exception: %s\n", exception_code[code]);
+	}
+	else{
+		pr_crit("Unhandled exception code: %ld\n", code);
+	}
 
-	printf("EPC: " REG_FMT " RA: " REG_FMT " TVAL: " REG_FMT "\n",
+	pr_crit("EPC: " REG_FMT " RA: " REG_FMT " TVAL: " REG_FMT "\n",
 	       epc, regs->ra, tval);
 	/* Print relocation adjustments, but only if gd is initialized */
-	if (gd && gd->flags & GD_FLG_RELOC)
-		printf("EPC: " REG_FMT " RA: " REG_FMT " reloc adjusted\n",
+	if (gd && gd->flags & GD_FLG_RELOC){
+		pr_crit("EPC: " REG_FMT " RA: " REG_FMT " reloc adjusted\n",
 		       epc - gd->reloc_off, regs->ra - gd->reloc_off);
+	}
 
 	show_regs(regs);
 	show_code(epc);

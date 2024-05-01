@@ -72,7 +72,7 @@ config FASTBOOT_USB_DEV
 config FASTBOOT_FLASH
 	bool "Enable FASTBOOT FLASH command"
 	default y if ARCH_SUNXI || ARCH_ROCKCHIP
-	depends on MMC || (MTD_RAW_NAND && CMD_MTDPARTS)
+	depends on MMC || (MTD_RAW_NAND && CMD_MTDPARTS) || MTD
 	select IMAGE_SPARSE
 	help
 	  The fastboot protocol includes a "flash" command for writing
@@ -87,9 +87,18 @@ config FASTBOOT_UUU_SUPPORT
 	  including working with memory and may open a huge backdoor,
 	  when enabling this option.
 
+config FASTBOOT_MULTI_FLASH_OPTION
+	bool "Enable FASTBOOT flash multi option"
+	select FASTBOOT_MULTI_FLASH_OPTION_MMC
+	select FASTBOOT_MULTI_FLASH_OPTION_MTD
+	help
+	  normally it would flash one dev such as mmc or mtd devices.
+	  but sometime user want to flash mmc or mtd devices while detect
+	  the mmc/mtd dev.
+
 choice
 	prompt "Flash provider for FASTBOOT"
-	depends on FASTBOOT_FLASH
+	depends on FASTBOOT_FLASH && !FASTBOOT_MULTI_FLASH_OPTION
 
 config FASTBOOT_FLASH_MMC
 	bool "FASTBOOT on MMC"
@@ -99,11 +108,24 @@ config FASTBOOT_FLASH_NAND
 	bool "FASTBOOT on NAND"
 	depends on MTD_RAW_NAND && CMD_MTDPARTS
 
+config FASTBOOT_FLASH_MTD
+	bool "FASTBOOT on MTD"
+	depends on MTD
+
 endchoice
+
+
+config FASTBOOT_MULTI_FLASH_OPTION_MMC
+	bool "FASTBOOT on MMC"
+	depends on FASTBOOT_MULTI_FLASH_OPTION
+
+config FASTBOOT_MULTI_FLASH_OPTION_MTD
+	bool "FASTBOOT on MTD"
+	depends on FASTBOOT_MULTI_FLASH_OPTION
 
 config FASTBOOT_FLASH_MMC_DEV
 	int "Define FASTBOOT MMC FLASH default device"
-	depends on FASTBOOT_FLASH_MMC
+	depends on FASTBOOT_FLASH_MMC || FASTBOOT_MULTI_FLASH_OPTION_MMC
 	default 0 if ARCH_ROCKCHIP
 	default 0 if ARCH_SUNXI && MMC_SUNXI_SLOT_EXTRA = -1
 	default 1 if ARCH_SUNXI && MMC_SUNXI_SLOT_EXTRA != -1
@@ -121,7 +143,7 @@ config FASTBOOT_FLASH_NAND_TRIMFFS
 
 config FASTBOOT_MMC_BOOT_SUPPORT
 	bool "Enable EMMC_BOOT flash/erase"
-	depends on FASTBOOT_FLASH_MMC
+	depends on FASTBOOT_FLASH_MMC || FASTBOOT_MULTI_FLASH_OPTION_MMC
 	help
 	  The fastboot "flash" and "erase" commands normally does operations
 	  on eMMC userdata. Define this to enable the special commands to
@@ -153,7 +175,7 @@ config FASTBOOT_MMC_BOOT2_NAME
 
 config FASTBOOT_MMC_USER_SUPPORT
 	bool "Enable eMMC userdata partition flash/erase"
-	depends on FASTBOOT_FLASH_MMC
+	depends on FASTBOOT_FLASH_MMC || FASTBOOT_MULTI_FLASH_OPTION_MMC
 	help
 	  Define this to enable the support "flash" and "erase" command on
 	  eMMC userdata. The "flash" command only update the MBR and GPT
@@ -175,7 +197,7 @@ config FASTBOOT_MMC_USER_NAME
 
 config FASTBOOT_GPT_NAME
 	string "Target name for updating GPT"
-	depends on FASTBOOT_FLASH_MMC && EFI_PARTITION
+	depends on (FASTBOOT_FLASH_MMC || FASTBOOT_MULTI_FLASH_OPTION_MMC) && EFI_PARTITION
 	default "gpt"
 	help
 	  The fastboot "flash" command supports writing the downloaded
@@ -188,7 +210,7 @@ config FASTBOOT_GPT_NAME
 
 config FASTBOOT_MBR_NAME
 	string "Target name for updating MBR"
-	depends on FASTBOOT_FLASH_MMC && DOS_PARTITION
+	depends on (FASTBOOT_FLASH_MMC || FASTBOOT_MULTI_FLASH_OPTION_MMC) && DOS_PARTITION
 	default "mbr"
 	help
 	  The fastboot "flash" command allows to write the downloaded image
@@ -198,7 +220,7 @@ config FASTBOOT_MBR_NAME
 
 config FASTBOOT_CMD_OEM_FORMAT
 	bool "Enable the 'oem format' command"
-	depends on FASTBOOT_FLASH_MMC && CMD_GPT
+	depends on (FASTBOOT_FLASH_MMC || FASTBOOT_MULTI_FLASH_OPTION_MMC) && CMD_GPT
 	help
 	  Add support for the "oem format" command from a client. This
 	  relies on the env variable partitions to contain the list of
@@ -206,17 +228,64 @@ config FASTBOOT_CMD_OEM_FORMAT
 
 config FASTBOOT_CMD_OEM_PARTCONF
 	bool "Enable the 'oem partconf' command"
-	depends on FASTBOOT_FLASH_MMC && SUPPORT_EMMC_BOOT
+	depends on (FASTBOOT_FLASH_MMC || FASTBOOT_MULTI_FLASH_OPTION_MMC) && SUPPORT_EMMC_BOOT
 	help
 	  Add support for the "oem partconf" command from a client. This set
 	  the mmc boot-partition for the selecting eMMC device.
 
 config FASTBOOT_CMD_OEM_BOOTBUS
 	bool "Enable the 'oem bootbus' command"
-	depends on FASTBOOT_FLASH_MMC && SUPPORT_EMMC_BOOT
+	depends on (FASTBOOT_FLASH_MMC || FASTBOOT_MULTI_FLASH_OPTION_MMC) && SUPPORT_EMMC_BOOT
 	help
 	  Add support for the "oem bootbus" command from a client. This set
 	  the mmc boot configuration for the selecting eMMC device.
+
+config FASTBOOT_CMD_OEM_READ
+	bool "Enable the 'oem read' command"
+	depends on FASTBOOT_FLASH_MMC || FASTBOOT_MULTI_FLASH_OPTION_MMC
+	help
+	  Add support for the "oem read" command from a client. This only
+	  load data to ddr, and should use upload command to load data to
+	  host.
+
+config FASTBOOT_SUPPORT_BLOCK_DEV
+	bool "Support blk device such as mmc/nvme/usb/sata"
+	depends on FASTBOOT_FLASH_MTD || FASTBOOT_MULTI_FLASH_OPTION_MTD
+	help
+	  If support blk dev on mtd flash, it should choice an block device such
+	  as mmc/nvme/usb/sata and combine to the boot falash.
+
+config FASTBOOT_SUPPORT_BLOCK_DEV_NAME
+	string "Target name for block device"
+	depends on FASTBOOT_SUPPORT_BLOCK_DEV
+	default "nvme"
+	help
+	  The block device name, such as mmc/nvme/usb/sata
+
+config FASTBOOT_SUPPORT_BLOCK_DEV_INDEX
+	int "The block device number"
+	depends on FASTBOOT_SUPPORT_BLOCK_DEV
+	default 0
+	help
+	  The block device number.
+
+config FASTBOOT_CMD_OEM_CONFIG_ACCESS
+	bool "Enable the 'oem config' command"
+	help
+	  Add support for the "oem config:read/write/flush" command from a fastboot client. This command
+	  include configuration read, write and flush operation.
+
+config FASTBOOT_CMD_OEM_ENV_ACCESS
+	bool "Enable the 'oem env' command"
+	help
+	  Add support for the "oem env:get/set" command from a fastboot client. This command
+	  include read, write and delete env variabes.
+
+config SPL_FASTBOOT_CMD_OEM_ENV_ACCESS
+	bool "Enable the 'oem env' command in SPL"
+	help
+	  Add support for the "oem env:get/set" command from a fastboot client. This command
+	  include read, write env variabes in SPL stage.
 
 endif # FASTBOOT
 

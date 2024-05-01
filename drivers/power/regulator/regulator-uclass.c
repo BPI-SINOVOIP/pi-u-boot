@@ -330,15 +330,15 @@ static void regulator_show(struct udevice *dev, int ret)
 
 	uc_pdata = dev_get_uclass_plat(dev);
 
-	printf("%s@%s: ", dev->name, uc_pdata->name);
+	pr_info("%s@%s: ", dev->name, uc_pdata->name);
 	if (uc_pdata->flags & REGULATOR_FLAG_AUTOSET_UV)
-		printf("set %d uV", uc_pdata->min_uV);
+		pr_info("set %d uV", uc_pdata->min_uV);
 	if (uc_pdata->flags & REGULATOR_FLAG_AUTOSET_UA)
-		printf("; set %d uA", uc_pdata->min_uA);
-	printf("; enabling");
+		pr_info("; set %d uA", uc_pdata->min_uA);
+	pr_info("; enabling");
 	if (ret)
-		printf(" (ret: %d)", ret);
-	printf("\n");
+		pr_info(" (ret: %d)", ret);
+	pr_info("\n");
 }
 
 int regulator_autoset_by_name(const char *platname, struct udevice **devp)

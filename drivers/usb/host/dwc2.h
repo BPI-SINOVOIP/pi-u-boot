@@ -735,6 +735,7 @@ struct dwc2_core_regs {
 #define DWC2_PCGCCTL_DEEP_SLEEP_OFFSET			7
 #define DWC2_SNPSID_DEVID_VER_2xx			(0x4f542 << 12)
 #define DWC2_SNPSID_DEVID_VER_3xx			(0x4f543 << 12)
+#define DWC2_SNPSID_DEVID_VER_4xx			(0x4f544 << 12)
 #define DWC2_SNPSID_DEVID_MASK				(0xfffff << 12)
 #define DWC2_SNPSID_DEVID_OFFSET			12
 
@@ -767,13 +768,13 @@ struct dwc2_core_regs {
 #define DWC2_HOST_RX_FIFO_SIZE		(516 + DWC2_MAX_CHANNELS)
 #define DWC2_HOST_NPERIO_TX_FIFO_SIZE	0x100	/* nPeriodic TX FIFO */
 #define DWC2_HOST_PERIO_TX_FIFO_SIZE	0x200	/* Periodic TX FIFO */
-#define DWC2_MAX_TRANSFER_SIZE		65535
+#define DWC2_MAX_TRANSFER_SIZE		524287
 #define DWC2_MAX_PACKET_COUNT		511
 
 #define DWC2_PHY_TYPE_FS		0
 #define DWC2_PHY_TYPE_UTMI		1
 #define DWC2_PHY_TYPE_ULPI		2
-#define DWC2_PHY_TYPE		DWC2_PHY_TYPE_UTMI	/* PHY type */
+#define DWC2_PHY_TYPE		DWC2_PHY_TYPE_ULPI	/* PHY type */
 #ifndef DWC2_UTMI_WIDTH
 #define DWC2_UTMI_WIDTH		8	/* UTMI bus width (8/16) */
 #endif

@@ -114,10 +114,15 @@ const char default_environment[] = {
 #ifdef CONFIG_MTDPARTS_DEFAULT
 	"mtdparts="	CONFIG_MTDPARTS_DEFAULT		"\0"
 #endif
+
+/*spl would not include extra env settings*/
+#ifndef CONFIG_SPL_BUILD
 #ifdef CONFIG_EXTRA_ENV_TEXT
 	/* This is created in the Makefile */
 	CONFIG_EXTRA_ENV_TEXT
 #endif
+#endif
+
 #ifdef	CONFIG_EXTRA_ENV_SETTINGS
 	CONFIG_EXTRA_ENV_SETTINGS
 #endif

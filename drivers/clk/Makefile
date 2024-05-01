@@ -12,7 +12,7 @@ obj-$(CONFIG_$(SPL_TPL_)CLK_CCF) += clk-fixed-factor.o
 obj-$(CONFIG_$(SPL_TPL_)CLK_COMPOSITE_CCF) += clk-composite.o
 
 obj-y += analogbits/
-obj-y += imx/
+obj-$(CONFIG_CLK_IMX) += imx/
 obj-y += tegra/
 obj-y += ti/
 obj-$(CONFIG_$(SPL_TPL_)CLK_INTEL) += intel/
@@ -53,3 +53,4 @@ obj-$(CONFIG_MACH_PIC32) += clk_pic32.o
 obj-$(CONFIG_SANDBOX_CLK_CCF) += clk_sandbox_ccf.o
 obj-$(CONFIG_SANDBOX) += clk_sandbox.o
 obj-$(CONFIG_SANDBOX) += clk_sandbox_test.o
+obj-y += spacemit/

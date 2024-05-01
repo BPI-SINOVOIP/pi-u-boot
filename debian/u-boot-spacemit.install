@@ -1,0 +1,6 @@
+u-boot.itb usr/lib/u-boot/spacemit
+FSBL.bin usr/lib/u-boot/spacemit
+bootinfo*.bin usr/lib/u-boot/spacemit
+env.bin usr/lib/u-boot/spacemit
+debian/env_k1-x.txt boot
+tools/logos/bianbu.bmp boot

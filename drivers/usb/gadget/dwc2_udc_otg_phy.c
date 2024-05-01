@@ -30,8 +30,6 @@
 #include <asm/unaligned.h>
 #include <asm/io.h>
 
-#include <asm/mach-types.h>
-
 #include "dwc2_udc_otg_regs.h"
 #include "dwc2_udc_otg_priv.h"
 
@@ -39,7 +37,7 @@
 
 void otg_phy_init(struct dwc2_udc *dev)
 {
-	unsigned int usb_phy_ctrl = dev->pdata->usb_phy_ctrl;
+	unsigned int* usb_phy_ctrl = (unsigned int*)(size_t)dev->pdata->usb_phy_ctrl;
 	struct dwc2_usbotg_phy *phy =
 		(struct dwc2_usbotg_phy *)dev->pdata->regs_phy;
 
@@ -59,11 +57,13 @@ void otg_phy_init(struct dwc2_udc *dev)
 		writel((readl(&phy->phypwr) &~(OTG_DISABLE_0 | ANALOG_PWRDOWN)
 			&~FORCE_SUSPEND_0), &phy->phypwr);
 
+#if CONFIG_IS_ENABLED(ARCH_EXYNOS5)
 	if (s5p_cpu_id == 0x4412)
 		writel((readl(&phy->phyclk) & ~(EXYNOS4X12_ID_PULLUP0 |
 			EXYNOS4X12_COMMON_ON_N0)) | EXYNOS4X12_CLK_SEL_24MHZ,
 		       &phy->phyclk); /* PLL 24Mhz */
 	else
+#endif
 		writel((readl(&phy->phyclk) & ~(ID_PULLUP0 | COMMON_ON_N0)) |
 		       CLK_SEL_24MHZ, &phy->phyclk); /* PLL 24Mhz */
 
@@ -77,7 +77,7 @@ void otg_phy_init(struct dwc2_udc *dev)
 
 void otg_phy_off(struct dwc2_udc *dev)
 {
-	unsigned int usb_phy_ctrl = dev->pdata->usb_phy_ctrl;
+	unsigned int* usb_phy_ctrl = (unsigned int*)(size_t)dev->pdata->usb_phy_ctrl;
 	struct dwc2_usbotg_phy *phy =
 		(struct dwc2_usbotg_phy *)dev->pdata->regs_phy;
 

@@ -105,4 +105,9 @@ config ZYNQMP_POWER_DOMAIN
 	  configuration and it is extended at run time. Then enabling
 	  the driver will ensure that PMUFW enable access to requested IP.
 
+config K1X_POWER_DOMAIN
+	bool "Enable the K1X Power domain driver"
+	depends on POWER_DOMAIN
+	help
+	  Generic power domain implementation for K1X devices.
 endmenu

@@ -74,3 +74,20 @@ __weak int dcache_status(void)
 __weak void enable_caches(void)
 {
 }
+
+
+__weak void branch_predict_enable(void)
+{
+}
+
+__weak void branch_predict_disable(void)
+{
+}
+
+__weak void prefetch_enable(void)
+{
+}
+
+__weak void prefetch_disable(void)
+{
+}

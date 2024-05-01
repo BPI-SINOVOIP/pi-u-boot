@@ -171,6 +171,115 @@ static int console_truetype_set_row(struct udevice *dev, uint row, int clr)
 	return 0;
 }
 
+int console_truetype_fill_rect(struct udevice *dev, int xstart, int ystart, int width, int height, int clr) {
+	struct video_priv *vid_priv = dev_get_uclass_priv(dev->parent);
+	void *line;
+
+	if(width == 0 && height == 0)
+		return 0;
+
+	/* Use the same calculation method as in console_truetype_putc_xy */
+	for (int row = 0; row < height; ++row) {
+		void *start = vid_priv->fb + (ystart + row) * vid_priv->line_length + VID_TO_PIXEL(xstart) * VNBYTES(vid_priv->bpix);
+		line = start;
+
+		switch (vid_priv->bpix) {
+		#ifdef CONFIG_VIDEO_BPP8
+			case VIDEO_BPP8: {
+				u8 *dst = (u8 *)line;
+				for (int col = 0; col < width; ++col) {
+					*dst++ = clr;
+				}
+				break;
+			}
+		#endif
+		#ifdef CONFIG_VIDEO_BPP16
+			case VIDEO_BPP16: {
+				u16 *dst = (u16 *)line;
+				for (int col = 0; col < width; ++col) {
+					*dst++ = clr;
+				}
+				break;
+			}
+		#endif
+		#ifdef CONFIG_VIDEO_BPP32
+			case VIDEO_BPP32: {
+				u32 *dst = (u32 *)line;
+				for (int col = 0; col < width; ++col) {
+					*dst++ = clr;
+				}
+				break;
+			}
+		#endif
+			default:
+				return -ENOSYS;
+		}
+	}
+
+	int ret = vidconsole_sync_copy(dev, vid_priv->fb + ystart * vid_priv->line_length, vid_priv->fb + (ystart + height) * vid_priv->line_length);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+void calculate_text_dimensions(struct udevice *dev, const char *str, int *text_width, int *text_height) {
+	/* First, check if str is empty */
+	if (!str || *str == '\0') {
+		*text_width = 0;
+		*text_height = 0;
+		return; /* Early return, no further processing needed */
+	}
+
+	struct console_tt_priv *priv = dev_get_priv(dev);
+	stbtt_fontinfo *font = &priv->font;
+	double scale = priv->scale;
+	int line_height = priv->font_size;
+
+	*text_width = 0;
+	*text_height = 0;
+	int max_line_width = 0;
+	int current_line_width = 0;
+	int lines = 1;
+
+	/* use 1/9 of the font size as spacing */
+	int char_spacing = priv->font_size / 9;
+
+	for (; *str; ++str) {
+		if (*str == '\n') {
+			if (current_line_width > max_line_width) {
+				max_line_width = current_line_width;
+			}
+			current_line_width = 0;
+			lines++;
+			continue;
+		}
+
+		int width, height, xoff, yoff;
+		/* Get the bitmap for the character to calculate width and height */
+		unsigned char *bitmap = stbtt_GetCodepointBitmapSubpixel(font, scale, scale, 0, 0, *str, &width, &height, &xoff, &yoff);
+		if (bitmap) {
+			/* Add character spacing to the character width */
+			current_line_width += width + char_spacing;
+			stbtt_FreeBitmap(bitmap, NULL);
+		}
+	}
+
+	*text_width = max(max_line_width, current_line_width);
+	*text_height = lines * line_height;
+}
+
+int get_string_dimensions(struct udevice *dev, const char *str, int *width, int *height) {
+    if (!dev || !str || !width || !height) {
+        printf("Invalid parameters\n");
+        return -EINVAL;
+    }
+
+    calculate_text_dimensions(dev, str, width, height);
+
+    return 0;
+}
+
 static int console_truetype_move_rows(struct udevice *dev, uint rowdst,
 				     uint rowsrc, uint count)
 {

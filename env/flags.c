@@ -80,7 +80,7 @@ void env_flags_print_vartypes(void)
 	enum env_flags_vartype curtype = (enum env_flags_vartype)0;
 
 	while (curtype != env_flags_vartype_end) {
-		printf("\t%c   -\t%s\n", env_flags_vartype_rep[curtype],
+		pr_info("\t%c   -\t%s\n", env_flags_vartype_rep[curtype],
 			env_flags_vartype_names[curtype]);
 		curtype++;
 	}
@@ -94,7 +94,7 @@ void env_flags_print_varaccess(void)
 	enum env_flags_varaccess curaccess = (enum env_flags_varaccess)0;
 
 	while (curaccess != env_flags_varaccess_end) {
-		printf("\t%c   -\t%s\n", env_flags_varaccess_rep[curaccess],
+		pr_info("\t%c   -\t%s\n", env_flags_varaccess_rep[curaccess],
 			env_flags_varaccess_names[curaccess]);
 		curaccess++;
 	}
@@ -134,7 +134,7 @@ enum env_flags_vartype env_flags_parse_vartype(const char *flags)
 		return (enum env_flags_vartype)
 			(type - &env_flags_vartype_rep[0]);
 
-	printf("## Warning: Unknown environment variable type '%c'\n",
+	pr_info("## Warning: Unknown environment variable type '%c'\n",
 		flags[ENV_FLAGS_VARTYPE_LOC]);
 	return env_flags_vartype_string;
 }
@@ -160,7 +160,7 @@ enum env_flags_varaccess env_flags_parse_varaccess(const char *flags)
 		return va;
 	}
 
-	printf("## Warning: Unknown environment variable access method '%c'\n",
+	pr_info("## Warning: Unknown environment variable access method '%c'\n",
 		flags[ENV_FLAGS_VARACCESS_LOC]);
 	return va_default;
 }
@@ -181,7 +181,7 @@ enum env_flags_varaccess env_flags_parse_varaccess_from_binflags(int binflags)
 			return va;
 	}
 
-	printf("Warning: Non-standard access flags. (0x%x)\n",
+	pr_info("Warning: Non-standard access flags. (0x%x)\n",
 		binflags & ENV_FLAGS_VARACCESS_BIN_MASK);
 
 	return va_default;
@@ -372,7 +372,7 @@ int env_flags_validate_type(const char *name, const char *value)
 		return 0;
 	type = env_flags_get_type(name);
 	if (_env_flags_validate_type(value, type) < 0) {
-		printf("## Error: flags type check failure for "
+		pr_info("## Error: flags type check failure for "
 			"\"%s\" <= \"%s\" (type: %c)\n",
 			name, value, env_flags_vartype_rep[type]);
 		return -1;
@@ -408,7 +408,7 @@ int env_flags_validate_env_set_params(char *name, char * const val[], int count)
 		 * one argument
 		 */
 		if (type != env_flags_vartype_string && count > 1) {
-			printf("## Error: too many parameters for setting \"%s\"\n",
+			pr_info("## Error: too many parameters for setting \"%s\"\n",
 			       name);
 			return -1;
 		}
@@ -542,7 +542,7 @@ int env_flags_validate(const struct env_entry *item, const char *newval,
 			(ENV_FLAGS_VARTYPE_BIN_MASK & item->flags);
 
 		if (_env_flags_validate_type(newval, type) < 0) {
-			printf("## Error: flags type check failure for "
+			pr_info("## Error: flags type check failure for "
 				"\"%s\" <= \"%s\" (type: %c)\n",
 				name, newval, env_flags_vartype_rep[type]);
 			return -1;
@@ -565,7 +565,7 @@ int env_flags_validate(const struct env_entry *item, const char *newval,
 
 	if (flag & H_FORCE) {
 #ifdef CONFIG_ENV_ACCESS_IGNORE_FORCE
-		printf("## Error: Can't force access to \"%s\"\n", name);
+		pr_info("## Error: Can't force access to \"%s\"\n", name);
 #else
 		return 0;
 #endif
@@ -573,13 +573,13 @@ int env_flags_validate(const struct env_entry *item, const char *newval,
 	switch (op) {
 	case env_op_delete:
 		if (item->flags & ENV_FLAGS_VARACCESS_PREVENT_DELETE) {
-			printf("## Error: Can't delete \"%s\"\n", name);
+			pr_err("## Error: Can't delete \"%s\"\n", name);
 			return 1;
 		}
 		break;
 	case env_op_overwrite:
 		if (item->flags & ENV_FLAGS_VARACCESS_PREVENT_OVERWR) {
-			printf("## Error: Can't overwrite \"%s\"\n", name);
+			pr_info("## Error: Can't overwrite \"%s\"\n", name);
 			return 1;
 		} else if (item->flags &
 		    ENV_FLAGS_VARACCESS_PREVENT_NONDEF_OVERWR) {
@@ -587,9 +587,9 @@ int env_flags_validate(const struct env_entry *item, const char *newval,
 
 			if (defval == NULL)
 				defval = "";
-			printf("oldval: %s  defval: %s\n", oldval, defval);
+			pr_info("oldval: %s  defval: %s\n", oldval, defval);
 			if (strcmp(oldval, defval) != 0) {
-				printf("## Error: Can't overwrite \"%s\"\n",
+				pr_err("## Error: Can't overwrite \"%s\"\n",
 					name);
 				return 1;
 			}
@@ -597,7 +597,7 @@ int env_flags_validate(const struct env_entry *item, const char *newval,
 		break;
 	case env_op_create:
 		if (item->flags & ENV_FLAGS_VARACCESS_PREVENT_CREATE) {
-			printf("## Error: Can't create \"%s\"\n", name);
+			pr_err("## Error: Can't create \"%s\"\n", name);
 			return 1;
 		}
 		break;

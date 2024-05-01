@@ -388,6 +388,8 @@ static void put_fl_mem_onenand(void *buf)
  * NOR flash memory is mapped in processor's address space,
  * just return address.
  */
+#ifdef CONFIG_JFFS2_USE_MEMMAP_READ
+
 static inline void *get_fl_mem_nor(u32 off, u32 size, void *ext_buf)
 {
 	u32 addr = off;
@@ -415,6 +417,121 @@ static inline void *get_node_mem_nor(u32 off, void *ext_buf)
 }
 #endif
 
+#ifdef CONFIG_JFFS2_USE_MTD_READ
+#include <dm.h>
+#include <spi.h>
+#include <spi_flash.h>
+#include "stat.h"
+
+void put_fl_mem_nor(void *buf)
+{
+	free(buf);
+}
+
+struct mtd_info *get_spi_flash(void)
+{
+	struct udevice *dev = NULL;
+	int ret;
+
+	ret = uclass_first_device(UCLASS_SPI_FLASH, &dev);
+	if (ret || !dev) {
+		pr_err("Failed to get the first SPI NOR device\n");
+		return NULL;
+	}
+
+	struct spi_flash *flash = dev_get_uclass_priv(dev);
+	if (!flash) {
+		pr_err("Found device but failed to get SPI flash data structure\n");
+		return NULL;
+	}
+
+	pr_info("Using the first SPI NOR device: %s\n", dev->name);
+	return &flash->mtd;
+}
+
+static int nor_read(struct mtd_info *mtd, u32 offset, size_t len, void *buf)
+{
+	size_t retlen;
+	int ret;
+
+	ret = mtd_read(mtd, offset, len, &retlen, buf);
+
+	if (ret < 0) {
+		pr_err("Error: mtd_read returned %d\n", ret);
+		return ret;
+	}
+
+	if (retlen != len) {
+		pr_err("Warning: Requested length %zu but got %zu\n", len, retlen);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static inline void *get_fl_mem_nor(u32 off, u32 size, void *ext_buf)
+{
+	static struct mtd_info *cached_mtd = NULL;
+	void *buf = ext_buf;
+
+	if (!buf) {
+		buf = malloc(size);
+		if (!buf) {
+			pr_err("Failed to allocate memory\n");
+			return NULL;
+		}
+	}
+
+	if (!cached_mtd) {
+		cached_mtd = get_spi_flash();
+		if (!cached_mtd) {
+			pr_err("Failed to get SPI NOR device\n");
+			if (!ext_buf) {
+				free(buf);
+			}
+			return NULL;
+		}
+	}
+
+	if (nor_read(cached_mtd, off, size, buf)) {
+		pr_err("SPI NOR read failed\n");
+		if (!ext_buf) {
+			free(buf);
+		}
+		return NULL;
+	}
+
+	return buf;
+}
+
+static inline void *get_node_mem_nor(u32 off, void *ext_buf)
+{
+	struct jffs2_unknown_node *pNode;
+
+	pNode = get_fl_mem_nor(off, sizeof(*pNode), NULL);
+	if (!pNode) {
+		pr_err("Failed to read node at offset=%u\n", off);
+		return NULL;
+	}
+
+	if (pNode->magic == JFFS2_MAGIC_BITMASK) {
+		if (!ext_buf) {
+			free(pNode);
+		}
+		return get_fl_mem_nor(off, pNode->totlen, ext_buf);
+	}
+
+	if (ext_buf) {
+		memcpy(ext_buf, pNode, sizeof(*pNode));
+		free(pNode);
+		return ext_buf;
+	}
+
+	return pNode;
+}
+#endif
+
+#endif
 
 /*
  * Generic jffs2 raw memory and node read routines.
@@ -444,7 +561,7 @@ static inline void *get_fl_mem(u32 off, u32 size, void *ext_buf)
 		printf("get_fl_mem: unknown device type, " \
 			"using raw offset!\n");
 	}
-	return (void*)off;
+	return (void*)(uintptr_t)off;
 }
 
 static inline void *get_node_mem(u32 off, void *ext_buf)
@@ -472,7 +589,7 @@ static inline void *get_node_mem(u32 off, void *ext_buf)
 		printf("get_fl_mem: unknown device type, " \
 			"using raw offset!\n");
 	}
-	return (void*)off;
+	return (void*)(uintptr_t)off;
 }
 
 static inline void put_fl_mem(void *buf, void *ext_buf)
@@ -492,6 +609,12 @@ static inline void put_fl_mem(void *buf, void *ext_buf)
 	case MTD_DEV_TYPE_ONENAND:
 		return put_fl_mem_onenand(buf);
 #endif
+#if defined(CONFIG_JFFS2_NOR) && defined(CONFIG_JFFS2_USE_MTD_READ)
+	case MTD_DEV_TYPE_NOR:
+		return put_fl_mem_nor(buf);
+#endif
+	default:
+		printf("Unknown device type: %d\n", id->type);
 	}
 }
 
@@ -752,6 +875,10 @@ jffs2_1pass_read_inode(struct b_lists *pL, u32 inode, char *dest)
 				put_fl_mem(jNode, pL->readbuf);
 				jNode = (struct jffs2_raw_inode *)
 					get_node_mem(b->offset, pL->readbuf);
+				if (!jNode) {
+					pr_err("Error: Failed to get jNode at offset=%u\n", b->offset);
+					return -1;
+				}
 				src = ((uchar *)jNode) +
 					sizeof(struct jffs2_raw_inode);
 				/* ignore data behind latest known EOF */

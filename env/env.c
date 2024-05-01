@@ -54,6 +54,9 @@ static struct env_driver *_env_driver_lookup(enum env_location loc)
 }
 
 static enum env_location env_locations[] = {
+#ifdef CONFIG_ENV_IS_IN_NVRAM
+	ENVL_NVRAM,
+#endif
 #ifdef CONFIG_ENV_IS_IN_EEPROM
 	ENVL_EEPROM,
 #endif
@@ -72,9 +75,7 @@ static enum env_location env_locations[] = {
 #ifdef CONFIG_ENV_IS_IN_NAND
 	ENVL_NAND,
 #endif
-#ifdef CONFIG_ENV_IS_IN_NVRAM
-	ENVL_NVRAM,
-#endif
+
 #ifdef CONFIG_ENV_IS_IN_REMOTE
 	ENVL_REMOTE,
 #endif
@@ -201,7 +202,7 @@ int env_load(void)
 		if (!env_has_inited(drv->location))
 			continue;
 
-		printf("Loading Environment from %s... ", drv->name);
+		pr_info("Loading Environment from %s... ", drv->name);
 		/*
 		 * In error case, the error message must be printed during
 		 * drv->load() in some underlying API, and it must be exactly
@@ -209,7 +210,7 @@ int env_load(void)
 		 */
 		ret = drv->load();
 		if (!ret) {
-			printf("OK\n");
+			pr_info("OK\n");
 			gd->env_load_prio = prio;
 
 #if !CONFIG_IS_ENABLED(ENV_APPEND)
@@ -251,18 +252,19 @@ int env_reload(void)
 	if (drv) {
 		int ret;
 
-		printf("Loading Environment from %s... ", drv->name);
+		pr_info("Loading Environment from %s... ", drv->name);
 
 		if (!env_has_inited(drv->location)) {
-			printf("not initialized\n");
+			pr_info("not initialized\n");
 			return -ENODEV;
 		}
 
 		ret = drv->load();
-		if (ret)
-			printf("Failed (%d)\n", ret);
-		else
-			printf("OK\n");
+		if (ret){
+			pr_err("Failed (%d)\n", ret);
+		}else{
+			pr_info("OK\n");
+		}
 
 		if (!ret)
 			return 0;
@@ -279,22 +281,23 @@ int env_save(void)
 	if (drv) {
 		int ret;
 
-		printf("Saving Environment to %s... ", drv->name);
+		pr_info("Saving Environment to %s... ", drv->name);
 		if (!drv->save) {
-			printf("not possible\n");
+			pr_err("not possible\n");
 			return -ENODEV;
 		}
 
 		if (!env_has_inited(drv->location)) {
-			printf("not initialized\n");
+			pr_err("not initialized\n");
 			return -ENODEV;
 		}
 
 		ret = drv->save();
-		if (ret)
-			printf("Failed (%d)\n", ret);
-		else
-			printf("OK\n");
+		if (ret){
+			pr_err("Failed (%d)\n", ret);
+		}else{
+			pr_info("OK\n");
+		}
 
 		if (!ret)
 			return 0;
@@ -317,12 +320,13 @@ int env_erase(void)
 		if (!env_has_inited(drv->location))
 			return -ENODEV;
 
-		printf("Erasing Environment on %s... ", drv->name);
+		pr_info("Erasing Environment on %s... ", drv->name);
 		ret = drv->erase();
-		if (ret)
-			printf("Failed (%d)\n", ret);
-		else
-			printf("OK\n");
+		if (ret){
+			pr_err("Failed (%d)\n", ret);
+		}else{
+			pr_info("OK\n");
+		}	
 
 		if (!ret)
 			return 0;
@@ -371,7 +375,7 @@ int env_select(const char *name)
 	int prio;
 	bool found = false;
 
-	printf("Select Environment on %s: ", name);
+	pr_info("Select Environment on %s: ", name);
 
 	/* search ENV driver by name */
 	drv = ll_entry_start(struct env_driver, env_driver);
@@ -383,7 +387,7 @@ int env_select(const char *name)
 	}
 
 	if (!found) {
-		printf("driver not found\n");
+		pr_info("driver not found\n");
 		return -ENODEV;
 	}
 
@@ -396,11 +400,11 @@ int env_select(const char *name)
 				gd->env_valid = ENV_INVALID;
 				gd->flags &= ~GD_FLG_ENV_DEFAULT;
 			}
-			printf("OK\n");
+			pr_info("OK\n");
 			return 0;
 		}
 	}
-	printf("priority not found\n");
+	pr_info("priority not found\n");
 
 	return -ENODEV;
 }

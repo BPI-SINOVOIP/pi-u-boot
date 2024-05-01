@@ -20,7 +20,7 @@ struct i2c_adapter *i2c_get_adapter(int index)
 	int i;
 
 	if (index >= max) {
-		printf("Error, wrong i2c adapter %d max %d possible\n",
+		pr_err("Error, wrong i2c adapter %d max %d possible\n",
 		       index, max);
 		return i2c_adap_p;
 	}
@@ -67,8 +67,9 @@ static int i2c_mux_set(struct i2c_adapter *adap, int mux_id, int chip,
 	if (channel < 0) {
 		buf = 0;
 		ret = adap->write(adap, chip, 0, 0, &buf, 1);
-		if (ret)
-			printf("%s: Could not turn off the mux.\n", __func__);
+		if (ret){
+			pr_err("%s: Could not turn off the mux.\n", __func__);
+		}
 		return ret;
 	}
 
@@ -95,13 +96,13 @@ static int i2c_mux_set(struct i2c_adapter *adap, int mux_id, int chip,
 		buf = (uint8_t)(0x01 << channel);
 		break;
 	default:
-		printf("%s: wrong mux id: %d\n", __func__, mux_id);
+		pr_err("%s: wrong mux id: %d\n", __func__, mux_id);
 		return -1;
 	}
 
 	ret = adap->write(adap, chip, 0, 0, &buf, 1);
 	if (ret)
-		printf("%s: could not set mux: id: %d chip: %x channel: %d\n",
+		pr_err("%s: could not set mux: id: %d chip: %x channel: %d\n",
 		       __func__, mux_id, chip, channel);
 	return ret;
 }
@@ -154,7 +155,7 @@ static int i2c_mux_disconnect_all(void)
 
 			ret = I2C_ADAP->write(I2C_ADAP, chip, 0, 0, &buf, 1);
 			if (ret != 0) {
-				printf("i2c: mux disconnect error\n");
+				pr_err("i2c: mux disconnect error\n");
 				return ret;
 			}
 		} while (i > 0);
@@ -244,7 +245,7 @@ int i2c_set_bus_num(unsigned int bus)
 
 	max = ll_entry_count(struct i2c_adapter, i2c);
 	if (I2C_ADAPTER(bus) >= max) {
-		printf("Error, wrong i2c adapter %d max %d possible\n",
+		pr_err("Error, wrong i2c adapter %d max %d possible\n",
 		       I2C_ADAPTER(bus), max);
 		return -2;
 	}
@@ -322,7 +323,7 @@ uint8_t i2c_reg_read(uint8_t addr, uint8_t reg)
 	i2c_read(addr, reg, 1, &buf, 1);
 
 #ifdef DEBUG
-	printf("%s: bus=%d addr=0x%02x, reg=0x%02x, val=0x%02x\n",
+	pr_debug("%s: bus=%d addr=0x%02x, reg=0x%02x, val=0x%02x\n",
 	       __func__, i2c_get_bus_num(), addr, reg, buf);
 #endif
 
@@ -332,7 +333,7 @@ uint8_t i2c_reg_read(uint8_t addr, uint8_t reg)
 void i2c_reg_write(uint8_t addr, uint8_t reg, uint8_t val)
 {
 #ifdef DEBUG
-	printf("%s: bus=%d addr=0x%02x, reg=0x%02x, val=0x%02x\n",
+	pr_debug("%s: bus=%d addr=0x%02x, reg=0x%02x, val=0x%02x\n",
 	       __func__, i2c_get_bus_num(), addr, reg, val);
 #endif
 

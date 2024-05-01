@@ -7,4 +7,5 @@ obj-$(CONFIG_MTD_RAW_NAND) += raw/
 obj-$(CONFIG_MTD_SPI_NAND) += spi/
 else
 obj-$(CONFIG_$(SPL_TPL_)NAND_SUPPORT) += raw/
+obj-$(CONFIG_SPL_NAND_DRIVERS) += core.o bbt.o spi/
 endif

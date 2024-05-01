@@ -114,6 +114,13 @@ config CLK_ICS8N3QV01
 	  Crystal Oscillator). The output frequency can be programmed via an
 	  I2C interface.
 
+config CLK_IMX
+	bool "Enable clock driver for imx"
+	depends on CLK
+	default n
+	help
+	  This provides very basic support for clocks on imx SoCs.
+
 config CLK_INTEL
 	bool "Enable clock driver for Intel x86"
 	depends on CLK && X86
@@ -239,5 +246,6 @@ source "drivers/clk/stm32/Kconfig"
 source "drivers/clk/tegra/Kconfig"
 source "drivers/clk/ti/Kconfig"
 source "drivers/clk/uniphier/Kconfig"
+source "drivers/clk/spacemit/Kconfig"
 
 endmenu

@@ -173,6 +173,7 @@ const struct flash_info spi_nor_ids[] = {
 	{ INFO("mx25l4005a",  0xc22013, 0, 64 * 1024,   8, SECT_4K) },
 	{ INFO("mx25l8005",   0xc22014, 0, 64 * 1024,  16, 0) },
 	{ INFO("mx25l1606e",  0xc22015, 0, 64 * 1024,  32, SECT_4K) },
+	{ INFO("mx25l16xxx",  0xc22515, 0, 64 * 1024,  32, SECT_4K) },
 	{ INFO("mx25l3205d",  0xc22016, 0, 64 * 1024,  64, SECT_4K) },
 	{ INFO("mx25l6405d",  0xc22017, 0, 64 * 1024, 128, SECT_4K) },
 	{ INFO("mx25u2033e",  0xc22532, 0, 64 * 1024,   4, SECT_4K) },
@@ -331,6 +332,7 @@ const struct flash_info spi_nor_ids[] = {
 	{ INFO("m25pe16", 0x208015,  0, 64 * 1024, 32, SECT_4K) },
 	{ INFO("m25px16",    0x207115,  0, 64 * 1024, 32, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ INFO("m25px64",    0x207117,  0, 64 * 1024, 128, 0) },
+	{ INFO("m45pe16",    0x204015,  0, 64 * 1024, 32,  0) },
 #endif
 #ifdef CONFIG_SPI_FLASH_WINBOND		/* WINBOND */
 	/* Winbond -- w25x "blocks" are 64K, "sectors" are 4KiB */
@@ -452,6 +454,9 @@ const struct flash_info spi_nor_ids[] = {
 #ifdef CONFIG_SPI_FLASH_XTX
 	/* XTX Technology (Shenzhen) Limited */
 	{ INFO("xt25f128b", 0x0b4018, 0, 64 * 1024, 256, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+#endif
+#ifdef CONFIG_SPI_FLASH_FM
+	{ INFO("FM25Q64AI3", 0xa14017, 0, 4 * 1024, 2048, SECT_4K | SPI_NOR_QUAD_READ | SPI_NOR_DUAL_READ) },
 #endif
 	{ },
 };

@@ -10,6 +10,7 @@ obj-$(CONFIG_$(SPL_)DM_I2C_GPIO) += i2c-gpio.o
 obj-$(CONFIG_$(SPL_)I2C_CROS_EC_TUNNEL) += cros_ec_tunnel.o
 obj-$(CONFIG_$(SPL_)I2C_CROS_EC_LDO) += cros_ec_ldo.o
 
+obj-$(CONFIG_$(SPL_)SYS_I2C_SPACEMIT) += spacemit_i2c.o
 obj-$(CONFIG_$(SPL_)SYS_I2C_LEGACY) += i2c_core.o
 obj-$(CONFIG_SYS_I2C_ASPEED) += ast_i2c.o
 obj-$(CONFIG_SYS_I2C_AT91) += at91_i2c.o
@@ -18,7 +19,9 @@ obj-$(CONFIG_SYS_I2C_CA) += i2c-cortina.o
 obj-$(CONFIG_SYS_I2C_DAVINCI) += davinci_i2c.o
 obj-$(CONFIG_SYS_I2C_DW) += designware_i2c.o
 ifdef CONFIG_PCI
+ifdef CONFIG_ACPIGEN
 obj-$(CONFIG_SYS_I2C_DW) += designware_i2c_pci.o
+endif
 endif
 obj-$(CONFIG_SYS_I2C_FSL) += fsl_i2c.o
 obj-$(CONFIG_SYS_I2C_IHS) += ihs_i2c.o

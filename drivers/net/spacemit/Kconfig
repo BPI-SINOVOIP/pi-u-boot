@@ -1,0 +1,8 @@
+config SPACEMIT_K1X_EMAC
+	bool "Sapcemit k1-x Emac Driver"
+	depends on DM_ETH
+	select PHYLIB
+	select DM_RESET
+	help
+	  This Driver support Spacemit k1-x Ethernet MAC
+	  Say Y to enable support for the Spacemit Ethernet.

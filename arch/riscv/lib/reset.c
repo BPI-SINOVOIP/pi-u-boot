@@ -9,9 +9,9 @@
 
 int do_reset(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
-	printf("resetting ...\n");
+	pr_info("resetting ...\n");
 
-	printf("reset not supported yet\n");
+	pr_info("reset not supported yet\n");
 	hang();
 
 	return 0;

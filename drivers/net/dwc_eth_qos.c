@@ -1010,8 +1010,10 @@ static int eqos_start(struct udevice *dev)
 
 	for (i = 0; i < EQOS_DESCRIPTORS_RX; i++) {
 		struct eqos_desc *rx_desc = eqos_get_desc(eqos, i, true);
-		rx_desc->des0 = (u32)(ulong)(eqos->rx_dma_buf +
-					     (i * EQOS_MAX_PACKET_SIZE));
+		rx_desc->des0 = lower_32_bits((ulong)(eqos->rx_dma_buf +
+					     (i * EQOS_MAX_PACKET_SIZE)));
+		rx_desc->des1 = upper_32_bits((ulong)(eqos->rx_dma_buf +
+					     (i * EQOS_MAX_PACKET_SIZE)));
 		rx_desc->des3 = EQOS_DESC3_OWN | EQOS_DESC3_BUF1V;
 		mb();
 		eqos->config->ops->eqos_flush_desc(rx_desc);
@@ -1020,13 +1022,15 @@ static int eqos_start(struct udevice *dev)
 						EQOS_MAX_PACKET_SIZE);
 	}
 
-	writel(0, &eqos->dma_regs->ch0_txdesc_list_haddress);
+	val = upper_32_bits((ulong)eqos_get_desc(eqos, 0, false));
+	writel(val, &eqos->dma_regs->ch0_txdesc_list_haddress);
 	writel((ulong)eqos_get_desc(eqos, 0, false),
 		&eqos->dma_regs->ch0_txdesc_list_address);
 	writel(EQOS_DESCRIPTORS_TX - 1,
 	       &eqos->dma_regs->ch0_txdesc_ring_length);
 
-	writel(0, &eqos->dma_regs->ch0_rxdesc_list_haddress);
+	val = upper_32_bits((ulong)eqos_get_desc(eqos, 0, true));
+	writel(val, &eqos->dma_regs->ch0_rxdesc_list_haddress);
 	writel((ulong)eqos_get_desc(eqos, 0, true),
 		&eqos->dma_regs->ch0_rxdesc_list_address);
 	writel(EQOS_DESCRIPTORS_RX - 1,
@@ -1133,8 +1137,8 @@ static int eqos_send(struct udevice *dev, void *packet, int length)
 	eqos->tx_desc_idx++;
 	eqos->tx_desc_idx %= EQOS_DESCRIPTORS_TX;
 
-	tx_desc->des0 = (ulong)eqos->tx_dma_buf;
-	tx_desc->des1 = 0;
+	tx_desc->des0 = lower_32_bits((ulong)eqos->tx_dma_buf);
+	tx_desc->des1 = upper_32_bits((ulong)eqos->tx_dma_buf);
 	tx_desc->des2 = length;
 	/*
 	 * Make sure that if HW sees the _OWN write below, it will see all the
@@ -1208,8 +1212,8 @@ static int eqos_free_pkt(struct udevice *dev, uchar *packet, int length)
 	mb();
 	eqos->config->ops->eqos_flush_desc(rx_desc);
 	eqos->config->ops->eqos_inval_buffer(packet, length);
-	rx_desc->des0 = (u32)(ulong)packet;
-	rx_desc->des1 = 0;
+	rx_desc->des0 = lower_32_bits((ulong)packet);
+	rx_desc->des1 = upper_32_bits((ulong)packet);
 	rx_desc->des2 = 0;
 	/*
 	 * Make sure that if HW sees the _OWN write below, it will see all the
@@ -1667,6 +1671,13 @@ static const struct udevice_id eqos_ids[] = {
 	{
 		.compatible = "nxp,imx8mp-dwmac-eqos",
 		.data = (ulong)&eqos_imx_config
+	},
+#endif
+
+#if IS_ENABLED(CONFIG_DWC_ETH_QOS_SPACEMIT)
+	{
+		.compatible = "spacemit,k1pro-dwmac-eqos",
+		.data = (ulong)&eqos_spacemit_config
 	},
 #endif
 

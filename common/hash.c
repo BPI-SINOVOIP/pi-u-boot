@@ -536,7 +536,7 @@ static int parse_verify_sum(struct hash_algo *algo, char *verify_str,
 		else {
 			vsum_str = env_get(verify_str);
 			if (vsum_str == NULL || strlen(vsum_str) != digits) {
-				printf("Expected %d hex digits in env var\n",
+				pr_debug("Expected %d hex digits in env var\n",
 				       digits);
 				return 1;
 			}
@@ -551,9 +551,10 @@ static void hash_show(struct hash_algo *algo, ulong addr, ulong len, uint8_t *ou
 {
 	int i;
 
-	printf("%s for %08lx ... %08lx ==> ", algo->name, addr, addr + len - 1);
-	for (i = 0; i < algo->digest_size; i++)
-		printf("%02x", output[i]);
+	pr_debug("%s for %08lx ... %08lx ==> ", algo->name, addr, addr + len - 1);
+	for (i = 0; i < algo->digest_size; i++){
+		pr_debug("%02x", output[i]);
+	}
 }
 
 int hash_command(const char *algo_name, int flags, struct cmd_tbl *cmdtp,
@@ -574,7 +575,7 @@ int hash_command(const char *algo_name, int flags, struct cmd_tbl *cmdtp,
 		void *buf;
 
 		if (hash_lookup_algo(algo_name, &algo)) {
-			printf("Unknown hash algorithm '%s'\n", algo_name);
+			pr_debug("Unknown hash algorithm '%s'\n", algo_name);
 			return CMD_RET_USAGE;
 		}
 		argc -= 2;
@@ -600,7 +601,7 @@ int hash_command(const char *algo_name, int flags, struct cmd_tbl *cmdtp,
 #endif
 			if (parse_verify_sum(algo, *argv, vsum,
 					flags & HASH_FLAG_ENV)) {
-				printf("ERROR: %s does not contain a valid "
+				pr_err("ERROR: %s does not contain a valid "
 					"%s sum\n", *argv, algo->name);
 				return 1;
 			}
@@ -608,15 +609,15 @@ int hash_command(const char *algo_name, int flags, struct cmd_tbl *cmdtp,
 				int i;
 
 				hash_show(algo, addr, len, output);
-				printf(" != ");
+				pr_debug(" != ");
 				for (i = 0; i < algo->digest_size; i++)
-					printf("%02x", vsum[i]);
+					pr_debug("%02x", vsum[i]);
 				puts(" ** ERROR **\n");
 				return 1;
 			}
 		} else {
 			hash_show(algo, addr, len, output);
-			printf("\n");
+			pr_debug("\n");
 
 			if (argc) {
 				store_result(algo, output, *argv,
@@ -633,7 +634,7 @@ int hash_command(const char *algo_name, int flags, struct cmd_tbl *cmdtp,
 
 		crc = crc32_wd(0, (const uchar *)addr, len, CHUNKSZ_CRC32);
 
-		printf("CRC32 for %08lx ... %08lx ==> %08lx\n",
+		pr_debug("CRC32 for %08lx ... %08lx ==> %08lx\n",
 				addr, addr + len - 1, crc);
 
 		if (argc >= 3) {

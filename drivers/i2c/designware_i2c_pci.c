@@ -56,7 +56,7 @@ static int designware_i2c_pci_of_to_plat(struct udevice *dev)
 
 	if (spl_phase() < PHASE_BOARD_F) {
 		/* Handle early, fixed mapping into a different address space */
-		priv->regs = (struct i2c_regs *)dm_pci_read_bar32(dev, 0);
+		priv->regs = (struct i2c_regs *)(long)dm_pci_read_bar32(dev, 0);
 	} else {
 		priv->regs = (struct i2c_regs *)
 			dm_pci_map_bar(dev, PCI_BASE_ADDRESS_0, 0, 0,

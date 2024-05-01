@@ -156,6 +156,13 @@ config DAVINCI_SPI
 	help
 	  Enable the Davinci SPI driver
 
+config K1X_QSPI
+	tristate "Spacemit K1X QuadSPI driver"
+	depends on SPI_MEM
+	help
+	  Enable the Spacemit K1X Quad-SPI (QSPI) driver.
+	  This driver support spi flash single, quad and memory reads.
+
 config DESIGNWARE_SPI
 	bool "Designware SPI driver"
 	help

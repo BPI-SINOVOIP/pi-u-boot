@@ -1,0 +1,10 @@
+config PINCTRL_SPACEMIT
+	bool
+
+config PINCTRL_K1PRO
+	bool "Spacemit K1PRO pinctrl driver"
+	depends on TARGET_SPACEMIT_K1PRO && PINCTRL_FULL
+	select DEVRES
+	select PINCTRL_SPACEMIT
+	help
+	  Say Y here to enable the k1-pro pinctrl driver

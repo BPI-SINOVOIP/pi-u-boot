@@ -18,6 +18,8 @@
 #include <video_console.h>
 #include <video_font.h>		/* Bitmap font for code page 437 */
 #include <linux/ctype.h>
+#include <cpu_func.h>
+#include <malloc.h>
 
 /*
  * Structure to describe a console color
@@ -32,6 +34,18 @@ struct vid_rgb {
 #ifndef CONFIG_CONSOLE_SCROLL_LINES
 #define CONFIG_CONSOLE_SCROLL_LINES 1
 #endif
+
+#ifdef CONFIG_CONSOLE_TRUETYPE
+int reverse_video_active;
+int collecting = 0;
+char *reverse_video_text = NULL;
+int reverse_video_text_length = 0;
+int reverse_video_text_capacity = 1024;
+
+int console_truetype_fill_rect(struct udevice *dev, int xstart, int ystart, int width, int height, int clr);
+int get_string_dimensions(struct udevice *dev, const char *str, int *width, int *height);
+#endif
+extern int is_direction_key;
 
 int vidconsole_putc_xy(struct udevice *dev, uint x, uint y, char ch)
 {
@@ -77,10 +91,14 @@ static int vidconsole_back(struct udevice *dev)
 	struct vidconsole_ops *ops = vidconsole_get_ops(dev);
 	int ret;
 
-	if (ops->backspace) {
-		ret = ops->backspace(dev);
-		if (ret != -ENOSYS)
-			return ret;
+	if(is_direction_key){
+		is_direction_key = 0;
+	}else {
+		if (ops->backspace) {
+			ret = ops->backspace(dev);
+			if (ret != -ENOSYS)
+				return ret;
+		}
 	}
 
 	priv->xcur_frac -= VID_TO_POS(priv->x_charsize);
@@ -514,6 +532,7 @@ static int vidconsole_output_glyph(struct udevice *dev, char ch)
 int vidconsole_put_char(struct udevice *dev, char ch)
 {
 	struct vidconsole_priv *priv = dev_get_uclass_priv(dev);
+	struct video_priv *vid_priv = dev_get_uclass_priv(dev->parent);
 	int ret;
 
 	if (priv->escape) {
@@ -551,6 +570,11 @@ int vidconsole_put_char(struct udevice *dev, char ch)
 		ret = vidconsole_output_glyph(dev, ch);
 		if (ret < 0)
 			return ret;
+
+		void *start = vid_priv->fb + priv->ycur * vid_priv->line_length;
+		void *end = start + vid_priv->line_length;
+
+		flush_dcache_range((unsigned long)start, (unsigned long)end);
 		break;
 	}
 
@@ -559,15 +583,34 @@ int vidconsole_put_char(struct udevice *dev, char ch)
 
 int vidconsole_put_string(struct udevice *dev, const char *str)
 {
+    struct video_priv *vid_priv = dev_get_uclass_priv(dev->parent);
 	const char *s;
 	int ret;
+#ifdef CONFIG_CONSOLE_TRUETYPE
+	if (reverse_video_active) {
+		struct udevice *vid = dev->parent;
+		struct video_priv *vid_priv = dev_get_uclass_priv(vid);
+		struct vidconsole_priv *priv = dev_get_uclass_priv(dev);
+		int text_width, text_height;
+		/* Calculate the dimensions of the text */
+		get_string_dimensions(dev, reverse_video_text, &text_width, &text_height);
+		/* Draw a background rectangle based on the text dimensions and current position */
+		console_truetype_fill_rect(dev, priv->xcur_frac, priv->ycur, text_width, text_height, vid_priv->colour_bg);
+
+		memset(reverse_video_text, 0, reverse_video_text_capacity);
+		reverse_video_text_length = 0;
+	}
+#endif
 
 	for (s = str; *s; s++) {
 		ret = vidconsole_put_char(dev, *s);
 		if (ret)
 			return ret;
 	}
+	void *start = vid_priv->fb;
+	void *end = start + vid_priv->fb_size;
 
+	flush_dcache_range((unsigned long)start, (unsigned long)end);
 	return 0;
 }
 
@@ -590,10 +633,93 @@ static void vidconsole_putc(struct stdio_dev *sdev, const char ch)
 	}
 }
 
+#ifdef CONFIG_CONSOLE_TRUETYPE
+void clear_screen_colour_bg(struct udevice *dev) {
+	struct video_priv *vid_priv = dev_get_uclass_priv(dev->parent);
+	int xstart = 0, ystart = 0;
+	int width = vid_priv->xsize, height = vid_priv->ysize;
+	int clr = vid_priv->colour_bg;
+
+	for (int row = ystart; row < (ystart + height); ++row) {
+		void *line = vid_priv->fb + row * vid_priv->line_length + VID_TO_PIXEL(xstart) * VNBYTES(vid_priv->bpix);
+
+		switch (vid_priv->bpix) {
+		#ifdef CONFIG_VIDEO_BPP8
+			case VIDEO_BPP8: {
+				u8 *dst = (u8 *)line;
+				for (int col = 0; col < width; ++col) {
+					*dst++ = clr;
+				}
+				break;
+			}
+		#endif
+		#ifdef CONFIG_VIDEO_BPP16
+			case VIDEO_BPP16: {
+				u16 *dst = (u16 *)line;
+				for (int col = 0; col < width; ++col) {
+					*dst++ = clr;
+				}
+				break;
+			}
+		#endif
+		#ifdef CONFIG_VIDEO_BPP32
+			case VIDEO_BPP32: {
+				u32 *dst = (u32 *)line;
+				for (int col = 0; col < width; ++col) {
+					*dst++ = clr;
+				}
+				break;
+			}
+		#endif
+			default:
+				break;
+		}
+	}
+
+	/* Ensure the changes are written to the frame buffer */
+	video_sync(dev->parent, false);
+}
+#endif
+
 static void vidconsole_puts(struct stdio_dev *sdev, const char *s)
 {
 	struct udevice *dev = sdev->priv;
 	int ret;
+
+#ifdef CONFIG_CONSOLE_TRUETYPE
+	const char *temp = s;
+	if (!reverse_video_text) {
+		reverse_video_text = (char *)malloc(reverse_video_text_capacity);
+		reverse_video_text_length = 0;
+		if (!reverse_video_text) {
+			return;
+		}
+		memset(reverse_video_text, 0, reverse_video_text_capacity);
+	}
+
+	if (strncmp(temp, "\033[1;1H", strlen("\033[1;1H")) == 0){
+		clear_screen_colour_bg(dev);
+	}
+
+	for (; *temp; temp++) {
+		/* Check for the start or end of reverse video sequences */
+		if (!collecting && strncmp(temp, "\033[7m", 4) == 0) {
+			reverse_video_active = 1;
+			collecting = 1;
+			temp += 4;
+			continue;
+		} else if (strncmp(temp, "\033[0m", 4) == 0) {
+			reverse_video_active = 0;
+			collecting = 0;
+			temp += 4;
+			continue;
+		}
+
+		if (collecting && reverse_video_text_length < reverse_video_text_capacity - 1) {
+			reverse_video_text[reverse_video_text_length++] = *temp;
+		}
+	}
+#endif
 
 	ret = vidconsole_put_string(dev, s);
 	if (ret) {

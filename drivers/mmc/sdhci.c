@@ -31,7 +31,7 @@ static void sdhci_reset(struct sdhci_host *host, u8 mask)
 	sdhci_writeb(host, mask, SDHCI_SOFTWARE_RESET);
 	while (sdhci_readb(host, SDHCI_SOFTWARE_RESET) & mask) {
 		if (timeout == 0) {
-			printf("%s: Reset 0x%x never completed.\n",
+			pr_err("%s: Reset 0x%x never completed.\n",
 			       __func__, (int)mask);
 			return;
 		}
@@ -172,7 +172,7 @@ static int sdhci_transfer_data(struct sdhci_host *host, struct mmc_data *data)
 		if (timeout-- > 0)
 			udelay(10);
 		else {
-			printf("%s: Transfer data timeout\n", __func__);
+			pr_err("%s: Transfer data timeout\n", __func__);
 			return -ETIMEDOUT;
 		}
 	} while (!(stat & SDHCI_INT_DATA_END));
@@ -231,10 +231,10 @@ static int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 
 	while (sdhci_readl(host, SDHCI_PRESENT_STATE) & mask) {
 		if (time >= cmd_timeout) {
-			printf("%s: MMC: %d busy ", __func__, mmc_dev);
+			pr_debug("%s: MMC: %d busy ", __func__, mmc_dev);
 			if (2 * cmd_timeout <= SDHCI_CMD_MAX_TIMEOUT) {
 				cmd_timeout += cmd_timeout;
-				printf("timeout increasing to: %u ms.\n",
+				pr_err("timeout increasing to: %u ms.\n",
 				       cmd_timeout);
 			} else {
 				puts("timeout.\n");
@@ -307,7 +307,7 @@ static int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 			if (host->quirks & SDHCI_QUIRK_BROKEN_R1B) {
 				return 0;
 			} else {
-				printf("%s: Timeout for status update!\n",
+				pr_err("%s: Timeout for status update!\n",
 				       __func__);
 				return -ETIMEDOUT;
 			}
@@ -372,7 +372,7 @@ int sdhci_set_clock(struct mmc *mmc, unsigned int clock)
 	while (sdhci_readl(host, SDHCI_PRESENT_STATE) &
 			   (SDHCI_CMD_INHIBIT | SDHCI_DATA_INHIBIT)) {
 		if (timeout == 0) {
-			printf("%s: Timeout to wait cmd & data inhibit\n",
+			pr_err("%s: Timeout to wait cmd & data inhibit\n",
 			       __func__);
 			return -EBUSY;
 		}
@@ -389,7 +389,7 @@ int sdhci_set_clock(struct mmc *mmc, unsigned int clock)
 	if (host->ops && host->ops->set_delay) {
 		ret = host->ops->set_delay(host);
 		if (ret) {
-			printf("%s: Error while setting tap delay\n", __func__);
+			pr_err("%s: Error while setting tap delay\n", __func__);
 			return ret;
 		}
 	}
@@ -448,7 +448,7 @@ int sdhci_set_clock(struct mmc *mmc, unsigned int clock)
 	while (!((clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL))
 		& SDHCI_CLOCK_INT_STABLE)) {
 		if (timeout == 0) {
-			printf("%s: Internal clock never stabilised.\n",
+			pr_err("%s: Internal clock never stabilised.\n",
 			       __func__);
 			return -EBUSY;
 		}
@@ -709,7 +709,7 @@ static int sdhci_init(struct mmc *mmc)
 	if (host->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR) {
 		host->align_buffer = memalign(8, 512 * 1024);
 		if (!host->align_buffer) {
-			printf("%s: Aligned buffer alloc failed!!!\n",
+			pr_err("%s: Aligned buffer alloc failed!!!\n",
 			       __func__);
 			return -ENOMEM;
 		}
@@ -864,7 +864,7 @@ int sdhci_setup_cfg(struct mmc_config *cfg, struct sdhci_host *host,
 #endif
 #if CONFIG_IS_ENABLED(MMC_SDHCI_ADMA)
 	if (!(caps & SDHCI_CAN_DO_ADMA2)) {
-		printf("%s: Your controller doesn't support SDMA!!\n",
+		pr_err("%s: Your controller doesn't support SDMA!!\n",
 		       __func__);
 		return -EINVAL;
 	}
@@ -914,7 +914,7 @@ int sdhci_setup_cfg(struct mmc_config *cfg, struct sdhci_host *host,
 			host->max_clk *= host->clk_mul;
 	}
 	if (host->max_clk == 0) {
-		printf("%s: Hardware doesn't specify base clock frequency\n",
+		pr_err("%s: Hardware doesn't specify base clock frequency\n",
 		       __func__);
 		return -EINVAL;
 	}
@@ -1004,7 +1004,7 @@ int add_sdhci(struct sdhci_host *host, u32 f_max, u32 f_min)
 
 	host->mmc = mmc_create(&host->cfg, host);
 	if (host->mmc == NULL) {
-		printf("%s: mmc create fail!\n", __func__);
+		pr_err("%s: mmc create fail!\n", __func__);
 		return -ENOMEM;
 	}
 

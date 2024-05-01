@@ -1,0 +1,145 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2023 Spacemit, Inc */
+
+/dts-v1/;
+
+#include "k1-x.dtsi"
+#include "k1-x_pinctrl.dtsi"
+#include "k1-x_spm8821.dtsi"
+#include "k1-x_pm853.dtsi"
+
+/ {
+	model = "spacemit k1-x spl";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+		u-boot,dm-spl;
+	};
+};
+
+&cpus {
+	timebase-frequency = <24000000>;
+	u-boot,dm-spl;
+
+	cpu@0 {
+		/* boot frequency for cluster-0, should be 1600000, 1228000, 819000, or 614000 */
+		boot_freq_cluster0 = <1228000>;
+		/* boot frequency for cluster-1, should be 1600000, 1228000, 819000, or 614000 */
+		boot_freq_cluster1 = <1228000>;
+		u-boot,dm-spl;
+	};
+};
+
+&clocks {
+	u-boot,dm-spl;
+
+	vctcxo_24 {
+		u-boot,dm-spl;
+	};
+
+	vctcxo_3 {
+		u-boot,dm-spl;
+	};
+
+	vctcxo_1 {
+		u-boot,dm-spl;
+	};
+
+	pll1_vco {
+		u-boot,dm-spl;
+	};
+
+	clk_32k {
+		u-boot,dm-spl;
+	};
+
+	clk_dummy {
+		u-boot,dm-spl;
+	};
+};
+
+&soc {
+	u-boot,dm-spl;
+
+	clock-controller@d4050000 {
+		status = "okay";
+		u-boot,dm-spl;
+	};
+
+	reset-controller@d4050000 {
+		status = "okay";
+		u-boot,dm-spl;
+	};
+
+	uart@d4017000 {
+		status = "okay";
+		u-boot,dm-spl;
+	};
+
+	ddr@c0000000 {
+		/* dram data rate, should be 1200, 1600, or 2400 */
+		datarate = <2400>;
+		cs-num = <2>;
+		u-boot,dm-spl;
+	};
+
+	sdh@d4280000 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mmc1 &gpio80_pmx_func0>;
+		bus-width = <4>;
+		cap-sd-highspeed;
+		sdh-phy-module = <0>;
+		status = "okay";
+		u-boot,dm-spl;
+	};
+
+	/* eMMC */
+	sdh@d4281000 {
+		bus-width = <8>;
+		non-removable;
+		mmc-hs400-1_8v;
+		mmc-hs400-enhanced-strobe;
+		sdh-phy-module = <1>;
+		status = "okay";
+		u-boot,dm-spl;
+	};
+
+	spi@d420c000 {
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_qspi>;
+		u-boot,dm-spl;
+
+		spi-max-frequency = <15140000>;
+		flash@0 {
+			compatible = "jedec,spi-nor";
+			reg = <0>;
+			spi-max-frequency = <26500000>;
+
+			m25p,fast-read;
+			broken-flash-reset;
+			u-boot,dm-spl;
+			status = "okay";
+		};
+	};
+
+	fuse@f0702800 {
+		status = "okay";
+		u-boot,dm-spl;
+	};
+};
+
+&pinctrl {
+	usbp1_vbus: usbp1_vbus {
+		pinctrl-single,pins =<
+			K1X_PADCONF(GPIO_66, MUX_MODE0, (EDGE_NONE | PULL_UP | PAD_1V8_DS2))	/* drive_vbus1_iso */
+		>;
+	};
+
+	gpio80_pmx_func0: gpio80_pmx_func0 {
+		pinctrl-single,pins = <
+			K1X_PADCONF(GPIO_80, MUX_MODE0, (EDGE_BOTH | PULL_UP | PAD_3V_DS4))  /* mmc cd */
+		>;
+	};
+};
+

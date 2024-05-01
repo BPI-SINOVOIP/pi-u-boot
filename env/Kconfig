@@ -244,7 +244,7 @@ config ENV_IS_IN_MMC
 
 config ENV_IS_IN_NAND
 	bool "Environment in a NAND device"
-	depends on !CHAIN_OF_TRUST
+	depends on !CHAIN_OF_TRUST && !ENV_IS_IN_SPI_FLASH && !ENV_IS_IN_MTD
 	help
 	  Define this if you have a NAND device which you want to use for the
 	  environment.
@@ -330,7 +330,7 @@ config ENV_IS_IN_REMOTE
 
 config ENV_IS_IN_SPI_FLASH
 	bool "Environment is in SPI flash"
-	depends on !CHAIN_OF_TRUST && SPI
+	depends on !CHAIN_OF_TRUST && SPI && !ENV_IS_IN_MTD
 	default y if ARMADA_XP
 	default y if INTEL_BAYTRAIL
 	default y if INTEL_BRASWELL
@@ -353,6 +353,30 @@ config ENV_IS_IN_SPI_FLASH
 	  - CONFIG_ENV_SECT_SIZE:
 
 	  Define the SPI flash's sector size.
+
+	  - CONFIG_ENV_OFFSET_REDUND (optional):
+
+	  This setting describes a second storage area of CONFIG_ENV_SIZE
+	  size used to hold a redundant copy of the environment data, so
+	  that there is a valid backup copy in case there is a power failure
+	  during a "saveenv" operation. CONFIG_ENV_OFFSET_REDUND must be
+	  aligned to an erase sector boundary.
+
+config ENV_IS_IN_MTD
+	bool "Environment is in MTD"
+	depends on !CHAIN_OF_TRUST && SPI
+	help
+	  Define this if you have a MTD device which you
+	  want to use for the environment.
+
+	  - CONFIG_ENV_OFFSET:
+	  - CONFIG_ENV_SIZE:
+
+	  These two #defines specify the offset and size of the
+	  environment area within the MTD devices. CONFIG_ENV_OFFSET must be
+	  aligned to an erase sector boundary.
+
+	  Define the MTD devices's sector size.
 
 	  - CONFIG_ENV_OFFSET_REDUND (optional):
 
@@ -544,7 +568,7 @@ config ENV_ADDR
 
 config ENV_ADDR_REDUND
 	hex "Redundant environment address"
-	depends on ENV_IS_IN_FLASH && SYS_REDUNDAND_ENVIRONMENT
+	depends on ENV_IS_IN_FLASH && ENV_IS_IN_MTD && SYS_REDUNDAND_ENVIRONMENT
 	help
 	  Offset from the start of the device (or partition) of the redundant
 	  environment location.
@@ -552,7 +576,8 @@ config ENV_ADDR_REDUND
 config ENV_OFFSET
 	hex "Environment offset"
 	depends on ENV_IS_IN_EEPROM || ENV_IS_IN_MMC || ENV_IS_IN_NAND || \
-		    ENV_IS_IN_SPI_FLASH
+		    ENV_IS_IN_SPI_FLASH || ENV_IS_IN_MTD
+	default 0x80000 if ENV_IS_IN_MTD
 	default 0x3f8000 if ARCH_ROCKCHIP && ENV_IS_IN_MMC
 	default 0x140000 if ARCH_ROCKCHIP && ENV_IS_IN_SPI_FLASH
 	default 0xF0000 if ARCH_SUNXI
@@ -569,7 +594,7 @@ config ENV_OFFSET
 config ENV_OFFSET_REDUND
 	hex "Redundant environment offset"
 	depends on (ENV_IS_IN_EEPROM || ENV_IS_IN_MMC || ENV_IS_IN_NAND || \
-		    ENV_IS_IN_SPI_FLASH) && SYS_REDUNDAND_ENVIRONMENT
+		    ENV_IS_IN_SPI_FLASH || ENV_IS_IN_MTD) && SYS_REDUNDAND_ENVIRONMENT
 	default 0
 	help
 	  Offset from the start of the device (or partition) of the redundant
@@ -577,6 +602,7 @@ config ENV_OFFSET_REDUND
 
 config ENV_SIZE
 	hex "Environment Size"
+	default 0x10000 if ENV_IS_IN_MTD
 	default 0x40000 if ENV_IS_IN_SPI_FLASH && ARCH_ZYNQMP
 	default 0x20000 if ARCH_ZYNQ || ARCH_OMAP2PLUS || ARCH_AT91
 	default 0x10000 if ARCH_SUNXI
@@ -590,7 +616,8 @@ config ENV_SIZE
 
 config ENV_SECT_SIZE
 	hex "Environment Sector-Size"
-	depends on ENV_IS_IN_FLASH || ENV_IS_IN_SPI_FLASH
+	depends on ENV_IS_IN_FLASH || ENV_IS_IN_SPI_FLASH || ENV_IS_IN_MTD
+	default 0x10000 if ENV_IS_IN_MTD
 	default 0x2000 if ARCH_ROCKCHIP
 	default 0x40000 if ARCH_ZYNQMP || ARCH_VERSAL
 	default 0x20000 if ARCH_ZYNQ || ARCH_OMAP2PLUS || ARCH_AT91

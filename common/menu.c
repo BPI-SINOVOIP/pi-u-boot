@@ -513,7 +513,7 @@ void bootmenu_loop(struct bootmenu_data *menu,
 			*key = KEY_NONE;
 		} else {
 		/* Alone ESC key was pressed */
-			*key = KEY_QUIT;
+			*key = KEY_NONE;
 			*esc = (c == '\e') ? 1 : 0;
 		}
 		break;

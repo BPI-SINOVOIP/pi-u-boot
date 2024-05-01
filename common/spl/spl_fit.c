@@ -17,6 +17,8 @@
 #include <asm/cache.h>
 #include <asm/global_data.h>
 #include <linux/libfdt.h>
+#include <cpu_func.h>
+#include <linux/kernel.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -91,7 +93,7 @@ static int spl_fit_get_image_name(const struct spl_fit_info *ctx,
 
 	name = fdt_getprop(ctx->fit, ctx->conf_node, type, &len);
 	if (!name) {
-		debug("cannot find property '%s': %d\n", type, len);
+		pr_debug("cannot find property '%s': %d\n", type, len);
 		return -EINVAL;
 	}
 
@@ -138,7 +140,7 @@ static int spl_fit_get_image_name(const struct spl_fit_info *ctx,
 	}
 
 	if (!found) {
-		debug("no string for index %d\n", index);
+		pr_debug("no string for index %d\n", index);
 		return -E2BIG;
 	}
 
@@ -169,7 +171,7 @@ static int spl_fit_get_image_node(const struct spl_fit_info *ctx,
 	if (err)
 		return err;
 
-	debug("%s: '%s'\n", type, str);
+	pr_debug("%s: '%s'\n", type, str);
 
 	node = fdt_subnode_offset(ctx->fit, ctx->images_node, str);
 	if (node < 0) {
@@ -249,23 +251,25 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 	const void *data;
 	const void *fit = ctx->fit;
 	bool external_data = false;
+	ulong flush_dcache_addr;
+	ulong flush_lenth;
 
 	if (IS_ENABLED(CONFIG_SPL_FPGA) ||
 	    (IS_ENABLED(CONFIG_SPL_OS_BOOT) && IS_ENABLED(CONFIG_SPL_GZIP))) {
 		if (fit_image_get_type(fit, node, &type))
 			puts("Cannot get image type.\n");
 		else
-			debug("%s ", genimg_get_type_name(type));
+			pr_debug("%s ", genimg_get_type_name(type));
 	}
 
 	if (IS_ENABLED(CONFIG_SPL_GZIP)) {
 		fit_image_get_comp(fit, node, &image_comp);
-		debug("%s ", genimg_get_comp_name(image_comp));
+		pr_debug("%s ", genimg_get_comp_name(image_comp));
 	}
 
 	if (fit_image_get_load(fit, node, &load_addr)) {
 		if (!image_info->load_addr) {
-			printf("Can't load %s: No load address and no buffer\n",
+			pr_debug("Can't load %s: No load address and no buffer\n",
 			       fit_get_name(fit, node, NULL));
 			return -ENOBUFS;
 		}
@@ -304,7 +308,7 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 			       nr_sectors, src_ptr) != nr_sectors)
 			return -EIO;
 
-		debug("External data: dst=%p, offset=%x, size=%lx\n",
+		pr_debug("External data: dst=%p, offset=%x, size=%lx\n",
 		      src_ptr, offset, (unsigned long)length);
 		src = src_ptr + overhead;
 	} else {
@@ -313,7 +317,7 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 			puts("Cannot get image data/size\n");
 			return -ENOENT;
 		}
-		debug("Embedded data: dst=%lx, size=%lx\n", load_addr,
+		pr_debug("Embedded data: dst=%lx, size=%lx\n", load_addr,
 		      (unsigned long)length);
 		src = (void *)data;	/* cast away const */
 	}
@@ -341,6 +345,10 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 	} else {
 		memcpy(load_ptr, src, length);
 	}
+
+	flush_dcache_addr = round_down((ulong)load_ptr,CONFIG_RISCV_CBOM_BLOCK_SIZE);
+	flush_lenth = round_up(length, CONFIG_RISCV_CBOM_BLOCK_SIZE);
+	flush_dcache_range(flush_dcache_addr, flush_dcache_addr + flush_lenth);
 
 	if (image_info) {
 		ulong entry_point;
@@ -385,7 +393,7 @@ static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 	/* Figure out which device tree the board wants to use */
 	node = spl_fit_get_image_node(ctx, FIT_FDT_PROP, index++);
 	if (node < 0) {
-		debug("%s: cannot find FDT node\n", __func__);
+		pr_debug("%s: cannot find FDT node\n", __func__);
 
 		/*
 		 * U-Boot did not find a device tree inside the FIT image. Use
@@ -414,10 +422,10 @@ static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 		for (; ; index++) {
 			node = spl_fit_get_image_node(ctx, FIT_FDT_PROP, index);
 			if (node == -E2BIG) {
-				debug("%s: No additional FDT node\n", __func__);
+				pr_debug("%s: No additional FDT node\n", __func__);
 				break;
 			} else if (node < 0) {
-				debug("%s: unable to find FDT node %d\n",
+				pr_debug("%s: unable to find FDT node %d\n",
 				      __func__, index);
 				continue;
 			}
@@ -431,7 +439,7 @@ static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 				 */
 				tmpbuffer = malloc(CONFIG_SPL_LOAD_FIT_APPLY_OVERLAY_BUF_SZ);
 				if (!tmpbuffer)
-					debug("%s: unable to allocate space for overlays\n",
+					pr_debug("%s: unable to allocate space for overlays\n",
 					      __func__);
 			}
 			image_info.load_addr = (ulong)tmpbuffer;
@@ -454,7 +462,7 @@ static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 				break;
 			}
 
-			debug("%s: DT overlay %s applied\n", __func__,
+			pr_debug("%s: DT overlay %s applied\n", __func__,
 			      fit_get_name(ctx->fit, node, NULL));
 		}
 		free(tmpbuffer);
@@ -537,7 +545,7 @@ static void *spl_get_fit_load_buffer(size_t size)
 {
 	void *buf;
 
-	buf = malloc(size);
+	buf = memalign(ARCH_DMA_MINALIGN, size);
 	if (!buf) {
 		pr_err("Could not get FIT buffer of %lu bytes\n", (ulong)size);
 		pr_err("\tcheck CONFIG_SYS_SPL_MALLOC_SIZE\n");
@@ -572,8 +580,8 @@ __weak void *spl_load_simple_fit_fix_load(const void *fit)
 
 static void warn_deprecated(const char *msg)
 {
-	printf("DEPRECATED: %s\n", msg);
-	printf("\tSee doc/uImage.FIT/source_file_format.txt\n");
+	pr_debug("DEPRECATED: %s\n", msg);
+	pr_debug("\tSee doc/uImage.FIT/source_file_format.txt\n");
 }
 
 static int spl_fit_upload_fpga(struct spl_fit_info *ctx, int node,
@@ -584,7 +592,7 @@ static int spl_fit_upload_fpga(struct spl_fit_info *ctx, int node,
 	int devnum = 0;
 	int flags = 0;
 
-	debug("FPGA bitstream at: %x, size: %x\n",
+	pr_debug("FPGA bitstream at: %x, size: %x\n",
 	      (u32)fpga_image->load_addr, fpga_image->size);
 
 	compatible = fdt_getprop(ctx->fit, node, "compatible", NULL);
@@ -594,14 +602,14 @@ static int spl_fit_upload_fpga(struct spl_fit_info *ctx, int node,
 		if (CONFIG_IS_ENABLED(FPGA_LOAD_SECURE))
 			flags = fpga_compatible2flag(devnum, compatible);
 		if (strcmp(compatible, "u-boot,fpga-legacy"))
-			debug("Ignoring compatible = %s property\n",
+			pr_debug("Ignoring compatible = %s property\n",
 			      compatible);
 	}
 
 	ret = fpga_load(devnum, (void *)fpga_image->load_addr,
 			fpga_image->size, BIT_FULL, flags);
 	if (ret) {
-		printf("%s: Cannot load the image to the FPGA\n", __func__);
+		pr_debug("%s: Cannot load the image to the FPGA\n", __func__);
 		return ret;
 	}
 
@@ -628,7 +636,7 @@ static int spl_fit_load_fpga(struct spl_fit_info *ctx,
 	/* Load the image and set up the fpga_image structure */
 	ret = spl_load_fit_image(info, sector, ctx, node, &fpga_image);
 	if (ret) {
-		printf("%s: Cannot load the FPGA: %i\n", __func__, ret);
+		pr_debug("%s: Cannot load the FPGA: %i\n", __func__, ret);
 		return ret;
 	}
 
@@ -664,7 +672,7 @@ static int spl_simple_fit_read(struct spl_fit_info *ctx,
 
 	count = info->read(info, sector, sectors, buf);
 	ctx->fit = buf;
-	debug("fit read sector %lx, sectors=%d, dst=%p, count=%lu, size=0x%lx\n",
+	pr_debug("fit read sector %lx, sectors=%d, dst=%p, count=%lu, size=0x%lx\n",
 	      sector, sectors, buf, count, size);
 
 	return (count == 0) ? -EIO : 0;
@@ -688,7 +696,7 @@ static int spl_simple_fit_parse(struct spl_fit_info *ctx)
 	/* find the node holding the images information */
 	ctx->images_node = fdt_path_offset(ctx->fit, FIT_IMAGES_PATH);
 	if (ctx->images_node < 0) {
-		debug("%s: Cannot find /images node: %d\n", __func__,
+		pr_debug("%s: Cannot find /images node: %d\n", __func__,
 		      ctx->images_node);
 		return -EINVAL;
 	}
@@ -736,7 +744,7 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 		node = spl_fit_get_image_node(&ctx, FIT_KERNEL_PROP, 0);
 
 	if (node < 0) {
-		debug("could not find firmware image, trying loadables...\n");
+		pr_debug("could not find firmware image, trying loadables...\n");
 		node = spl_fit_get_image_node(&ctx, "loadables", 0);
 		/*
 		 * If we pick the U-Boot image from "loadables", start at
@@ -745,7 +753,7 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 		index = 1;
 	}
 	if (node < 0) {
-		debug("%s: Cannot find u-boot image node: %d\n",
+		pr_debug("%s: Cannot find u-boot image node: %d\n",
 		      __func__, node);
 		return -1;
 	}
@@ -760,7 +768,7 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	 * as a U-Boot image, if no OS-type has been declared.
 	 */
 	if (!spl_fit_image_get_os(ctx.fit, node, &spl_image->os))
-		debug("Image OS is %s\n", genimg_get_os_name(spl_image->os));
+		pr_debug("Image OS is %s\n", genimg_get_os_name(spl_image->os));
 	else if (!IS_ENABLED(CONFIG_SPL_OS_BOOT))
 		spl_image->os = IH_OS_U_BOOT;
 
@@ -794,7 +802,7 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 		image_info.load_addr = 0;
 		ret = spl_load_fit_image(info, sector, &ctx, node, &image_info);
 		if (ret < 0) {
-			printf("%s: can't load image loadables index %d (ret = %d)\n",
+			pr_debug("%s: can't load image loadables index %d (ret = %d)\n",
 			       __func__, index, ret);
 			return ret;
 		}
@@ -803,7 +811,7 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 			spl_fit_upload_fpga(&ctx, node, &image_info);
 
 		if (!spl_fit_image_get_os(ctx.fit, node, &os_type))
-			debug("Loadable is %s\n", genimg_get_os_name(os_type));
+			pr_debug("Loadable is %s\n", genimg_get_os_name(os_type));
 
 		if (os_takes_devicetree(os_type)) {
 			spl_fit_append_fdt(&image_info, info, sector, &ctx);

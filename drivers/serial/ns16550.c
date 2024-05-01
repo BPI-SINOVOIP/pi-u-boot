@@ -219,8 +219,18 @@ static void ns16550_setbrg(struct ns16550 *com_port, int baud_divisor)
 	int lcr_val = serial_in(&com_port->lcr) & ~UART_LCR_BKSE;
 
 	serial_out(UART_LCR_BKSE | lcr_val, &com_port->lcr);
+#ifdef CONFIG_TARGET_SPACEMIT_K1X
+	/*
+	 * the right DLL/DLH setting sequence is:
+	 * write DLH --> read DLH --> write DLL
+	 */
+	serial_out((baud_divisor >> 8) & 0xff, &com_port->dlm);
+	(void) serial_in(&com_port->dlm);
+	serial_out(baud_divisor & 0xff, &com_port->dll);
+#else
 	serial_out(baud_divisor & 0xff, &com_port->dll);
 	serial_out((baud_divisor >> 8) & 0xff, &com_port->dlm);
+#endif
 	serial_out(lcr_val, &com_port->lcr);
 }
 
@@ -345,8 +355,20 @@ static inline void _debug_uart_init(void)
 	serial_dout(&com_port->fcr, UART_FCR_DEFVAL);
 
 	serial_dout(&com_port->lcr, UART_LCR_BKSE | UART_LCRVAL);
+
+#ifdef CONFIG_TARGET_SPACEMIT_K1X
+	/*
+	 * the right DLL/DLH setting sequence is:
+	 * write DLH --> read DLH --> write DLL
+	 */
+	serial_dout(&com_port->dlm, (baud_divisor >> 8) & 0xff);
+	(void) serial_din(&com_port->dlm);
+	serial_dout(&com_port->dll, baud_divisor & 0xff);
+#else
 	serial_dout(&com_port->dll, baud_divisor & 0xff);
 	serial_dout(&com_port->dlm, (baud_divisor >> 8) & 0xff);
+#endif
+
 	serial_dout(&com_port->lcr, UART_LCRVAL);
 }
 

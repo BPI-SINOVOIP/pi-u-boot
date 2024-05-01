@@ -10,8 +10,15 @@
 #include <fastboot-internal.h>
 #include <fb_mmc.h>
 #include <fb_nand.h>
+#include <fb_mtd.h>
 #include <part.h>
 #include <stdlib.h>
+#include <spl.h>
+#include <image.h>
+#include <fb_spacemit.h>
+#include <fb_mtd.h>
+#include <fb_blk.h>
+#include <dm.h>
 
 /**
  * image_size - final fastboot image size
@@ -31,13 +38,19 @@ static u32 fastboot_bytes_expected;
 static void okay(char *, char *);
 static void getvar(char *, char *);
 static void download(char *, char *);
+
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH)
 static void flash(char *, char *);
 static void erase(char *, char *);
 #endif
+
+#if !defined(CONFIG_SPL_BUILD)
+static void upload(char *, char *);
 static void reboot_bootloader(char *, char *);
 static void reboot_fastbootd(char *, char *);
 static void reboot_recovery(char *, char *);
+#endif
+
 #if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_FORMAT)
 static void oem_format(char *, char *);
 #endif
@@ -48,10 +61,23 @@ static void oem_partconf(char *, char *);
 static void oem_bootbus(char *, char *);
 #endif
 
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_READ)
+static void oem_read(char *cmd_parameter, char *response);
+#endif
+
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_CONFIG_ACCESS)
+static void oem_config(char *cmd_parameter, char *response);
+#endif
+
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_ENV_ACCESS)
+static void oem_env(char *cmd_parameter, char *response);
+#endif
+
 #if CONFIG_IS_ENABLED(FASTBOOT_UUU_SUPPORT)
 static void run_ucmd(char *, char *);
 static void run_acmd(char *, char *);
 #endif
+
 
 static const struct {
 	const char *command;
@@ -64,6 +90,11 @@ static const struct {
 	[FASTBOOT_COMMAND_DOWNLOAD] = {
 		.command = "download",
 		.dispatch = download
+	},
+#if !defined(CONFIG_SPL_BUILD)
+	[FASTBOOT_COMMAND_UPLOAD] = {
+		.command = "upload",
+		.dispatch = upload
 	},
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH)
 	[FASTBOOT_COMMAND_FLASH] =  {
@@ -79,10 +110,12 @@ static const struct {
 		.command = "boot",
 		.dispatch = okay
 	},
+#endif /*!defined(CONFIG_SPL_BUILD)*/
 	[FASTBOOT_COMMAND_CONTINUE] =  {
 		.command = "continue",
 		.dispatch = okay
 	},
+#if !defined(CONFIG_SPL_BUILD)
 	[FASTBOOT_COMMAND_REBOOT] =  {
 		.command = "reboot",
 		.dispatch = okay
@@ -103,6 +136,7 @@ static const struct {
 		.command = "set_active",
 		.dispatch = okay
 	},
+#endif /*!defined(CONFIG_SPL_BUILD)*/
 #if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_FORMAT)
 	[FASTBOOT_COMMAND_OEM_FORMAT] = {
 		.command = "oem format",
@@ -119,6 +153,24 @@ static const struct {
 	[FASTBOOT_COMMAND_OEM_BOOTBUS] = {
 		.command = "oem bootbus",
 		.dispatch = oem_bootbus,
+	},
+#endif
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_READ)
+	[FASTBOOT_COMMAND_OEM_READ] = {
+		.command = "oem read",
+		.dispatch = oem_read,
+	},
+#endif
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_CONFIG_ACCESS)
+	[FASTBOOT_COMMAND_CONFIG_ACCESS] = {
+		.command = "oem config",
+		.dispatch = oem_config,
+	},
+#endif
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_ENV_ACCESS)
+	[FASTBOOT_COMMAND_ENV_ACCESS] = {
+		.command = "oem env",
+		.dispatch = oem_env,
 	},
 #endif
 #if CONFIG_IS_ENABLED(FASTBOOT_UUU_SUPPORT)
@@ -221,11 +273,43 @@ static void download(char *cmd_parameter, char *response)
 	if (fastboot_bytes_expected > fastboot_buf_size) {
 		fastboot_fail(cmd_parameter, response);
 	} else {
-		printf("Starting download of %d bytes\n",
+		pr_info("Starting download of %d bytes\n",
 		       fastboot_bytes_expected);
 		fastboot_response("DATA", response, "%s", cmd_parameter);
 	}
 }
+
+#if !defined(CONFIG_SPL_BUILD)
+/**
+ * fastboot_upload() - Start a upload transfer from the host
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+static void upload(char *cmd_parameter, char *response)
+{
+	/*fastboot_bytes_received would record had send byte*/
+	fastboot_bytes_received = 0;
+
+	if (fastboot_bytes_expected == 0) {
+		fastboot_fail("Expected nonzero image size", response);
+		return;
+	}
+	/*
+	 * Nothing to upload yet. Response is of the form:
+	 * [DATA|FAIL]$cmd_parameter
+	 *
+	 * where cmd_parameter is an 8 digit hexadecimal number
+	 */
+	if (fastboot_bytes_expected > fastboot_buf_size) {
+		fastboot_fail(cmd_parameter, response);
+	} else {
+		pr_info("Starting upload of %d bytes\n",
+		       fastboot_bytes_expected);
+		fastboot_response("PUSH", response, "%08x", fastboot_bytes_expected);
+	}
+}
+#endif
 
 /**
  * fastboot_data_remaining() - return bytes remaining in current transfer
@@ -281,6 +365,50 @@ void fastboot_data_download(const void *fastboot_data,
 	*response = '\0';
 }
 
+
+/**
+ * fastboot_data_upload() - Copy image data to fastboot_buf_addr.
+ *
+ * @fastboot_data: Pointer to received fastboot data
+ * @fastboot_data_len: Length of received fastboot data
+ * @response: Pointer to fastboot response buffer
+ *
+ * Copies image data from fastboot_buf_addr to fastboot_data. Writes to
+ * response. fastboot_bytes_received is updated to indicate the number
+ * of bytes that have been transferred.
+ */
+void fastboot_data_upload(const void *fastboot_data,
+			    unsigned int fastboot_data_len,
+			    char *response)
+{
+#define BYTES_PER_DOT	0x20000
+	u32 pre_dot_num, now_dot_num;
+
+	if (fastboot_data_len == 0 ||
+	    (fastboot_bytes_received + fastboot_data_len) >
+	    fastboot_bytes_expected) {
+		fastboot_fail("Received invalid data length",
+			      response);
+		return;
+	}
+
+	/* copy data to buffer */
+	memcpy((void *)fastboot_data,
+	       fastboot_buf_addr + fastboot_bytes_received, fastboot_data_len);
+
+	pre_dot_num = fastboot_bytes_received / BYTES_PER_DOT;
+	fastboot_bytes_received += fastboot_data_len;
+	now_dot_num = fastboot_bytes_received / BYTES_PER_DOT;
+
+	if (pre_dot_num != now_dot_num) {
+		putc('.');
+		if (!(now_dot_num % 74))
+			putc('\n');
+	}
+	*response = '\0';
+}
+
+
 /**
  * fastboot_data_complete() - Mark current transfer complete
  *
@@ -292,7 +420,7 @@ void fastboot_data_complete(char *response)
 {
 	/* Download complete. Respond with "OKAY" */
 	fastboot_okay(NULL, response);
-	printf("\ndownloading of %d bytes finished\n", fastboot_bytes_received);
+	pr_info("\ndownloading/uploading of %d bytes finished\n", fastboot_bytes_received);
 	image_size = fastboot_bytes_received;
 	env_set_hex("filesize", image_size);
 	fastboot_bytes_expected = 0;
@@ -311,10 +439,37 @@ void fastboot_data_complete(char *response)
  */
 static void flash(char *cmd_parameter, char *response)
 {
-#if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC)
-	fastboot_mmc_flash_write(cmd_parameter, fastboot_buf_addr, image_size,
-				 response);
+	u32 boot_mode = get_boot_pin_select();
+
+	switch(boot_mode){
+#if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MTD) || CONFIG_IS_ENABLED(FASTBOOT_MULTI_FLASH_OPTION_MTD)
+	case BOOT_MODE_NOR:
+	case BOOT_MODE_NAND:
+		static bool mtd_flash = false;
+		if (!strncmp("mtd", cmd_parameter, 3))
+			mtd_flash = true;
+		if (!strncmp("gpt", cmd_parameter, 3))
+			mtd_flash = false;
+
+		if (mtd_flash){
+			fastboot_mtd_flash_write(cmd_parameter, fastboot_buf_addr, image_size,
+						response);
+		}else{
+			/* flash blk dev */
+			fastboot_blk_flash_write(cmd_parameter, fastboot_buf_addr, image_size, response);
+		}
+
+		return;
 #endif
+	case BOOT_MODE_EMMC:
+	case BOOT_MODE_SD:
+#if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC) || CONFIG_IS_ENABLED(FASTBOOT_MULTI_FLASH_OPTION_MMC)
+		fastboot_mmc_flash_write(cmd_parameter, fastboot_buf_addr, image_size,
+					response);
+		return;
+#endif
+	}
+
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_NAND)
 	fastboot_nand_flash_write(cmd_parameter, fastboot_buf_addr, image_size,
 				  response);
@@ -332,9 +487,37 @@ static void flash(char *cmd_parameter, char *response)
  */
 static void erase(char *cmd_parameter, char *response)
 {
-#if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC)
-	fastboot_mmc_erase(cmd_parameter, response);
+	u32 boot_mode = get_boot_pin_select();
+
+	switch(boot_mode){
+#ifdef CONFIG_FASTBOOT_SUPPORT_BLOCK_DEV
+	case BOOT_MODE_NOR:
+	case BOOT_MODE_NAND:
+		static bool mtd_flash = false;
+		if (!strncmp("mtd", cmd_parameter, 3))
+			mtd_flash = true;
+		if (!strncmp("gpt", cmd_parameter, 3))
+			mtd_flash = false;
+
+		if (mtd_flash){
+			fastboot_mtd_flash_erase(cmd_parameter, response);
+
+			if (!strncmp("OKAY", response, 4))
+				return;
+		}
+
+		/* erase blk dev */
+		fastboot_blk_erase(cmd_parameter, response);
+		return;
 #endif
+	case BOOT_MODE_EMMC:
+	case BOOT_MODE_SD:
+#if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC) || CONFIG_IS_ENABLED(FASTBOOT_MULTI_FLASH_OPTION_MMC)
+		fastboot_mmc_erase(cmd_parameter, response);
+		return;
+#endif
+	}
+
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_NAND)
 	fastboot_nand_erase(cmd_parameter, response);
 #endif
@@ -394,6 +577,7 @@ static void run_acmd(char *cmd_parameter, char *response)
 }
 #endif
 
+#if !defined(CONFIG_SPL_BUILD)
 /**
  * reboot_bootloader() - Sets reboot bootloader flag.
  *
@@ -435,6 +619,7 @@ static void reboot_recovery(char *cmd_parameter, char *response)
 	else
 		fastboot_okay(NULL, response);
 }
+#endif
 
 #if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_FORMAT)
 /**
@@ -479,7 +664,7 @@ static void oem_partconf(char *cmd_parameter, char *response)
 	/* execute 'mmc partconfg' command with cmd_parameter arguments*/
 	snprintf(cmdbuf, sizeof(cmdbuf), "mmc partconf %x %s 0",
 		 CONFIG_FASTBOOT_FLASH_MMC_DEV, cmd_parameter);
-	printf("Execute: %s\n", cmdbuf);
+	pr_info("Execute: %s\n", cmdbuf);
 	if (run_command(cmdbuf, 0))
 		fastboot_fail("Cannot set oem partconf", response);
 	else
@@ -506,10 +691,147 @@ static void oem_bootbus(char *cmd_parameter, char *response)
 	/* execute 'mmc bootbus' command with cmd_parameter arguments*/
 	snprintf(cmdbuf, sizeof(cmdbuf), "mmc bootbus %x %s",
 		 CONFIG_FASTBOOT_FLASH_MMC_DEV, cmd_parameter);
-	printf("Execute: %s\n", cmdbuf);
+	pr_info("Execute: %s\n", cmdbuf);
 	if (run_command(cmdbuf, 0))
 		fastboot_fail("Cannot set oem bootbus", response);
 	else
 		fastboot_okay(NULL, response);
+}
+#endif
+
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_READ)
+/**
+ * read_console_log() - Read data from console log buffer
+ *
+ * @fb_buf: Pointer to buffer where data will be copied
+ *
+ * @return: Actual size of data read
+ */
+static u32 read_console_log(char *fb_buf) {
+	char *log_start = gd->console_log.buffer;
+	char *log_end = log_start + LOG_BUFFER_SIZE;
+	char *log_ptr = gd->console_log.read_ptr;
+	u32 read_size = 0;
+
+	while (log_ptr != gd->console_log.write_ptr) {
+		u32 copy_size = (log_ptr < gd->console_log.write_ptr) ?
+						(gd->console_log.write_ptr - log_ptr) :
+						(log_end - log_ptr);
+
+		memcpy(fb_buf + read_size, log_ptr, copy_size);
+		read_size += copy_size;
+		log_ptr += copy_size;
+
+		if (log_ptr == log_end) {
+			log_ptr = log_start;
+		}
+	}
+
+	gd->console_log.read_ptr = log_ptr;
+
+	return read_size;
+}
+
+/**
+ * oem_read() - Execute the OEM read command
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+static void oem_read(char *cmd_parameter, char *response)
+{
+	char *part, *offset_str, *cmd_str;
+	u32 off, boot_mode;
+
+	cmd_str = cmd_parameter;
+	part = strsep(&cmd_str, " ");
+	if (!part){
+		fastboot_fail("miss part, send command:\
+			fastboot oem read:part [offset]", response);
+		return;
+	}
+
+	if (strcmp(part, "console") == 0) {
+		char *fb_buf = (char *)fastboot_buf_addr;
+		u32 read_size = read_console_log(fb_buf);
+
+		fastboot_bytes_expected = read_size;
+		fastboot_response("OKAY", response, "%08x", read_size);
+		return;
+	}
+
+	offset_str = strsep(&cmd_str, " ");
+	if (!offset_str){
+		pr_info("miss offset, would set offset to 0\n");
+		off = 0;
+	}else{
+		off = simple_strtoul(offset_str, NULL, 0);
+	}
+
+	debug("get part:%s, offset:%x\n", part, off);
+
+	boot_mode = get_boot_pin_select();
+	switch(boot_mode){
+#ifdef CONFIG_FASTBOOT_SUPPORT_BLOCK_DEV
+	case BOOT_MODE_NOR:
+	case BOOT_MODE_NAND:
+		/*mtd read part not support read raw data*/
+		fastboot_bytes_expected = fastboot_mtd_flash_read(part, off, fastboot_buf_addr, response);
+
+		/* if read data from mtd partition success, it would not try to read from blk dev*/
+		if (fastboot_bytes_expected > 0)
+			return;
+		pr_info("read data from blk dev\n");
+		fastboot_bytes_expected = fastboot_blk_read(part, off, fastboot_buf_addr, response);
+
+		return;
+#endif
+#if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC) || CONFIG_IS_ENABLED(FASTBOOT_MULTI_FLASH_OPTION_MMC)
+	case BOOT_MODE_EMMC:
+	case BOOT_MODE_SD:
+		fastboot_bytes_expected = fastboot_mmc_read(part, off, fastboot_buf_addr, response);
+		return;
+#endif
+	}
+
+	fastboot_okay(NULL, response);
+}
+#endif
+
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_CONFIG_ACCESS)
+void fastboot_config_access(char *operation, char *config, char *response);
+/**
+ * oem_config() - Execute the OEM config command
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+static void oem_config(char *cmd_parameter, char *response)
+{
+    char *cmd_str, *operation;
+
+	cmd_str = cmd_parameter;
+	operation = strsep(&cmd_str, " ");
+
+    fastboot_config_access(operation, cmd_str, response);
+}
+#endif
+
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_ENV_ACCESS)
+void fastboot_env_access(char *operation, char *env, char *response);
+/**
+ * oem_env() - Execute the OEM env operation command
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+static void oem_env(char *cmd_parameter, char *response)
+{
+    char *cmd_str, *operation;
+
+	cmd_str = cmd_parameter;
+	operation = strsep(&cmd_str, " ");
+
+    fastboot_env_access(operation, cmd_str, response);
 }
 #endif

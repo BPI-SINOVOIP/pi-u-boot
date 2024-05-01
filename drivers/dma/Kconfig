@@ -76,6 +76,13 @@ config XILINX_DPDMA
 	  this file is used as placeholder for driver. The main reason is
 	  to record compatible string and calling power domain driver.
 
+config AXI_DMA
+	bool "Support DW_AXI DMA"
+	depends on DMA
+	select DMA_LEGACY
+	help
+	  Enable dw_axi_dma driver
+
 if APBH_DMA
 config APBH_DMA_BURST
 	bool "Enable DMA BURST"

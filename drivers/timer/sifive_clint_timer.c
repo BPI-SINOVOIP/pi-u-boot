@@ -9,6 +9,7 @@
 #include <dm.h>
 #include <timer.h>
 #include <asm/io.h>
+#include <asm/csr.h>
 #include <dm/device-internal.h>
 #include <linux/err.h>
 
@@ -17,7 +18,17 @@
 
 static u64 notrace sifive_clint_get_count(struct udevice *dev)
 {
-	return readq((void __iomem *)MTIME_REG(dev_get_priv(dev)));
+	__maybe_unused u32 hi, lo;
+
+	if (IS_ENABLED(CONFIG_64BIT))
+		return csr_read(CSR_TIME);
+
+	do {
+		hi = csr_read(CSR_TIMEH);
+		lo = csr_read(CSR_TIME);
+	} while (hi != csr_read(CSR_TIMEH));
+
+	return ((u64)hi << 32) | lo;
 }
 
 #if CONFIG_IS_ENABLED(RISCV_MMODE) && IS_ENABLED(CONFIG_TIMER_EARLY)
@@ -35,7 +46,7 @@ unsigned long notrace timer_early_get_rate(void)
  */
 u64 notrace timer_early_get_count(void)
 {
-	return readq((void __iomem *)MTIME_REG(RISCV_MMODE_TIMERBASE));
+	return sifive_clint_get_count(NULL);
 }
 #endif
 

@@ -55,7 +55,7 @@ static void print_one_part(dos_partition_t *p, lbaint_t ext_part_sector,
 	lbaint_t lba_start = ext_part_sector + get_unaligned_le32(p->start4);
 	lbaint_t lba_size  = get_unaligned_le32(p->size4);
 
-	printf("%3d\t%-10" LBAFlength "u\t%-10" LBAFlength
+	pr_info("%3d\t%-10" LBAFlength "u\t%-10" LBAFlength
 		"u\t%08x-%02x\t%02x%s%s\n",
 		part_num, lba_start, lba_size, disksig, part_num, p->sys_ind,
 		(is_extended(p->sys_ind) ? " Extd" : ""),
@@ -144,18 +144,18 @@ static void print_partition_extended(struct blk_desc *dev_desc,
 	/* set a maximum recursion level */
 	if (part_num > MAX_EXT_PARTS)
 	{
-		printf("** Nested DOS partitions detected, stopping **\n");
+		pr_err("** Nested DOS partitions detected, stopping **\n");
 		return;
     }
 
 	if (blk_dread(dev_desc, ext_part_sector, 1, (ulong *)buffer) != 1) {
-		printf ("** Can't read partition table on %d:" LBAFU " **\n",
+		pr_err ("** Can't read partition table on %d:" LBAFU " **\n",
 			dev_desc->devnum, ext_part_sector);
 		return;
 	}
 	i=test_block_type(buffer);
 	if (i != DOS_MBR) {
-		printf ("bad MBR sector signature 0x%02x%02x\n",
+		pr_err ("bad MBR sector signature 0x%02x%02x\n",
 			buffer[DOS_PART_MAGIC_OFFSET],
 			buffer[DOS_PART_MAGIC_OFFSET + 1]);
 		return;
@@ -216,18 +216,18 @@ static int part_get_info_extended(struct blk_desc *dev_desc,
 	/* set a maximum recursion level */
 	if (part_num > MAX_EXT_PARTS)
 	{
-		printf("** Nested DOS partitions detected, stopping **\n");
+		pr_err("** Nested DOS partitions detected, stopping **\n");
 		return -1;
     }
 
 	if (blk_dread(dev_desc, ext_part_sector, 1, (ulong *)buffer) != 1) {
-		printf ("** Can't read partition table on %d:" LBAFU " **\n",
+		pr_err ("** Can't read partition table on %d:" LBAFU " **\n",
 			dev_desc->devnum, ext_part_sector);
 		return -1;
 	}
 	if (buffer[DOS_PART_MAGIC_OFFSET] != 0x55 ||
 		buffer[DOS_PART_MAGIC_OFFSET + 1] != 0xaa) {
-		printf ("bad MBR sector signature 0x%02x%02x\n",
+		pr_err ("bad MBR sector signature 0x%02x%02x\n",
 			buffer[DOS_PART_MAGIC_OFFSET],
 			buffer[DOS_PART_MAGIC_OFFSET + 1]);
 		return -1;
@@ -305,7 +305,7 @@ static int part_get_info_extended(struct blk_desc *dev_desc,
 
 static void __maybe_unused part_print_dos(struct blk_desc *dev_desc)
 {
-	printf("Part\tStart Sector\tNum Sectors\tUUID\t\tType\n");
+	pr_info("Part\tStart Sector\tNum Sectors\tUUID\t\tType\n");
 	print_partition_extended(dev_desc, 0, 0, 1, 0);
 }
 
@@ -381,14 +381,14 @@ int write_mbr_partitions(struct blk_desc *dev,
 	}
 
 	if (i < count && !ext_part_start) {
-		printf("%s: extended partition is needed for more than 4 partitions\n",
+		pr_err("%s: extended partition is needed for more than 4 partitions\n",
 		        __func__);
 		return -1;
 	}
 
 	/* write MBR */
 	if (blk_dwrite(dev, 0, 1, buffer) != 1) {
-		printf("%s: failed writing 'MBR' (1 blks at 0x0)\n",
+		pr_err("%s: failed writing 'MBR' (1 blks at 0x0)\n",
 		       __func__);
 		return -1;
 	}
@@ -416,7 +416,7 @@ int write_mbr_partitions(struct blk_desc *dev,
 
 		/* write EBR */
 		if (blk_dwrite(dev, ext_part_sect, 1, buffer) != 1) {
-			printf("%s: failed writing 'EBR' (1 blks at 0x%lx)\n",
+			pr_err("%s: failed writing 'EBR' (1 blks at 0x%lx)\n",
 			       __func__, ext_part_sect);
 			return -1;
 		}
@@ -499,7 +499,7 @@ int write_mbr_sector(struct blk_desc *dev_desc, void *buf)
 
 	/* write MBR */
 	if (blk_dwrite(dev_desc, 0, 1, buf) != 1) {
-		printf("%s: failed writing '%s' (1 blks at 0x0)\n",
+		pr_err("%s: failed writing '%s' (1 blks at 0x0)\n",
 		       __func__, "MBR");
 		return 1;
 	}

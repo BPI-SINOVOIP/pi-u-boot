@@ -149,6 +149,12 @@ config SDP_LOADADDR
 	hex "Default load address at SDP_WRITE and SDP_JUMP"
 	default 0
 
+config USB2_K1X_CI
+	bool "Enable Spacemit K1x USB2.0 Controller"
+	select USB_GADGET_DUALSPEED
+	help
+	    K1x's usb controller is an integrated high speed USB 2.0 controller.
+
 # Selected by UDC drivers that support high-speed operation.
 config USB_GADGET_DUALSPEED
 	bool

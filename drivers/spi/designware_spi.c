@@ -667,7 +667,19 @@ static int dw_spi_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 /* The size of ctrl1 limits data transfers to 64K */
 static int dw_spi_adjust_op_size(struct spi_slave *slave, struct spi_mem_op *op)
 {
-	op->data.nbytes = min(op->data.nbytes, (unsigned int)SZ_64K);
+	struct dw_spi_priv *priv = dev_get_priv(slave->dev->parent);
+	u8 op_len = op->cmd.nbytes + op->addr.nbytes + op->dummy.nbytes;
+
+	if (op->data.nbytes + op_len <= priv->fifo_len) {
+		return 0;
+	}
+
+	if (op->data.dir == SPI_MEM_DATA_IN) {
+		if (op->data.nbytes > priv->fifo_len)
+			op->data.nbytes = priv->fifo_len;
+	} else {
+		op->data.nbytes = (priv->fifo_len - op_len);
+	}
 
 	return 0;
 }

@@ -200,7 +200,7 @@ static void fastboot_complete(struct usb_ep *ep, struct usb_request *req)
 	int status = req->status;
 	if (!status)
 		return;
-	printf("status: %d ep '%s' trans: %d\n", status, ep->name, req->actual);
+	pr_debug("status: %d ep '%s' trans: %d\n", status, ep->name, req->actual);
 }
 
 static int fastboot_bind(struct usb_configuration *c, struct usb_function *f)
@@ -409,8 +409,9 @@ static int fastboot_tx_write(const char *buffer, unsigned int buffer_size)
 	usb_ep_dequeue(fastboot_func->in_ep, in_req);
 
 	ret = usb_ep_queue(fastboot_func->in_ep, in_req, 0);
-	if (ret)
-		printf("Error %d on queue\n", ret);
+	if (ret){
+		pr_err("Error %d on queue\n", ret);
+	}
 	return 0;
 }
 
@@ -419,10 +420,12 @@ static int fastboot_tx_write_str(const char *buffer)
 	return fastboot_tx_write(buffer, strlen(buffer));
 }
 
+#if !defined(CONFIG_SPL_BUILD)
 static void compl_do_reset(struct usb_ep *ep, struct usb_request *req)
 {
 	do_reset(NULL, 0, 0, NULL);
 }
+#endif /* !defined(CONFIG_SPL_BUILD) */
 
 static unsigned int rx_bytes_expected(struct usb_ep *ep)
 {
@@ -448,6 +451,66 @@ static unsigned int rx_bytes_expected(struct usb_ep *ep)
 	return rx_remain;
 }
 
+#ifndef CONFIG_SPL_BUILD
+static unsigned int tx_bytes_expected(struct usb_ep *ep)
+{
+	int tx_remain = fastboot_data_remaining();
+	unsigned int rem;
+	unsigned int maxpacket = usb_endpoint_maxp(ep->desc);
+
+	if (tx_remain <= 0)
+		return 0;
+	else if (tx_remain > EP_BUFFER_SIZE)
+		return EP_BUFFER_SIZE;
+
+	rem = tx_remain % maxpacket;
+	if (rem > 0)
+		tx_remain = tx_remain + (maxpacket - rem);
+
+	return tx_remain;
+}
+
+static void tx_handler_up_image(struct usb_ep *ep, struct usb_request *in_req)
+{
+	char response[FASTBOOT_RESPONSE_LEN] = {0};
+	unsigned int remain_size = fastboot_data_remaining();
+	const unsigned char *buffer = in_req->buf;
+
+	unsigned int transfer_size = tx_bytes_expected(ep);
+
+	if (in_req->status != 0) {
+		pr_err("Bad status: %d\n", in_req->status);
+		return;
+	}
+
+	if (!fastboot_data_remaining()) {
+		fastboot_data_complete(response);
+
+		/*
+		 * Reset global transfer variable
+		 */
+		in_req->complete = fastboot_complete;
+
+		fastboot_tx_write_str(response);
+		return ;
+	}
+
+	if (transfer_size > remain_size)
+		transfer_size = remain_size;
+
+
+	fastboot_data_upload(buffer, transfer_size, response);
+
+	if (response[0]) {
+		fastboot_tx_write_str(response);
+		return;
+	}
+
+	in_req->length = transfer_size;
+	usb_ep_queue(ep, in_req, 0);
+}
+#endif
+
 static void rx_handler_dl_image(struct usb_ep *ep, struct usb_request *req)
 {
 	char response[FASTBOOT_RESPONSE_LEN] = {0};
@@ -456,7 +519,7 @@ static void rx_handler_dl_image(struct usb_ep *ep, struct usb_request *req)
 	unsigned int buffer_size = req->actual;
 
 	if (req->status != 0) {
-		printf("Bad status: %d\n", req->status);
+		pr_debug("Bad status: %d\n", req->status);
 		return;
 	}
 
@@ -489,6 +552,7 @@ static void do_exit_on_complete(struct usb_ep *ep, struct usb_request *req)
 	g_dnl_trigger_detach();
 }
 
+#if !defined(CONFIG_SPL_BUILD)
 static void do_bootm_on_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	fastboot_boot();
@@ -506,6 +570,7 @@ static void do_acmd_complete(struct usb_ep *ep, struct usb_request *req)
 		fastboot_acmd_complete();
 }
 #endif
+#endif /* !defined(CONFIG_SPL_BUILD) */
 
 static void rx_handler_command(struct usb_ep *ep, struct usb_request *req)
 {
@@ -529,16 +594,28 @@ static void rx_handler_command(struct usb_ep *ep, struct usb_request *req)
 		req->length = rx_bytes_expected(ep);
 	}
 
+#ifndef CONFIG_SPL_BUILD
+	if (!strncmp("PUSH", response, 4)) {
+		fastboot_func->in_req->complete = tx_handler_up_image;
+
+		/* must replace 'PUSH' to 'DATA' */
+		strncpy(response, "DATA", 4);
+	}
+#endif
+
 	if (!strncmp("OKAY", response, 4)) {
 		switch (cmd) {
+#if !defined(CONFIG_SPL_BUILD)
 		case FASTBOOT_COMMAND_BOOT:
 			fastboot_func->in_req->complete = do_bootm_on_complete;
 			break;
+#endif /* !defined(CONFIG_SPL_BUILD) */
 
 		case FASTBOOT_COMMAND_CONTINUE:
 			fastboot_func->in_req->complete = do_exit_on_complete;
 			break;
 
+#if !defined(CONFIG_SPL_BUILD)
 		case FASTBOOT_COMMAND_REBOOT:
 		case FASTBOOT_COMMAND_REBOOT_BOOTLOADER:
 		case FASTBOOT_COMMAND_REBOOT_FASTBOOTD:
@@ -550,6 +627,7 @@ static void rx_handler_command(struct usb_ep *ep, struct usb_request *req)
 			fastboot_func->in_req->complete = do_acmd_complete;
 			break;
 #endif
+#endif /* !defined(CONFIG_SPL_BUILD) */
 		}
 	}
 

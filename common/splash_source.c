@@ -22,6 +22,7 @@
 #include <usb.h>
 #include <virtio.h>
 #include <asm/global_data.h>
+#include <stdint.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -127,6 +128,9 @@ static int splash_select_fs_dev(struct splash_location *location)
 	case SPLASH_STORAGE_SATA:
 		res = fs_set_blk_dev("sata", location->devpart, FS_TYPE_ANY);
 		break;
+	case SPLASH_STORAGE_NVME:
+		res = fs_set_blk_dev("nvme", location->devpart, FS_TYPE_ANY);
+		break;
 	case SPLASH_STORAGE_NAND:
 		if (location->ubivol != NULL)
 			res = fs_set_blk_dev("ubi", NULL, FS_TYPE_UBIFS);
@@ -201,7 +205,7 @@ static int splash_mount_ubifs(struct splash_location *location)
 	if (res)
 		return res;
 
-	sprintf(cmd, "ubifsmount %s", location->ubivol);
+	sprintf(cmd, "ubifsmount ubi0:%s", location->ubivol);
 	res = run_command(cmd, 0);
 
 	return res;
@@ -262,6 +266,10 @@ static int splash_load_fs(struct splash_location *location, u32 bmp_load_addr)
 		printf("Error (%d): cannot determine file size\n", res);
 		goto out;
 	}
+
+	res = splash_select_fs_dev(location);
+	if (res)
+		goto out;
 
 	if (bmp_load_addr + bmp_size >= gd->start_addr_sp) {
 		printf("Error: splashimage address too high. Data overwrites U-Boot and/or placed beyond DRAM boundaries.\n");
@@ -337,7 +345,7 @@ static int splash_load_fit(struct splash_location *location, u32 bmp_load_addr)
 	if (res < 0)
 		return res;
 
-	img_header = (struct image_header *)bmp_load_addr;
+	img_header = (struct image_header *)(uintptr_t)bmp_load_addr;
 	if (image_get_magic(img_header) != FDT_MAGIC) {
 		printf("Could not find FDT magic\n");
 		return -EINVAL;
@@ -347,7 +355,7 @@ static int splash_load_fit(struct splash_location *location, u32 bmp_load_addr)
 
 	/* Read in entire FIT */
 	fit_header = (const u32 *)(bmp_load_addr + header_size);
-	res = splash_storage_read_raw(location, (u32)fit_header, fit_size);
+	res = splash_storage_read_raw(location, (uintptr_t)fit_header, fit_size);
 	if (res < 0)
 		return res;
 
@@ -372,7 +380,7 @@ static int splash_load_fit(struct splash_location *location, u32 bmp_load_addr)
 	/* Extract the splash data from FIT */
 	/* 1. Test if splash is in FIT internal data. */
 	if (!fit_image_get_data(fit_header, node_offset, &internal_splash_data, &internal_splash_size))
-		memmove((void *)bmp_load_addr, internal_splash_data, internal_splash_size);
+		memmove((void *)(uintptr_t)bmp_load_addr, internal_splash_data, internal_splash_size);
 	/* 2. Test if splash is in FIT external data with fixed position. */
 	else if (!fit_image_get_data_position(fit_header, node_offset, &external_splash_addr))
 		is_splash_external = true;

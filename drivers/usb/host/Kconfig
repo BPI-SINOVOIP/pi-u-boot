@@ -239,6 +239,14 @@ config USB_EHCI_VF
 	help
 	  Enables support for the on-chip EHCI controller on Vybrid SoCs.
 
+config USB_EHCI_K1X
+	bool "EHCI support for Spacemit k1x USB controller"
+	select USB_EHCI_IS_TDI
+	select PHY
+	select PHY_SPACEMIT_K1X_USB2
+	help
+	  Enable support for Spacemit k1x SoC's on-chip EHCI controller.
+
 if USB_EHCI_MX6 || USB_EHCI_MX7
 
 config MXC_USB_OTG_HACTIVE

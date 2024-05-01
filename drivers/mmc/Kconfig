@@ -748,6 +748,20 @@ config ZYNQ_HISPD_BROKEN
 	help
 	  Set if high speed mode is broken.
 
+config MMC_SDHCI_SPACEMIT
+	bool "SDHCI support for Spacemit controller"
+	depends on DM_MMC && OF_CONTROL && BLK
+	depends on MMC_SDHCI
+	help
+	  Support for Spacemit SDHCI host controller on RISCV SoCs platform
+
+config MMC_SDHCI_K1X
+	bool "SDHCI support for the K1X SD/MMC Controller"
+	depends on DM_MMC && BLK
+	depends on MMC_SDHCI
+	help
+	  Support for Spacemit K1x SDHCI host controller on RISCV SoCs platform
+
 config MMC_SUNXI
 	bool "Allwinner sunxi SD/MMC Host Controller support"
 	depends on ARCH_SUNXI

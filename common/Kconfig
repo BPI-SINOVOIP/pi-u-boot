@@ -82,9 +82,10 @@ config LOGLEVEL
 	    9 - debug hardware I/O
 
 config SPL_LOGLEVEL
-	int
+	int "loglevel for spl"
 	depends on SPL
 	default LOGLEVEL
+	range 0 10
 
 config TPL_LOGLEVEL
 	int

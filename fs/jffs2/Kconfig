@@ -17,3 +17,25 @@ config JFFS2_NAND
 	depends on FS_JFFS2
 	help
 	  Enable support for NAND flash as the backing store for JFFS2.
+
+config JFFS2_NOR
+	bool "Enable JFFS2 support for NOR flash"
+	depends on FS_JFFS2
+	help
+	  Enable support for NOR flash as the backing store for JFFS2.
+
+choice
+	prompt "Method for reading from NOR flash"
+	depends on JFFS2_NOR
+
+config JFFS2_USE_MEMMAP_READ
+	bool "Use memcopy for reading from NOR flash"
+	help
+	  Use the memcopy function to read data from NOR flash.
+
+config JFFS2_USE_MTD_READ
+	bool "Use mtd.read for reading from NOR flash"
+	help
+	  Use the mtd.read function to read data from NOR flash.
+
+endchoice

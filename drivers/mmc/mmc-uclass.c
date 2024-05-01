@@ -294,7 +294,7 @@ struct mmc *find_mmc_device(int dev_num)
 
 	if (ret) {
 #if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
-		printf("MMC Device %d not found\n", dev_num);
+		pr_err("MMC Device %d not found\n", dev_num);
 #endif
 		return NULL;
 	}
@@ -378,7 +378,7 @@ void print_mmc_devices(char separator)
 		struct mmc *m = mmc_get_mmc_dev(dev);
 
 		if (!first) {
-			printf("%c", separator);
+			pr_info("%c", separator);
 			if (separator != '\n')
 				puts(" ");
 		}
@@ -387,7 +387,7 @@ void print_mmc_devices(char separator)
 		else
 			mmc_type = NULL;
 
-		printf("%s: %d", m->cfg->name, mmc_get_blk_desc(m)->devnum);
+		pr_info("%s: %d", m->cfg->name, mmc_get_blk_desc(m)->devnum);
 		if (mmc_type)
 			printf(" (%s)", mmc_type);
 	}

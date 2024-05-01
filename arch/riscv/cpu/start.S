@@ -41,6 +41,12 @@ secondary_harts_relocation_error:
 .globl _start
 _start:
 #if CONFIG_IS_ENABLED(RISCV_MMODE)
+#ifdef CONFIG_RISCV_ISA_DOUBLE_FLOAT
+	csrr	a0, CSR_MSTATUS
+	li		t0, 3<<13
+	xor		a0, a0, t0
+	csrw	CSR_MSTATUS, a0
+#endif
 	csrr	a0, CSR_MHARTID
 #endif
 
@@ -188,6 +194,10 @@ wait_for_gd_init:
 	/* Enable cache */
 	jal	icache_enable
 	jal	dcache_enable
+
+	/* Enable prefetch and branch predict*/
+	jal branch_predict_enable
+	jal prefetch_enable
 
 #ifdef CONFIG_DEBUG_UART
 	jal	debug_uart_init

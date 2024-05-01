@@ -27,6 +27,8 @@
 #include <clk.h>
 #include <usb/xhci.h>
 #include <asm/gpio.h>
+#include <dm/device_compat.h>
+#include <power/regulator.h>
 
 struct dwc3_glue_data {
 	struct clk_bulk		clks;
@@ -50,6 +52,9 @@ struct dwc3_generic_priv {
 struct dwc3_generic_host_priv {
 	struct xhci_ctrl xhci_ctrl;
 	struct dwc3_generic_priv gen_priv;
+#if defined(CONFIG_K1_X_BOARD_ASIC)
+	struct udevice *vbus_supply;
+#endif
 };
 
 static int dwc3_generic_probe(struct udevice *dev,
@@ -217,6 +222,19 @@ static int dwc3_generic_host_probe(struct udevice *dev)
 	if (rc)
 		return rc;
 
+#if CONFIG_IS_ENABLED(K1_X_BOARD_ASIC)
+	if (device_is_compatible(dev->parent, "spacemit,k1-x-dwc3")) {
+		rc = device_get_supply_regulator(dev->parent, "vbus-supply",
+						&priv->vbus_supply);
+		if (rc && rc != -ENOENT) {
+			dev_err(dev, "Failed to retrieve vbus-supply regulator, (err=%d)", rc);
+			return rc;
+		}
+		if (priv->vbus_supply)
+			regulator_set_enable(priv->vbus_supply, true);
+	}
+#endif
+
 	hccr = (struct xhci_hccr *)priv->gen_priv.base;
 	hcor = (struct xhci_hcor *)(priv->gen_priv.base +
 			HC_LENGTH(xhci_readl(&(hccr)->cr_capbase)));
@@ -228,6 +246,12 @@ static int dwc3_generic_host_remove(struct udevice *dev)
 {
 	struct dwc3_generic_host_priv *priv = dev_get_priv(dev);
 	int rc;
+
+#if CONFIG_IS_ENABLED(K1_X_BOARD_ASIC)
+	if (device_is_compatible(dev->parent, "spacemit,k1-x-dwc3") && priv->vbus_supply) {
+		regulator_set_enable(priv->vbus_supply, false);
+	}
+#endif
 
 	rc = xhci_deregister(dev);
 	if (rc)
@@ -568,6 +592,8 @@ static const struct udevice_id dwc3_glue_ids[] = {
 	{ .compatible = "fsl,imx8mp-dwc3", .data = (ulong)&imx8mp_ops },
 	{ .compatible = "fsl,imx8mq-dwc3" },
 	{ .compatible = "intel,tangier-dwc3" },
+	{ .compatible = "spacemit,k1-pro-dwc3" },
+	{ .compatible = "spacemit,k1-x-dwc3" },
 	{ }
 };
 

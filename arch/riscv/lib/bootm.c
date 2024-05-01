@@ -67,11 +67,11 @@ static void boot_prep_linux(bootm_headers_t *images)
 	if (CONFIG_IS_ENABLED(OF_LIBFDT) && CONFIG_IS_ENABLED(LMB) && images->ft_len) {
 		debug("using: FDT\n");
 		if (image_setup_linux(images)) {
-			printf("FDT creation failed! hanging...");
+			pr_info("FDT creation failed! hanging...");
 			hang();
 		}
 	} else {
-		printf("Device tree not found or missing FDT support\n");
+		pr_info("Device tree not found or missing FDT support\n");
 		hang();
 	}
 }

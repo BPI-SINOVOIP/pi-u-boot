@@ -73,7 +73,7 @@ int usb_init(void)
 	/* init low_level USB */
 	for (i = 0; i < CONFIG_USB_MAX_CONTROLLER_COUNT; i++) {
 		/* init low_level USB */
-		printf("USB%d:   ", i);
+		pr_debug("USB%d:   ", i);
 		ret = usb_lowlevel_init(i, USB_INIT_HOST, &ctrl);
 		if (ret == -ENODEV) {	/* No such device. */
 			puts("Port not available.\n");
@@ -91,7 +91,7 @@ int usb_init(void)
 		 */
 		controllers_initialized++;
 		start_index = dev_index;
-		printf("scanning bus %d for devices... ", i);
+		pr_debug("scanning bus %d for devices... ", i);
 		ret = usb_alloc_new_device(ctrl, &dev);
 		if (ret)
 			break;
@@ -108,7 +108,7 @@ int usb_init(void)
 			puts("No USB Device found\n");
 			continue;
 		} else {
-			printf("%d USB Device(s) found\n",
+			pr_debug("%d USB Device(s) found\n",
 				dev_index - start_index);
 		}
 
@@ -136,8 +136,9 @@ int usb_stop(void)
 		usb_hub_reset();
 
 		for (i = 0; i < CONFIG_USB_MAX_CONTROLLER_COUNT; i++) {
-			if (usb_lowlevel_stop(i))
-				printf("failed to stop USB controller %d\n", i);
+			if (usb_lowlevel_stop(i)){
+				pr_err("failed to stop USB controller %d\n", i);
+			}
 		}
 	}
 
@@ -390,12 +391,12 @@ static int usb_parse_config(struct usb_device *dev,
 	dev->configno = cfgno;
 	head = (struct usb_descriptor_header *) &buffer[0];
 	if (head->bDescriptorType != USB_DT_CONFIG) {
-		printf(" ERROR: NOT USB_CONFIG_DESC %x\n",
+		pr_err(" ERROR: NOT USB_CONFIG_DESC %x\n",
 			head->bDescriptorType);
 		return -EINVAL;
 	}
 	if (head->bLength != USB_DT_CONFIG_SIZE) {
-		printf("ERROR: Invalid USB CFG length (%d)\n", head->bLength);
+		pr_err("ERROR: Invalid USB CFG length (%d)\n", head->bLength);
 		return -EINVAL;
 	}
 	memcpy(&dev->config, head, USB_DT_CONFIG_SIZE);
@@ -409,7 +410,7 @@ static int usb_parse_config(struct usb_device *dev,
 		switch (head->bDescriptorType) {
 		case USB_DT_INTERFACE:
 			if (head->bLength != USB_DT_INTERFACE_SIZE) {
-				printf("ERROR: Invalid USB IF length (%d)\n",
+				pr_err("ERROR: Invalid USB IF length (%d)\n",
 					head->bLength);
 				break;
 			}
@@ -446,7 +447,7 @@ static int usb_parse_config(struct usb_device *dev,
 		case USB_DT_ENDPOINT:
 			if (head->bLength != USB_DT_ENDPOINT_SIZE &&
 			    head->bLength != USB_DT_ENDPOINT_AUDIO_SIZE) {
-				printf("ERROR: Invalid USB EP length (%d)\n",
+				pr_err("ERROR: Invalid USB EP length (%d)\n",
 					head->bLength);
 				break;
 			}
@@ -462,7 +463,7 @@ static int usb_parse_config(struct usb_device *dev,
 			epno = dev->config.if_desc[ifno].no_of_ep;
 			if_desc = &dev->config.if_desc[ifno];
 			if (epno >= USB_MAXENDPOINTS) {
-				printf("Interface %d has too many endpoints!\n",
+				pr_debug("Interface %d has too many endpoints!\n",
 					if_desc->desc.bInterfaceNumber);
 				return -EINVAL;
 			}
@@ -483,7 +484,7 @@ static int usb_parse_config(struct usb_device *dev,
 			break;
 		case USB_DT_SS_ENDPOINT_COMP:
 			if (head->bLength != USB_DT_SS_EP_COMP_SIZE) {
-				printf("ERROR: Invalid USB EPC length (%d)\n",
+				pr_err("ERROR: Invalid USB EPC length (%d)\n",
 					head->bLength);
 				break;
 			}
@@ -580,12 +581,13 @@ int usb_get_configuration_len(struct usb_device *dev, int cfgno)
 	config = (struct usb_config_descriptor *)&buffer[0];
 	result = usb_get_descriptor(dev, USB_DT_CONFIG, cfgno, buffer, 9);
 	if (result < 9) {
-		if (result < 0)
-			printf("unable to get descriptor, error %lX\n",
+		if (result < 0){
+			pr_err("unable to get descriptor, error %lX\n",
 				dev->status);
-		else
-			printf("config descriptor too short " \
+		}else{
+			pr_debug("config descriptor too short " \
 				"(expected %i, got %i)\n", 9, result);
+		}
 		return -EIO;
 	}
 	return le16_to_cpu(config->wTotalLength);
@@ -636,7 +638,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 		}
 	}
 	if (!if_face) {
-		printf("selecting invalid interface %d", interface);
+		pr_err("selecting invalid interface %d", interface);
 		return -EINVAL;
 	}
 	/*
@@ -875,7 +877,7 @@ int usb_alloc_new_device(struct udevice *controller, struct usb_device **devp)
 	int i;
 	debug("New Device %d\n", dev_index);
 	if (dev_index == USB_MAX_DEVICE) {
-		printf("ERROR, too many USB Devices, max=%d\n", USB_MAX_DEVICE);
+		pr_err("ERROR, too many USB Devices, max=%d\n", USB_MAX_DEVICE);
 		return -ENOSPC;
 	}
 	/* default Address is 0, real addresses start with 1 */
@@ -935,11 +937,11 @@ static int get_descriptor_len(struct usb_device *dev, int len, int expect_len)
 	err = usb_get_descriptor(dev, USB_DT_DEVICE, 0, desc, len);
 	if (err < expect_len) {
 		if (err < 0) {
-			printf("unable to get device descriptor (error=%d)\n",
+			pr_err("unable to get device descriptor (error=%d)\n",
 				err);
 			return err;
 		} else {
-			printf("USB device descriptor short read (expected %i, got %i)\n",
+			pr_debug("USB device descriptor short read (expected %i, got %i)\n",
 				expect_len, err);
 			return -EIO;
 		}
@@ -1017,7 +1019,7 @@ static int usb_setup_descriptor(struct usb_device *dev, bool do_read)
 		dev->maxpacketsize = PACKET_SIZE_64;
 		break;
 	default:
-		printf("%s: invalid max packet size\n", __func__);
+		pr_err("%s: invalid max packet size\n", __func__);
 		return -EIO;
 	}
 
@@ -1037,7 +1039,7 @@ static int usb_prepare_device(struct usb_device *dev, int addr, bool do_read,
 	 */
 	err = usb_alloc_device(dev);
 	if (err) {
-		printf("Cannot allocate device context to get SLOT_ID\n");
+		pr_err("Cannot allocate device context to get SLOT_ID\n");
 		return err;
 	}
 	err = usb_setup_descriptor(dev, do_read);
@@ -1052,7 +1054,7 @@ static int usb_prepare_device(struct usb_device *dev, int addr, bool do_read,
 	err = usb_set_address(dev); /* set address */
 
 	if (err < 0) {
-		printf("\n      USB device not accepting new address " \
+		pr_err("\n      USB device not accepting new address " \
 			"(error=%lX)\n", dev->status);
 		return err;
 	}
@@ -1106,7 +1108,7 @@ int usb_select_config(struct usb_device *dev)
 			err = usb_get_configuration_no(dev, 0, tmpbuf, err);
 	}
 	if (err < 0) {
-		printf("usb_new_device: Cannot read configuration, " \
+		pr_err("usb_new_device: Cannot read configuration, " \
 		       "skipping device %04x:%04x\n",
 		       dev->descriptor.idVendor, dev->descriptor.idProduct);
 		free(tmpbuf);
@@ -1122,7 +1124,7 @@ int usb_select_config(struct usb_device *dev)
 	 */
 	err = usb_set_configuration(dev, dev->config.desc.bConfigurationValue);
 	if (err < 0) {
-		printf("failed to set default configuration " \
+		pr_err("failed to set default configuration " \
 			"len %d, status %lX\n", dev->act_len, dev->status);
 		return err;
 	}
@@ -1252,7 +1254,7 @@ void usb_find_usb2_hub_address_port(struct usb_device *udev,
 		struct udevice *dev = parent;
 
 		if (device_get_uclass_id(dev->parent) != UCLASS_USB_HUB) {
-			printf("Error: Cannot find high speed parent of usb-1 device\n");
+			pr_err("Error: Cannot find high speed parent of usb-1 device\n");
 			*hub_address = 0;
 			*hub_port = 0;
 			return;
@@ -1279,7 +1281,7 @@ void usb_find_usb2_hub_address_port(struct usb_device *udev,
 			return;
 		}
 
-	printf("Error: Cannot find high speed parent of usb-1 device\n");
+	pr_err("Error: Cannot find high speed parent of usb-1 device\n");
 	*hub_address = 0;
 	*hub_port = 0;
 }

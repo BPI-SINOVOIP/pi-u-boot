@@ -771,8 +771,15 @@ int designware_i2c_of_to_plat(struct udevice *bus)
 int designware_i2c_probe(struct udevice *bus)
 {
 	struct dw_i2c *priv = dev_get_priv(bus);
+	int ret;
 	uint comp_type;
 
+	ret = reset_get_bulk(bus, &priv->resets);
+	ret = reset_deassert_bulk(&priv->resets);
+	if (ret){
+		dev_err(bus, "failed to reset \n");
+                return ret;
+	}
 	comp_type = readl(&priv->regs->comp_type);
 	if (comp_type != DW_I2C_COMP_TYPE) {
 		log_err("I2C bus %s has unknown type %#x\n", bus->name,

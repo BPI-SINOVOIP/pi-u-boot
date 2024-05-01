@@ -156,7 +156,7 @@ void spi_flash_mtd_unregister(struct spi_flash *flash)
 	 * spi_flash object from being destroyed when del_mtd_device() fails.
 	 */
 	sf_mtd_info.priv = NULL;
-	printf("Failed to unregister MTD %s and the spi_flash object is going away: you're in deep trouble!",
+	pr_err("Failed to unregister MTD %s and the spi_flash object is going away: you're in deep trouble!",
 	       sf_mtd_info.name);
 }
 

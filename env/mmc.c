@@ -209,7 +209,7 @@ static int env_mmc_save(void)
 
 	errmsg = init_mmc_for_env(mmc);
 	if (errmsg) {
-		printf("%s\n", errmsg);
+		pr_info("%s\n", errmsg);
 		return 1;
 	}
 
@@ -234,7 +234,7 @@ static int env_mmc_save(void)
 		goto fini;
 	}
 
-	printf("Writing to %sMMC(%d)... ", copy ? "redundant " : "", dev);
+	pr_info("Writing to %sMMC(%d)... ", copy ? "redundant " : "", dev);
 	if (write_env(mmc, CONFIG_ENV_SIZE, offset, (u_char *)env_new)) {
 		puts("failed\n");
 		ret = 1;
@@ -264,7 +264,7 @@ static inline int erase_env(struct mmc *mmc, unsigned long size,
 	blk_cnt = ALIGN(size, erase_size) / desc->blksz;
 
 	n = blk_derase(desc, blk_start, blk_cnt);
-	printf("%d blocks erased at 0x%x: %s\n", n, blk_start,
+	pr_info("%d blocks erased at 0x%x: %s\n", n, blk_start,
 	       (n == blk_cnt) ? "OK" : "ERROR");
 
 	return (n == blk_cnt) ? 0 : 1;
@@ -280,7 +280,7 @@ static int env_mmc_erase(void)
 
 	errmsg = init_mmc_for_env(mmc);
 	if (errmsg) {
-		printf("%s\n", errmsg);
+		pr_info("%s\n", errmsg);
 		return 1;
 	}
 
@@ -289,7 +289,7 @@ static int env_mmc_erase(void)
 		goto fini;
 	}
 
-	printf("\n");
+	pr_info("\n");
 	ret = erase_env(mmc, CONFIG_ENV_SIZE, offset);
 
 #ifdef CONFIG_ENV_OFFSET_REDUND
@@ -398,6 +398,11 @@ static int env_mmc_load(void)
 	int dev = mmc_get_env_dev();
 	const char *errmsg;
 	env_t *ep = NULL;
+#if CONFIG_IS_ENABLED(DM_MMC)
+	ret = mmc_init_device(dev);
+#else
+	ret = mmc_initialize(NULL);
+#endif /* DM_MMC */
 
 	mmc = find_mmc_device(dev);
 

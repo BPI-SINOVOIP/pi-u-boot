@@ -18,6 +18,9 @@
 #include <div64.h>
 #include <linux/compat.h>
 #include <android_image.h>
+#include <fb_spacemit.h>
+#include <u-boot/crc.h>
+#include <gzip.h>
 
 #define FASTBOOT_MAX_BLK_WRITE 16384
 
@@ -157,8 +160,15 @@ static lbaint_t fb_mmc_sparse_write(struct sparse_storage *info,
 {
 	struct fb_mmc_sparse *sparse = info->priv;
 	struct blk_desc *dev_desc = sparse->dev_desc;
-
 	return fb_mmc_blk_write(dev_desc, blk, blkcnt, buffer);
+}
+
+static lbaint_t fb_mmc_sparse_erase(struct sparse_storage *info,
+		lbaint_t blk, lbaint_t blkcnt, const void *buffer)
+{
+	struct fb_mmc_sparse *sparse = info->priv;
+	struct blk_desc *dev_desc = sparse->dev_desc;
+	return fb_mmc_blk_write(dev_desc, blk, blkcnt, NULL);
 }
 
 static lbaint_t fb_mmc_sparse_reserve(struct sparse_storage *info,
@@ -494,6 +504,7 @@ static struct blk_desc *fastboot_mmc_get_dev(char *response)
 	return ret;
 }
 
+
 /**
  * fastboot_mmc_flash_write() - Write image to eMMC for fastboot
  *
@@ -507,13 +518,61 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 {
 	struct blk_desc *dev_desc;
 	struct disk_partition info = {0};
+#ifdef CONFIG_SPACEMIT_FLASH
+	static struct flash_dev *fdev = NULL;
+	u32 __maybe_unused fsbl_offset = 0;
+	/*save crc value to compare after flash image*/
+	u64 compare_val = 0;
+	/*use for gzip image*/
+	static u32 __maybe_unused part_offset_t = 0;
+	static char __maybe_unused part_name_t[20] = "";
+	unsigned long __maybe_unused src_len = ~0UL;
+	bool gzip_image = false;
+
+	if (fdev == NULL){
+		fdev = malloc(sizeof(struct flash_dev));
+		if (!fdev) {
+			printf("Memory allocation failed!\n");
+		}
+		memset(fdev, 0, sizeof(struct flash_dev));
+		fdev->gptinfo.fastboot_flash_gpt = false;
+		/*would realloc the size while parsing the partition table*/
+		fdev->gptinfo.gpt_table = malloc(10);
+		fdev->mtd_table = malloc(10);
+		memset(fdev->gptinfo.gpt_table, '\0', 10);
+		memset(fdev->mtd_table, '\0', 10);
+		printf("init fdev success\n");
+	}
+
+	/* flash env */
+	/*if (strcmp(cmd, "env") == 0) {*/
+	/*	printf("flash env to emmc\n");*/
+	/*	fastboot_oem_flash_env(cmd, fastboot_buf_addr, download_bytes,*/
+	/*							response, fdev);*/
+	/*	return;*/
+	/*}*/
+	if (strcmp(cmd, "bootinfo") == 0) {
+		printf("flash bootinfo\n");
+		fastboot_oem_flash_bootinfo(cmd, fastboot_buf_addr, download_bytes,
+									response, fdev);
+		return;
+	}
+
+#endif
 
 #ifdef CONFIG_FASTBOOT_MMC_BOOT_SUPPORT
 	if (strcmp(cmd, CONFIG_FASTBOOT_MMC_BOOT1_NAME) == 0) {
 		dev_desc = fastboot_mmc_get_dev(response);
-		if (dev_desc)
+		if (dev_desc){
+#ifdef CONFIG_SPACEMIT_FLASH
+			flash_mmc_boot_op(dev_desc, download_buffer, 1,
+					download_bytes, BOOT_INFO_EMMC_SPL0_OFFSET);
+			fastboot_okay(NULL, response);
+#else
 			fb_mmc_boot_ops(dev_desc, download_buffer, 1,
 					download_bytes, response);
+#endif
+		}
 		return;
 	}
 	if (strcmp(cmd, CONFIG_FASTBOOT_MMC_BOOT2_NAME) == 0) {
@@ -527,6 +586,13 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 
 #if CONFIG_IS_ENABLED(EFI_PARTITION)
 	if (strcmp(cmd, CONFIG_FASTBOOT_GPT_NAME) == 0) {
+
+#ifdef CONFIG_SPACEMIT_FLASH
+		fastboot_oem_flash_gpt(cmd, fastboot_buf_addr, download_bytes,
+								response, fdev);
+		return;
+#endif
+
 		dev_desc = fastboot_mmc_get_dev(response);
 		if (!dev_desc)
 			return;
@@ -604,9 +670,44 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 	    fastboot_mmc_get_part_info(cmd, &dev_desc, &info, response) < 0)
 		return;
 
-	if (is_sparse_image(download_buffer)) {
+	if (gzip_parse_header((uchar *)download_buffer, src_len) >= 0) {
+		/*is gzip data and equal part name*/
+		gzip_image = true;
+		if (strcmp(cmd, part_name_t)){
+			pr_info("flash part name %s is not equal to %s, \n", cmd, part_name_t);
+			strcpy(part_name_t, cmd);
+			part_offset_t = 0;
+		}
+
+		void *decompress_addr = (void *)GZIP_DECOMPRESS_ADDR;
+		pr_info("decompress_addr:%p\n", decompress_addr);
+		if (run_commandf("unzip %x %x", download_buffer, decompress_addr)){
+			printf("unzip gzip data fail, \n");
+			fastboot_fail("unzip gzip data fail", response);
+			return;
+		}
+
+		u32 decompress_size = env_get_hex("filesize", 0);
+		pr_info("get decompress_size:%x, \n", decompress_size);
+		download_buffer = decompress_addr;
+		download_bytes = decompress_size;
+		info.start += part_offset_t / info.blksz;
+
+		pr_info("write gzip raw data to part:%s, %p, %x, blkaddr:%lx\n", cmd, download_buffer, download_bytes, info.start);
+	} else {
+		strcpy(part_name_t, cmd);
+		part_offset_t = 0;
+	}
+
+	if (download_bytes > info.size * info.blksz){
+		printf("download_bytes is greater than part size\n");
+		fastboot_fail("download_bytes is greater than part size", response);
+		return;
+	}
+
+	if (!gzip_image && is_sparse_image(download_buffer)) {
 		struct fb_mmc_sparse sparse_priv;
-		struct sparse_storage sparse;
+		struct sparse_storage sparse = { .erase = NULL };
 		int err;
 
 		sparse_priv.dev_desc = dev_desc;
@@ -615,6 +716,7 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 		sparse.start = info.start;
 		sparse.size = info.size;
 		sparse.write = fb_mmc_sparse_write;
+		sparse.erase = fb_mmc_sparse_erase;
 		sparse.reserve = fb_mmc_sparse_reserve;
 		sparse.mssg = fastboot_fail;
 
@@ -629,6 +731,15 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 	} else {
 		write_raw_image(dev_desc, &info, cmd, download_buffer,
 				download_bytes, response);
+#ifdef CONFIG_SPACEMIT_FLASH
+		/*if download and flash div to many time, that the crc is not correct*/
+		printf("write_raw_image end\n");
+		// compare_val = crc32_wd(compare_val, (const uchar *)download_buffer, download_bytes, CHUNKSZ_CRC32);
+		compare_val += checksum64(download_buffer, download_bytes);
+		if (compare_blk_image_val(dev_desc, compare_val, info.start, info.blksz, download_bytes))
+			fastboot_fail("compare crc fail", response);
+#endif
+		part_offset_t += download_bytes;
 	}
 }
 
@@ -704,3 +815,96 @@ void fastboot_mmc_erase(const char *cmd, char *response)
 	       blks_size * info.blksz, cmd);
 	fastboot_okay(NULL, response);
 }
+
+/**
+ * fastboot_mmc_read() - load data from eMMC for fastboot
+ *
+ * @part: Named partition to read
+ * @response: Pointer to fastboot response buffer
+ */
+u32 fastboot_mmc_read(const char *part, u32 offset,
+					void *download_buffer, char *response)
+{
+	struct blk_desc *dev_desc;
+	struct disk_partition info = {0};
+	lbaint_t hdr_sectors, off_blk, size_blk;
+	lbaint_t res;
+
+	if (do_get_part_info(&dev_desc, part, &info) < 0){
+		if (dev_desc && dev_desc->blksz > 0){
+			info.blksz = dev_desc->blksz;
+			info.size = dev_desc->lba;
+			info.start = 0;
+		}else{
+			fastboot_response("OKAY", response, "%08x", 0);
+			return 0;
+		}
+	}
+
+	if (offset >= (info.size * info.blksz)){
+		fastboot_response("OKAY", response, "%08x", 0);
+		return 0;
+	}
+
+	/*transfer offset to blk size*/
+	off_blk = (offset / info.blksz) + info.start;
+	size_blk = info.size - (offset / info.blksz);
+
+	if (offset % info.blksz)
+		printf("offset should be align to 0x%lx, would change offset to 0x%lx\n",
+								info.blksz, (offset / info.blksz) * info.blksz);
+
+	debug("info->blksize:%lx, off_blk:%lx, size_blk:%lx\n", info.blksz, off_blk, size_blk);
+
+	/*if size > buffer_size, it would only load buffer_size, and return offset*/
+	if (size_blk * info.blksz > fastboot_buf_size){
+		/* Read the boot image header */
+		hdr_sectors = fastboot_buf_size / info.blksz;
+	}else{
+		hdr_sectors = size_blk;
+	}
+
+	res = blk_dread(dev_desc, off_blk, hdr_sectors, download_buffer);
+	if (res != hdr_sectors) {
+		fastboot_fail("cannot read data from mmc", response);
+		return 0;
+	}
+
+	/*return had read size*/
+	fastboot_response("OKAY", response, "%08x", (u32)(hdr_sectors * info.blksz));
+	return hdr_sectors * info.blksz;
+}
+
+int get_partition_index_by_name(const char *part_name, int *part_index) {
+	struct blk_desc *dev_desc;
+	struct disk_partition part_info;
+	int ret;
+	int dev_index;
+
+	dev_index = mmc_get_env_dev();
+
+	dev_desc = blk_get_dev("mmc", dev_index);
+	if (!dev_desc) {
+		printf("Cannot find MMC device %d\n", dev_index);
+		return -ENODEV;
+	}
+
+	for (int p = 1; ; ++p) {
+		ret = part_get_info(dev_desc, p, &part_info);
+		if (ret == -ENOENT) {
+			break;
+		} else if (ret < 0) {
+			printf("Error getting partition info for partition %d: %d\n", p, ret);
+			return ret;
+		}
+
+		if (strcmp(part_info.name, part_name) == 0) {
+			*part_index = p;
+			return 0;
+		}
+	}
+
+	printf("Cannot find partition: %s\n", part_name);
+	return -ENOENT;
+}
+

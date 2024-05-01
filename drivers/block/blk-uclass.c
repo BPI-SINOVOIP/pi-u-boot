@@ -32,6 +32,7 @@ static const char *if_typename_str[IF_TYPE_COUNT] = {
 	[IF_TYPE_EFI_LOADER]	= "efiloader",
 	[IF_TYPE_VIRTIO]	= "virtio",
 	[IF_TYPE_PVBLOCK]	= "pvblock",
+	[IF_TYPE_NOR]		= "nor",
 };
 
 static enum uclass_id if_type_uclass_id[IF_TYPE_COUNT] = {
@@ -49,6 +50,7 @@ static enum uclass_id if_type_uclass_id[IF_TYPE_COUNT] = {
 	[IF_TYPE_EFI_LOADER]	= UCLASS_EFI_LOADER,
 	[IF_TYPE_VIRTIO]	= UCLASS_VIRTIO,
 	[IF_TYPE_PVBLOCK]	= UCLASS_PVBLOCK,
+	[IF_TYPE_NOR]		= UCLASS_SPI,
 };
 
 static enum if_type if_typename_to_iftype(const char *if_typename)

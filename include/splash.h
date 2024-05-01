@@ -31,6 +31,7 @@ enum splash_storage {
 	SPLASH_STORAGE_USB,
 	SPLASH_STORAGE_SATA,
 	SPLASH_STORAGE_VIRTIO,
+	SPLASH_STORAGE_NVME,
 };
 
 enum splash_flags {
@@ -50,6 +51,7 @@ struct splash_location {
 };
 
 #ifdef CONFIG_SPLASH_SOURCE
+int splash_video_logo_load(void);
 int splash_source_load(struct splash_location *locations, uint size);
 #else
 static inline int splash_source_load(struct splash_location *locations,

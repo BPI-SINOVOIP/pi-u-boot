@@ -110,7 +110,7 @@ static int mtd_parse_partition(const char **_mtdparts,
 	} else {
 		partition->size = ustrtoull(mtdparts, (char **)&mtdparts, 0);
 		if (partition->size < SZ_4K) {
-			printf("Minimum partition size 4kiB, %lldB requested\n",
+			pr_err("Minimum partition size 4kiB, %lldB requested\n",
 			       partition->size);
 			return -EINVAL;
 		}
@@ -128,12 +128,12 @@ static int mtd_parse_partition(const char **_mtdparts,
 		name = ++mtdparts;
 		mtdparts = strchr(name, ')');
 		if (!mtdparts) {
-			printf("No closing ')' found in partition name\n");
+			pr_err("No closing ')' found in partition name\n");
 			return -EINVAL;
 		}
 		name_len = mtdparts - name + 1;
 		if ((name_len - 1) == 0) {
-			printf("Empty partition name\n");
+			pr_err("Empty partition name\n");
 			return -EINVAL;
 		}
 		mtdparts++;
@@ -151,14 +151,14 @@ static int mtd_parse_partition(const char **_mtdparts,
 	/* Check for a potential next partition definition */
 	if (*mtdparts == ',') {
 		if (partition->size == MTD_SIZE_REMAINING) {
-			printf("No partitions allowed after a fill-up\n");
+			pr_err("No partitions allowed after a fill-up\n");
 			return -EINVAL;
 		}
 		++mtdparts;
 	} else if ((*mtdparts == ';') || (*mtdparts == '\0')) {
 		/* NOP */
 	} else {
-		printf("Unexpected character '%c' in mtdparts\n", *mtdparts);
+		pr_err("Unexpected character '%c' in mtdparts\n", *mtdparts);
 		return -EINVAL;
 	}
 
@@ -225,7 +225,7 @@ int mtd_parse_partitions(struct mtd_info *parent, const char **_mtdparts,
 	/* Allocate an array of partitions to give back to the caller */
 	parts = malloc(sizeof(*parts) * nparts);
 	if (!parts) {
-		printf("Not enough space to save partitions meta-data\n");
+		pr_err("Not enough space to save partitions meta-data\n");
 		return -ENOMEM;
 	}
 
@@ -241,7 +241,7 @@ int mtd_parse_partitions(struct mtd_info *parent, const char **_mtdparts,
 
 		sz = parts[idx].size;
 		if (sz < parent->writesize || do_div(sz, parent->writesize)) {
-			printf("Partition size must be a multiple of %d\n",
+			pr_err("Partition size must be a multiple of %d\n",
 			       parent->writesize);
 			return -EINVAL;
 		}
@@ -533,7 +533,7 @@ static int do_del_mtd_partitions(struct mtd_info *master)
 		debug("Deleting %s MTD partition\n", slave->name);
 		ret = del_mtd_device(slave);
 		if (ret < 0) {
-			printf("Error when deleting partition \"%s\" (%d)\n",
+			pr_err("Error when deleting partition \"%s\" (%d)\n",
 			       slave->name, ret);
 			err = ret;
 			continue;

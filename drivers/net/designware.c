@@ -233,14 +233,20 @@ static void tx_descs_init(struct dw_eth_dev *priv)
 {
 	struct eth_dma_regs *dma_p = priv->dma_regs_p;
 	struct dmamacdescr *desc_table_p = &priv->tx_mac_descrtable[0];
+	struct dmamachaddr *h_addr_p = &priv->tx_mac_haddr[0];
 	char *txbuffs = &priv->txbuffs[0];
 	struct dmamacdescr *desc_p;
+	struct dmamachaddr *addr_p;
 	u32 idx;
 
 	for (idx = 0; idx < CONFIG_TX_DESCR_NUM; idx++) {
 		desc_p = &desc_table_p[idx];
-		desc_p->dmamac_addr = (ulong)&txbuffs[idx * CONFIG_ETH_BUFSIZE];
-		desc_p->dmamac_next = (ulong)&desc_table_p[idx + 1];
+		desc_p->dmamac_addr = lower_32_bits((ulong)&txbuffs[idx * CONFIG_ETH_BUFSIZE]);
+		desc_p->dmamac_next = lower_32_bits((ulong)&desc_table_p[idx + 1]);
+
+		addr_p = &h_addr_p[idx];
+		addr_p->dmamac_haddr = upper_32_bits((ulong)&txbuffs[idx * CONFIG_ETH_BUFSIZE]);
+		addr_p->dmamac_hnext = upper_32_bits((ulong)&desc_table_p[idx + 1]);
 
 #if defined(CONFIG_DW_ALTDESCRIPTOR)
 		desc_p->txrx_status &= ~(DESC_TXSTS_TXINT | DESC_TXSTS_TXLAST |
@@ -265,7 +271,7 @@ static void tx_descs_init(struct dw_eth_dev *priv)
 			   (ulong)priv->tx_mac_descrtable +
 			   sizeof(priv->tx_mac_descrtable));
 
-	writel((ulong)&desc_table_p[0], &dma_p->txdesclistaddr);
+	writel(lower_32_bits((ulong)&desc_table_p[0]), &dma_p->txdesclistaddr);
 	priv->tx_currdescnum = 0;
 }
 
@@ -273,8 +279,10 @@ static void rx_descs_init(struct dw_eth_dev *priv)
 {
 	struct eth_dma_regs *dma_p = priv->dma_regs_p;
 	struct dmamacdescr *desc_table_p = &priv->rx_mac_descrtable[0];
+	struct dmamachaddr *h_addr_p = &priv->rx_mac_haddr[0];
 	char *rxbuffs = &priv->rxbuffs[0];
 	struct dmamacdescr *desc_p;
+	struct dmamachaddr *addr_p;
 	u32 idx;
 
 	/* Before passing buffers to GMAC we need to make sure zeros
@@ -287,8 +295,12 @@ static void rx_descs_init(struct dw_eth_dev *priv)
 
 	for (idx = 0; idx < CONFIG_RX_DESCR_NUM; idx++) {
 		desc_p = &desc_table_p[idx];
-		desc_p->dmamac_addr = (ulong)&rxbuffs[idx * CONFIG_ETH_BUFSIZE];
-		desc_p->dmamac_next = (ulong)&desc_table_p[idx + 1];
+		desc_p->dmamac_addr = lower_32_bits((ulong)&rxbuffs[idx * CONFIG_ETH_BUFSIZE]);
+		desc_p->dmamac_next = lower_32_bits((ulong)&desc_table_p[idx + 1]);
+
+		addr_p = &h_addr_p[idx];
+		addr_p->dmamac_haddr = upper_32_bits((ulong)&rxbuffs[idx * CONFIG_ETH_BUFSIZE]);
+		addr_p->dmamac_hnext = upper_32_bits((ulong)&desc_table_p[idx + 1]);
 
 		desc_p->dmamac_cntl =
 			(MAC_MAX_FRAME_SZ & DESC_RXCTRL_SIZE1MASK) |
@@ -305,7 +317,7 @@ static void rx_descs_init(struct dw_eth_dev *priv)
 			   (ulong)priv->rx_mac_descrtable +
 			   sizeof(priv->rx_mac_descrtable));
 
-	writel((ulong)&desc_table_p[0], &dma_p->rxdesclistaddr);
+	writel(lower_32_bits((ulong)&desc_table_p[0]), &dma_p->rxdesclistaddr);
 	priv->rx_currdescnum = 0;
 }
 
@@ -455,7 +467,8 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
 	ulong desc_start = (ulong)desc_p;
 	ulong desc_end = desc_start +
 		roundup(sizeof(*desc_p), ARCH_DMA_MINALIGN);
-	ulong data_start = desc_p->dmamac_addr;
+	struct dmamachaddr *haddr_p = &priv->tx_mac_haddr[desc_num];
+	ulong data_start = ((u64)(haddr_p->dmamac_haddr) << 32) + (desc_p->dmamac_addr);
 	ulong data_end = data_start + roundup(length, ARCH_DMA_MINALIGN);
 	/*
 	 * Strictly we only need to invalidate the "txrx_status" field
@@ -522,7 +535,8 @@ static int _dw_eth_recv(struct dw_eth_dev *priv, uchar **packetp)
 	ulong desc_start = (ulong)desc_p;
 	ulong desc_end = desc_start +
 		roundup(sizeof(*desc_p), ARCH_DMA_MINALIGN);
-	ulong data_start = desc_p->dmamac_addr;
+	struct dmamachaddr *haddr_p = &priv->rx_mac_haddr[desc_num];
+	ulong data_start = ((u64)(haddr_p->dmamac_haddr) << 32) + (desc_p->dmamac_addr);
 	ulong data_end;
 
 	/* Invalidate entire buffer descriptor */
@@ -539,7 +553,7 @@ static int _dw_eth_recv(struct dw_eth_dev *priv, uchar **packetp)
 		/* Invalidate received data */
 		data_end = data_start + roundup(length, ARCH_DMA_MINALIGN);
 		invalidate_dcache_range(data_start, data_end);
-		*packetp = (uchar *)(ulong)desc_p->dmamac_addr;
+		*packetp = (uchar *)(ulong)(((u64)(haddr_p->dmamac_haddr) << 32) + desc_p->dmamac_addr);
 	}
 
 	return length;
@@ -948,6 +962,7 @@ static const struct udevice_id designware_eth_ids[] = {
 	{ .compatible = "amlogic,meson6-dwmac" },
 	{ .compatible = "st,stm32-dwmac" },
 	{ .compatible = "snps,arc-dwmac-3.70a" },
+	{ .compatible = "snps,dwmac" },
 	{ }
 };
 

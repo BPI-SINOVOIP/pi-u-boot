@@ -209,6 +209,21 @@ config SPI_FLASH_XTX
 	  Add support for various XTX (XTX Technology Limited)
 	  SPI flash chips (XT25xxx).
 
+config SPI_FLASH_FM
+	bool "FM SPI flash support"
+	help
+	  Add support for various FM SPI flash chips (FM25Q64AI3)
+
+config SPINOR_BLOCK_SUPPORT
+	bool "Enable SquashFS block support for SPI NOR"
+	depends on FS_SQUASHFS
+	default n
+	help
+	  This option enables block support for SPI NOR devices.
+	  Enabling this feature allows filesystem to work with the SPI NOR block interface,
+	  providing a compressed read-only filesystem optimized for low overhead
+	  in embedded systems.
+
 endif
 
 config SPI_FLASH_USE_4K_SECTORS

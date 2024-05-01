@@ -1,0 +1,10 @@
+# Common parameter
+console=ttyS0,115200
+init=/init
+bootdelay=0
+baudrate=115200
+loglevel=8
+
+knl_name=vmlinuz-6.1.15
+ramdisk_name=initrd.img-6.1.15
+dtb_dir=spacemit

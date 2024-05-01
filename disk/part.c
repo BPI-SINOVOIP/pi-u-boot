@@ -125,13 +125,13 @@ void dev_print (struct blk_desc *dev_desc)
 	lba512_t lba512; /* number of blocks if 512bytes block size */
 
 	if (dev_desc->type == DEV_TYPE_UNKNOWN) {
-		puts ("not available\n");
+		pr_crit ("not available\n");
 		return;
 	}
 
 	switch (dev_desc->if_type) {
 	case IF_TYPE_SCSI:
-		printf ("(%d:%d) Vendor: %s Prod.: %s Rev: %s\n",
+		pr_crit ("(%d:%d) Vendor: %s Prod.: %s Rev: %s\n",
 			dev_desc->target,dev_desc->lun,
 			dev_desc->vendor,
 			dev_desc->product,
@@ -140,7 +140,7 @@ void dev_print (struct blk_desc *dev_desc)
 	case IF_TYPE_ATAPI:
 	case IF_TYPE_IDE:
 	case IF_TYPE_SATA:
-		printf ("Model: %s Firm: %s Ser#: %s\n",
+		pr_crit ("Model: %s Firm: %s Ser#: %s\n",
 			dev_desc->vendor,
 			dev_desc->revision,
 			dev_desc->product);
@@ -151,45 +151,45 @@ void dev_print (struct blk_desc *dev_desc)
 	case IF_TYPE_NVME:
 	case IF_TYPE_PVBLOCK:
 	case IF_TYPE_HOST:
-		printf ("Vendor: %s Rev: %s Prod: %s\n",
+		pr_crit ("Vendor: %s Rev: %s Prod: %s\n",
 			dev_desc->vendor,
 			dev_desc->revision,
 			dev_desc->product);
 		break;
 	case IF_TYPE_VIRTIO:
-		printf("%s VirtIO Block Device\n", dev_desc->vendor);
+		pr_crit("%s VirtIO Block Device\n", dev_desc->vendor);
 		break;
 	case IF_TYPE_DOC:
-		puts("device type DOC\n");
+		pr_crit("device type DOC\n");
 		return;
 	case IF_TYPE_UNKNOWN:
-		puts("device type unknown\n");
+		pr_crit("device type unknown\n");
 		return;
 	default:
-		printf("Unhandled device type: %i\n", dev_desc->if_type);
+		pr_crit("Unhandled device type: %i\n", dev_desc->if_type);
 		return;
 	}
-	puts ("            Type: ");
+	pr_crit ("            Type: ");
 	if (dev_desc->removable)
-		puts ("Removable ");
+		pr_crit ("Removable ");
 	switch (dev_desc->type & 0x1F) {
 	case DEV_TYPE_HARDDISK:
-		puts ("Hard Disk");
+		pr_crit ("Hard Disk");
 		break;
 	case DEV_TYPE_CDROM:
-		puts ("CD ROM");
+		pr_crit ("CD ROM");
 		break;
 	case DEV_TYPE_OPDISK:
-		puts ("Optical Device");
+		pr_crit ("Optical Device");
 		break;
 	case DEV_TYPE_TAPE:
-		puts ("Tape");
+		pr_crit ("Tape");
 		break;
 	default:
-		printf ("# %02X #", dev_desc->type & 0x1F);
+		pr_crit ("# %02X #", dev_desc->type & 0x1F);
 		break;
 	}
-	puts ("\n");
+	pr_crit ("\n");
 	if (dev_desc->lba > 0L && dev_desc->blksz > 0L) {
 		ulong mb, mb_quot, mb_rem, gb, gb_quot, gb_rem;
 		lbaint_t lba;
@@ -208,24 +208,25 @@ void dev_print (struct blk_desc *dev_desc)
 		gb_quot	= gb / 10;
 		gb_rem	= gb - (10 * gb_quot);
 #ifdef CONFIG_LBA48
-		if (dev_desc->lba48)
-			printf ("            Supports 48-bit addressing\n");
+		if (dev_desc->lba48){
+			pr_crit ("            Supports 48-bit addressing\n");
+		}
 #endif
 #if defined(CONFIG_SYS_64BIT_LBA)
-		printf ("            Capacity: %lu.%lu MB = %lu.%lu GB (%llu x %lu)\n",
+		pr_crit ("            Capacity: %lu.%lu MB = %lu.%lu GB (%llu x %lu)\n",
 			mb_quot, mb_rem,
 			gb_quot, gb_rem,
 			lba,
 			dev_desc->blksz);
 #else
-		printf ("            Capacity: %lu.%lu MB = %lu.%lu GB (%lu x %lu)\n",
+		pr_crit ("            Capacity: %lu.%lu MB = %lu.%lu GB (%lu x %lu)\n",
 			mb_quot, mb_rem,
 			gb_quot, gb_rem,
 			(ulong)lba,
 			dev_desc->blksz);
 #endif
 	} else {
-		puts ("            Capacity: not available\n");
+		pr_crit ("            Capacity: not available\n");
 	}
 }
 #endif
@@ -261,49 +262,49 @@ static void print_part_header(const char *type, struct blk_desc *dev_desc)
 	CONFIG_IS_ENABLED(ISO_PARTITION) || \
 	CONFIG_IS_ENABLED(AMIGA_PARTITION) || \
 	CONFIG_IS_ENABLED(EFI_PARTITION)
-	puts ("\nPartition Map for ");
+	pr_crit ("\nPartition Map for ");
 	switch (dev_desc->if_type) {
 	case IF_TYPE_IDE:
-		puts ("IDE");
+		pr_crit ("IDE");
 		break;
 	case IF_TYPE_SATA:
-		puts ("SATA");
+		pr_crit ("SATA");
 		break;
 	case IF_TYPE_SCSI:
-		puts ("SCSI");
+		pr_crit ("SCSI");
 		break;
 	case IF_TYPE_ATAPI:
-		puts ("ATAPI");
+		pr_crit ("ATAPI");
 		break;
 	case IF_TYPE_USB:
-		puts ("USB");
+		pr_crit ("USB");
 		break;
 	case IF_TYPE_DOC:
-		puts ("DOC");
+		pr_crit ("DOC");
 		break;
 	case IF_TYPE_MMC:
-		puts ("MMC");
+		pr_crit ("MMC");
 		break;
 	case IF_TYPE_HOST:
-		puts ("HOST");
+		pr_crit ("HOST");
 		break;
 	case IF_TYPE_NVME:
-		puts ("NVMe");
+		pr_crit ("NVMe");
 		break;
 	case IF_TYPE_PVBLOCK:
-		puts("PV BLOCK");
+		pr_crit("PV BLOCK");
 		break;
 	case IF_TYPE_VIRTIO:
-		puts("VirtIO");
+		pr_crit("VirtIO");
 		break;
 	case IF_TYPE_EFI_MEDIA:
-		puts("EFI");
+		pr_crit("EFI");
 		break;
 	default:
-		puts("UNKNOWN");
+		pr_crit("UNKNOWN");
 		break;
 	}
-	printf (" device %d  --   Partition Type: %s\n\n",
+	pr_crit (" device %d  --   Partition Type: %s\n\n",
 			dev_desc->devnum, type);
 #endif /* any CONFIG_..._PARTITION */
 }
@@ -314,7 +315,7 @@ void part_print(struct blk_desc *dev_desc)
 
 	drv = part_driver_lookup_type(dev_desc);
 	if (!drv) {
-		printf("## Unknown partition table type %x\n",
+		pr_crit("## Unknown partition table type %x\n",
 		       dev_desc->part_type);
 		return;
 	}
@@ -401,7 +402,7 @@ int blk_get_device_by_str(const char *ifname, const char *dev_hwpart_str,
 
 	dev = hextoul(dev_str, &ep);
 	if (*ep) {
-		printf("** Bad device specification %s %s **\n",
+		PRINTF("** Bad device specification %s %s **\n",
 		       ifname, dev_str);
 		dev = -EINVAL;
 		goto cleanup;
@@ -410,7 +411,7 @@ int blk_get_device_by_str(const char *ifname, const char *dev_hwpart_str,
 	if (hwpart_str) {
 		hwpart = hextoul(hwpart_str, &ep);
 		if (*ep) {
-			printf("** Bad HW partition specification %s %s **\n",
+			pr_err("** Bad HW partition specification %s %s **\n",
 			    ifname, hwpart_str);
 			dev = -EINVAL;
 			goto cleanup;
@@ -486,7 +487,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 	 */
 	if (0 == strcmp(ifname, "ubi")) {
 		if (!ubifs_is_mounted()) {
-			printf("UBIFS not mounted, use ubifsmount to mount volume first!\n");
+			pr_err("UBIFS not mounted, use ubifsmount to mount volume first!\n");
 			return -EINVAL;
 		}
 
@@ -508,7 +509,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 
 	/* If still no dev_part_str, it's an error */
 	if (!dev_part_str) {
-		printf("** No device specified **\n");
+		pr_err("** No device specified **\n");
 		ret = -ENODEV;
 		goto cleanup;
 	}
@@ -527,7 +528,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 	/* Look up the device */
 	dev = blk_get_device_by_str(ifname, dev_str, dev_desc);
 	if (dev < 0) {
-		printf("** Bad device specification %s %s **\n",
+		PRINTF("** Bad device specification %s %s **\n",
 		       ifname, dev_str);
 		ret = dev;
 		goto cleanup;
@@ -546,7 +547,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 		 * or request for whole device, but caller requires partition.
 		 */
 		if (*ep || (part == 0 && !allow_whole_dev)) {
-			printf("** Bad partition specification %s %s **\n",
+			pr_err("** Bad partition specification %s %s **\n",
 			    ifname, dev_part_str);
 			ret = -ENOENT;
 			goto cleanup;
@@ -560,7 +561,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 	if (((*dev_desc)->part_type == PART_TYPE_UNKNOWN) ||
 	    (part == 0)) {
 		if (!(*dev_desc)->lba) {
-			printf("** Bad device size - %s %s **\n", ifname,
+			pr_err("** Bad device size - %s %s **\n", ifname,
 			       dev_str);
 			ret = -EINVAL;
 			goto cleanup;
@@ -572,7 +573,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 		 * it's an error.
 		 */
 		if ((part > 0) || (!allow_whole_dev)) {
-			printf("** No partition table - %s %s **\n", ifname,
+			pr_err("** No partition table - %s %s **\n", ifname,
 			       dev_str);
 			ret = -EPROTONOSUPPORT;
 			goto cleanup;
@@ -600,7 +601,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 	if (part != PART_AUTO) {
 		ret = part_get_info(*dev_desc, part, info);
 		if (ret) {
-			printf("** Invalid partition %d **\n", part);
+			pr_err("** Invalid partition %d **\n", part);
 			goto cleanup;
 		}
 	} else {
@@ -642,12 +643,12 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 			if (p == MAX_SEARCH_PARTITIONS + 1)
 				*info = tmpinfo;
 		} else {
-			printf("** No valid partitions found **\n");
+			pr_err("** No valid partitions found **\n");
 			goto cleanup;
 		}
 	}
 	if (strncmp((char *)info->type, BOOT_PART_TYPE, sizeof(info->type)) != 0) {
-		printf("** Invalid partition type \"%.32s\""
+		pr_err("** Invalid partition type \"%.32s\""
 			" (expect \"" BOOT_PART_TYPE "\")\n",
 			info->type);
 		ret  = -EINVAL;
@@ -746,8 +747,9 @@ static int part_get_info_by_dev_and_name(const char *dev_iface,
 		goto cleanup;
 
 	ret = part_get_info_by_name(*dev_desc, part_str, part_info);
-	if (ret < 0)
-		printf("Could not find \"%s\" partition\n", part_str);
+	if (ret < 0){
+		pr_crit("Could not find \"%s\" partition\n", part_str);
+	}
 
 cleanup:
 	free(dup_str);
@@ -773,9 +775,10 @@ int part_get_info_by_dev_and_name_or_num(const char *dev_iface,
 	 */
 	ret = blk_get_device_part_str(dev_iface, dev_part_str,
 				      dev_desc, part_info, allow_whole_dev);
-	if (ret < 0)
-		printf("Couldn't find partition %s %s\n",
+	if (ret < 0){
+		pr_err("Couldn't find partition %s %s\n",
 		       dev_iface, dev_part_str);
+	}
 	return ret;
 }
 

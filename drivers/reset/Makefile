@@ -31,3 +31,5 @@ obj-$(CONFIG_RESET_RASPBERRYPI) += reset-raspberrypi.o
 obj-$(CONFIG_RESET_SCMI) += reset-scmi.o
 obj-$(CONFIG_RESET_ZYNQMP) += reset-zynqmp.o
 obj-$(CONFIG_RESET_DRA7) += reset-dra7.o
+obj-$(CONFIG_RESET_SPACEMIT_K1PRO) += reset-spacemit-k1pro.o
+obj-$(CONFIG_RESET_SPACEMIT_K1X) += reset-spacemit-k1x.o

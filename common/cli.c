@@ -75,7 +75,7 @@ int run_command_repeatable(const char *cmd, int flag)
 #else
 __weak int board_run_command(const char *cmdline)
 {
-	printf("## Commands are disabled. Please enable CONFIG_CMDLINE.\n");
+	pr_debug("## Commands are disabled. Please enable CONFIG_CMDLINE.\n");
 
 	return 1;
 }
@@ -156,7 +156,7 @@ int do_run(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 
 		arg = env_get(argv[i]);
 		if (arg == NULL) {
-			printf("## Error: \"%s\" not defined\n", argv[i]);
+			pr_err("## Error: \"%s\" not defined\n", argv[i]);
 			return 1;
 		}
 
@@ -203,7 +203,7 @@ void cli_secure_boot_cmd(const char *cmd)
 	int rc;
 
 	if (!cmd) {
-		printf("## Error: Secure boot command not specified\n");
+		pr_err("## Error: Secure boot command not specified\n");
 		goto err;
 	}
 
@@ -214,7 +214,7 @@ void cli_secure_boot_cmd(const char *cmd)
 #ifdef CONFIG_CMDLINE
 	cmdtp = find_cmd(cmd);
 	if (!cmdtp) {
-		printf("## Error: \"%s\" not defined\n", cmd);
+		pr_err("## Error: \"%s\" not defined\n", cmd);
 		goto err;
 	}
 
@@ -226,7 +226,7 @@ void cli_secure_boot_cmd(const char *cmd)
 #endif
 
 	/* Shouldn't ever return from boot command. */
-	printf("## Error: \"%s\" returned (code %d)\n", cmd, rc);
+	pr_err("## Error: \"%s\" returned (code %d)\n", cmd, rc);
 
 err:
 	/*
@@ -247,7 +247,7 @@ void cli_loop(void)
 #elif defined(CONFIG_CMDLINE)
 	cli_simple_loop();
 #else
-	printf("## U-Boot command line is disabled. Please enable CONFIG_CMDLINE\n");
+	pr_debug("## U-Boot command line is disabled. Please enable CONFIG_CMDLINE\n");
 #endif /*CONFIG_HUSH_PARSER*/
 }
 

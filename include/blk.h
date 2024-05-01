@@ -38,6 +38,7 @@ enum if_type {
 	IF_TYPE_PVBLOCK,
 	IF_TYPE_VIRTIO,
 	IF_TYPE_EFI_MEDIA,
+	IF_TYPE_NOR,
 
 	IF_TYPE_COUNT,			/* Number of interface types */
 };
@@ -48,6 +49,10 @@ enum if_type {
 
 #define PART_FORMAT_PCAT	0x1
 #define PART_FORMAT_GPT		0x2
+
+#ifdef CONFIG_SPINOR_BLOCK_SUPPORT
+#define SPI_NOR_BLOCK_SIZE 512
+#endif /* CONFIG_SPINOR_BLOCK_SUPPORT */
 
 /*
  * Identifies the partition table type (ie. MBR vs GPT GUID) signature

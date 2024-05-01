@@ -133,6 +133,20 @@ config PCIE_DW_SIFIVE
 	  Say Y here if you want to enable PCIe controller support on
 	  FU740.
 
+config PCIE_DW_K1PRO
+	bool "Enable Spacemit k1pro PCIe"
+	select PCIE_DW_COMMON
+	help
+	  Say Y here if you want to enable PCIe controller support on
+	  Spacemit SoCs.
+
+config PCIE_DW_K1X
+	bool "Enable Spacemit k1x PCIe"
+	select PCIE_DW_COMMON
+	help
+	  Say Y here if you want to enable PCIe controller support on
+	  Spacemit k1x SoCs.
+
 config SYS_FSL_PCI_VER_3_X
 	bool
 

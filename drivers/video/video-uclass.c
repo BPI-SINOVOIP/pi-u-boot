@@ -21,6 +21,7 @@
 #include <dm/device_compat.h>
 #include <dm/device-internal.h>
 #include <dm/uclass-internal.h>
+#include <splash.h>
 #ifdef CONFIG_SANDBOX
 #include <asm/sdl.h>
 #endif
@@ -213,6 +214,14 @@ int video_sync(struct udevice *vid, bool force)
 		sandbox_sdl_sync(priv->fb);
 		last_sync = get_timer(0);
 	}
+#elif defined(CONFIG_RISCV) && !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
+	struct video_priv *priv = dev_get_uclass_priv(vid);
+
+	if (priv->flush_dcache) {
+		ulong flush_dcache_addr = round_down((ulong)priv->fb, CONFIG_RISCV_CBOM_BLOCK_SIZE);
+		ulong flush_length = round_up((ulong)priv->fb + priv->fb_size - flush_dcache_addr, CONFIG_RISCV_CBOM_BLOCK_SIZE);
+		flush_dcache_range(flush_dcache_addr, flush_dcache_addr + flush_length);
+	}
 #endif
 	return 0;
 }
@@ -337,7 +346,8 @@ static int show_splash(struct udevice *dev)
 	u8 *data = SPLASH_START(u_boot_logo);
 	int ret;
 
-	ret = video_bmp_display(dev, map_to_sysmem(data), -4, 4, true);
+	// Set the position of the center of the framebuffer
+	ret = video_bmp_display(dev, map_to_sysmem(data), BMP_ALIGN_CENTER, BMP_ALIGN_CENTER, true);
 
 	return 0;
 }

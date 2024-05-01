@@ -118,6 +118,11 @@ struct dmamacdescr {
 	u32 dmamac_next;
 } __aligned(ARCH_DMA_MINALIGN);
 
+struct dmamachaddr {
+	u32 dmamac_haddr;
+	u32 dmamac_hnext;
+ } __aligned(ARCH_DMA_MINALIGN);
+
 /*
  * txrx_status definitions
  */
@@ -222,7 +227,9 @@ struct dmamacdescr {
 
 struct dw_eth_dev {
 	struct dmamacdescr tx_mac_descrtable[CONFIG_TX_DESCR_NUM];
+	struct dmamachaddr tx_mac_haddr[CONFIG_TX_DESCR_NUM];
 	struct dmamacdescr rx_mac_descrtable[CONFIG_RX_DESCR_NUM];
+	struct dmamachaddr rx_mac_haddr[CONFIG_RX_DESCR_NUM];
 	char txbuffs[TX_TOTAL_BUFSIZE] __aligned(ARCH_DMA_MINALIGN);
 	char rxbuffs[RX_TOTAL_BUFSIZE] __aligned(ARCH_DMA_MINALIGN);
 

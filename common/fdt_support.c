@@ -121,8 +121,9 @@ int fdt_find_or_add_subnode(void *fdt, int parentoffset, const char *name)
 	if (offset == -FDT_ERR_NOTFOUND)
 		offset = fdt_add_subnode(fdt, parentoffset, name);
 
-	if (offset < 0)
-		printf("%s: %s: %s\n", __func__, name, fdt_strerror(offset));
+	if (offset < 0){
+		pr_debug("%s: %s: %s\n", __func__, name, fdt_strerror(offset));
+	}
 
 	return offset;
 }
@@ -155,14 +156,15 @@ static int fdt_fixup_stdout(void *fdt, int chosenoff)
 	memcpy(tmp, path, len);
 
 	err = fdt_setprop(fdt, chosenoff, "linux,stdout-path", tmp, len);
-	if (err < 0)
-		printf("WARNING: could not set linux,stdout-path %s.\n",
+	if (err < 0){
+		pr_debug("WARNING: could not set linux,stdout-path %s.\n",
 		       fdt_strerror(err));
+	}
 
 	return err;
 
 noalias:
-	printf("WARNING: %s: could not read %s alias: %s\n",
+	pr_debug("WARNING: %s: could not read %s alias: %s\n",
 	       __func__, sername, fdt_strerror(err));
 
 	return 0;
@@ -190,7 +192,7 @@ int fdt_root(void *fdt)
 
 	err = fdt_check_header(fdt);
 	if (err < 0) {
-		printf("fdt_root: %s\n", fdt_strerror(err));
+		pr_debug("fdt_root: %s\n", fdt_strerror(err));
 		return err;
 	}
 
@@ -200,7 +202,7 @@ int fdt_root(void *fdt)
 				  strlen(serial) + 1);
 
 		if (err < 0) {
-			printf("WARNING: could not set serial-number %s.\n",
+			pr_debug("WARNING: could not set serial-number %s.\n",
 			       fdt_strerror(err));
 			return err;
 		}
@@ -241,7 +243,7 @@ int fdt_initrd(void *fdt, ulong initrd_start, ulong initrd_end)
 
 	err = fdt_add_mem_rsv(fdt, initrd_start, initrd_end - initrd_start);
 	if (err < 0) {
-		printf("fdt_initrd: %s\n", fdt_strerror(err));
+		pr_debug("fdt_initrd: %s\n", fdt_strerror(err));
 		return err;
 	}
 
@@ -251,7 +253,7 @@ int fdt_initrd(void *fdt, ulong initrd_start, ulong initrd_end)
 			      (uint64_t)initrd_start, is_u64);
 
 	if (err < 0) {
-		printf("WARNING: could not set linux,initrd-start %s.\n",
+		pr_debug("WARNING: could not set linux,initrd-start %s.\n",
 		       fdt_strerror(err));
 		return err;
 	}
@@ -260,7 +262,7 @@ int fdt_initrd(void *fdt, ulong initrd_start, ulong initrd_end)
 			      (uint64_t)initrd_end, is_u64);
 
 	if (err < 0) {
-		printf("WARNING: could not set linux,initrd-end %s.\n",
+		pr_debug("WARNING: could not set linux,initrd-end %s.\n",
 		       fdt_strerror(err));
 
 		return err;
@@ -287,7 +289,7 @@ int fdt_chosen(void *fdt)
 
 	err = fdt_check_header(fdt);
 	if (err < 0) {
-		printf("fdt_chosen: %s\n", fdt_strerror(err));
+		pr_debug("fdt_chosen: %s\n", fdt_strerror(err));
 		return err;
 	}
 
@@ -301,7 +303,7 @@ int fdt_chosen(void *fdt)
 				  abuf_data(&buf), abuf_size(&buf));
 		abuf_uninit(&buf);
 		if (err < 0) {
-			printf("WARNING: could not set rng-seed %s.\n",
+			pr_debug("WARNING: could not set rng-seed %s.\n",
 			       fdt_strerror(err));
 			return err;
 		}
@@ -313,7 +315,7 @@ int fdt_chosen(void *fdt)
 		err = fdt_setprop(fdt, nodeoffset, "bootargs", str,
 				  strlen(str) + 1);
 		if (err < 0) {
-			printf("WARNING: could not set bootargs %s.\n",
+			pr_debug("WARNING: could not set bootargs %s.\n",
 			       fdt_strerror(err));
 			return err;
 		}
@@ -323,7 +325,7 @@ int fdt_chosen(void *fdt)
 	err = fdt_setprop(fdt, nodeoffset, "u-boot,version", PLAIN_VERSION,
 			  strlen(PLAIN_VERSION) + 1);
 	if (err < 0) {
-		printf("WARNING: could not set u-boot,version %s.\n",
+		pr_debug("WARNING: could not set u-boot,version %s.\n",
 		       fdt_strerror(err));
 		return err;
 	}
@@ -342,9 +344,10 @@ void do_fixup_by_path(void *fdt, const char *path, const char *prop,
 	debug("\n");
 #endif
 	int rc = fdt_find_and_setprop(fdt, path, prop, val, len, create);
-	if (rc)
-		printf("Unable to update property %s:%s, err=%s\n",
+	if (rc){
+		pr_debug("Unable to update property %s:%s, err=%s\n",
 			path, prop, fdt_strerror(rc));
+	}
 }
 
 void do_fixup_by_path_u32(void *fdt, const char *path, const char *prop,
@@ -465,7 +468,7 @@ int fdt_fixup_memory_banks(void *blob, u64 start[], u64 size[], int banks)
 	u8 tmp[MEMORY_BANKS_MAX * 16]; /* Up to 64-bit address + 64-bit size */
 
 	if (banks > MEMORY_BANKS_MAX) {
-		printf("%s: num banks %d exceeds hardcoded limit %d."
+		pr_debug("%s: num banks %d exceeds hardcoded limit %d."
 		       " Recompile with higher MEMORY_BANKS_MAX?\n",
 		       __FUNCTION__, banks, MEMORY_BANKS_MAX);
 		return -1;
@@ -473,7 +476,7 @@ int fdt_fixup_memory_banks(void *blob, u64 start[], u64 size[], int banks)
 
 	err = fdt_check_header(blob);
 	if (err < 0) {
-		printf("%s: %s\n", __FUNCTION__, fdt_strerror(err));
+		pr_debug("%s: %s\n", __FUNCTION__, fdt_strerror(err));
 		return err;
 	}
 
@@ -485,7 +488,7 @@ int fdt_fixup_memory_banks(void *blob, u64 start[], u64 size[], int banks)
 	err = fdt_setprop(blob, nodeoffset, "device_type", "memory",
 			sizeof("memory"));
 	if (err < 0) {
-		printf("WARNING: could not set %s %s.\n", "device_type",
+		pr_debug("WARNING: could not set %s %s.\n", "device_type",
 				fdt_strerror(err));
 		return err;
 	}
@@ -504,7 +507,7 @@ int fdt_fixup_memory_banks(void *blob, u64 start[], u64 size[], int banks)
 
 	err = fdt_setprop(blob, nodeoffset, "reg", tmp, len);
 	if (err < 0) {
-		printf("WARNING: could not set %s %s.\n",
+		pr_debug("WARNING: could not set %s %s.\n",
 				"reg", fdt_strerror(err));
 		return err;
 	}
@@ -518,14 +521,14 @@ int fdt_set_usable_memory(void *blob, u64 start[], u64 size[], int areas)
 	u8 tmp[8 * 16]; /* Up to 64-bit address + 64-bit size */
 
 	if (areas > 8) {
-		printf("%s: num areas %d exceeds hardcoded limit %d\n",
+		pr_debug("%s: num areas %d exceeds hardcoded limit %d\n",
 		       __func__, areas, 8);
 		return -1;
 	}
 
 	err = fdt_check_header(blob);
 	if (err < 0) {
-		printf("%s: %s\n", __func__, fdt_strerror(err));
+		pr_debug("%s: %s\n", __func__, fdt_strerror(err));
 		return err;
 	}
 
@@ -538,7 +541,7 @@ int fdt_set_usable_memory(void *blob, u64 start[], u64 size[], int areas)
 
 	err = fdt_setprop(blob, nodeoffset, "linux,usable-memory", tmp, len);
 	if (err < 0) {
-		printf("WARNING: could not set %s %s.\n",
+		pr_debug("WARNING: could not set %s %s.\n",
 		       "reg", fdt_strerror(err));
 		return err;
 	}
@@ -638,7 +641,7 @@ int fdt_record_loadable(void *blob, u32 index, const char *name,
 
 	err = fdt_check_header(blob);
 	if (err < 0) {
-		printf("%s: %s\n", __func__, fdt_strerror(err));
+		pr_debug("%s: %s\n", __func__, fdt_strerror(err));
 		return err;
 	}
 
@@ -837,7 +840,7 @@ static int fdt_del_subnodes(const void *blob, int parent_offset)
 				fdt_get_name(blob, off, 0), off);
 			ret = fdt_del_node((void *)blob, off);
 			if (ret < 0) {
-				printf("Can't delete node: %s\n",
+				pr_debug("Can't delete node: %s\n",
 					fdt_strerror(ret));
 				return ret;
 			} else {
@@ -868,7 +871,7 @@ static int fdt_del_partitions(void *blob, int parent_offset)
 		} else {
 			ret = fdt_del_subnodes(blob, parent_offset);
 			if (ret < 0) {
-				printf("Can't remove subnodes: %s\n",
+				pr_debug("Can't remove subnodes: %s\n",
 					fdt_strerror(ret));
 				return ret;
 			}
@@ -926,7 +929,7 @@ add_sub:
 			else
 				goto err_size;
 		} else if (ret < 0) {
-			printf("Can't add partition node: %s\n",
+			pr_debug("Can't add partition node: %s\n",
 				fdt_strerror(ret));
 			return ret;
 		}
@@ -985,10 +988,10 @@ add_label:
 	}
 	return 0;
 err_size:
-	printf("Can't increase blob size: %s\n", fdt_strerror(ret));
+	pr_err("Can't increase blob size: %s\n", fdt_strerror(ret));
 	return ret;
 err_prop:
-	printf("Can't add property: %s\n", fdt_strerror(ret));
+	pr_err("Can't add property: %s\n", fdt_strerror(ret));
 	return ret;
 }
 
@@ -1073,10 +1076,11 @@ void fdt_del_node_and_alias(void *blob, const char *alias)
 #ifdef DEBUG
 static void of_dump_addr(const char *s, const fdt32_t *addr, int na)
 {
-	printf("%s", s);
-	while(na--)
-		printf(" %08x", *(addr++));
-	printf("\n");
+	pr_debug("%s", s);
+	while(na--){
+		pr_debug(" %08x", *(addr++));
+	}
+	pr_debug("\n");
 }
 #else
 static void of_dump_addr(const char *s, const fdt32_t *addr, int na) { }
@@ -1348,7 +1352,7 @@ static u64 __of_translate_address(const void *blob, int node_offset,
 	/* Cound address cells & copy address locally */
 	bus->count_cells(blob, parent, &na, &ns);
 	if (!OF_CHECK_COUNTS(na, ns)) {
-		printf("%s: Bad cell count for %s\n", __FUNCTION__,
+		pr_debug("%s: Bad cell count for %s\n", __FUNCTION__,
 		       fdt_get_name(blob, node_offset, NULL));
 		goto bail;
 	}
@@ -1375,7 +1379,7 @@ static u64 __of_translate_address(const void *blob, int node_offset,
 		pbus = of_match_bus(blob, parent);
 		pbus->count_cells(blob, parent, &pna, &pns);
 		if (!OF_CHECK_COUNTS(pna, pns)) {
-			printf("%s: Bad cell count for %s\n", __FUNCTION__,
+			pr_debug("%s: Bad cell count for %s\n", __FUNCTION__,
 				fdt_get_name(blob, node_offset, NULL));
 			break;
 		}
@@ -1454,7 +1458,7 @@ int fdt_get_dma_range(const void *blob, int node, phys_addr_t *cpu,
 	node = parent;
 	parent = fdt_parent_offset(blob, node);
 	if (parent < 0) {
-		printf("Found dma-ranges in root node, shouldn't happen\n");
+		pr_debug("Found dma-ranges in root node, shouldn't happen\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1463,7 +1467,7 @@ int fdt_get_dma_range(const void *blob, int node, phys_addr_t *cpu,
 	bus_node = of_match_bus(blob, node);
 	bus_node->count_cells(blob, node, &na, &ns);
 	if (!OF_CHECK_COUNTS(na, ns)) {
-		printf("%s: Bad cell count for %s\n", __FUNCTION__,
+		pr_debug("%s: Bad cell count for %s\n", __FUNCTION__,
 		       fdt_get_name(blob, node, NULL));
 		return -EINVAL;
 		goto out;
@@ -1472,7 +1476,7 @@ int fdt_get_dma_range(const void *blob, int node, phys_addr_t *cpu,
 	bus_node = of_match_bus(blob, parent);
 	bus_node->count_cells(blob, parent, &pna, &pns);
 	if (!OF_CHECK_COUNTS(pna, pns)) {
-		printf("%s: Bad cell count for %s\n", __FUNCTION__,
+		pr_debug("%s: Bad cell count for %s\n", __FUNCTION__,
 		       fdt_get_name(blob, parent, NULL));
 		return -EINVAL;
 		goto out;
@@ -1557,11 +1561,11 @@ int fdt_set_phandle(void *fdt, int nodeoffset, uint32_t phandle)
 		char buf[64];
 
 		fdt_get_path(fdt, nodeoffset, buf, sizeof(buf));
-		printf("Trying to update node %s with phandle %u ",
+		pr_debug("Trying to update node %s with phandle %u ",
 		       buf, phandle);
 
 		fdt_get_path(fdt, off, buf, sizeof(buf));
-		printf("that already exists in node %s.\n", buf);
+		pr_debug("that already exists in node %s.\n", buf);
 		return -FDT_ERR_BADPHANDLE;
 	}
 #endif
@@ -1588,14 +1592,14 @@ unsigned int fdt_create_phandle(void *fdt, int nodeoffset)
 
 		ret = fdt_generate_phandle(fdt, &phandle);
 		if (ret < 0) {
-			printf("Can't generate phandle: %s\n",
+			pr_debug("Can't generate phandle: %s\n",
 			       fdt_strerror(ret));
 			return 0;
 		}
 
 		ret = fdt_set_phandle(fdt, nodeoffset, phandle);
 		if (ret < 0) {
-			printf("Can't set phandle %u: %s\n", phandle,
+			pr_debug("Can't set phandle %u: %s\n", phandle,
 			       fdt_strerror(ret));
 			return 0;
 		}
@@ -1616,7 +1620,7 @@ unsigned int fdt_create_phandle_by_compatible(void *fdt, const char *compat)
 	int offset = fdt_node_offset_by_compatible(fdt, -1, compat);
 
 	if (offset < 0) {
-		printf("Can't find node with compatible \"%s\": %s\n", compat,
+		pr_debug("Can't find node with compatible \"%s\": %s\n", compat,
 		       fdt_strerror(offset));
 		return 0;
 	}
@@ -1641,7 +1645,7 @@ unsigned int fdt_create_phandle_by_pathf(void *fdt, const char *fmt, ...)
 	va_end(ap);
 
 	if (offset < 0) {
-		printf("Can't find node by given path: %s\n",
+		pr_debug("Can't find node by given path: %s\n",
 		       fdt_strerror(offset));
 		return 0;
 	}
@@ -1674,7 +1678,7 @@ int fdt_set_node_status(void *fdt, int nodeoffset, enum fdt_status status)
 		ret = fdt_setprop_string(fdt, nodeoffset, "status", "fail");
 		break;
 	default:
-		printf("Invalid fdt status: %x\n", status);
+		pr_debug("Invalid fdt status: %x\n", status);
 		ret = -1;
 		break;
 	}
@@ -1758,13 +1762,13 @@ add_edid:
 			else
 				goto err_size;
 		} else if (ret < 0) {
-			printf("Can't add property: %s\n", fdt_strerror(ret));
+			pr_debug("Can't add property: %s\n", fdt_strerror(ret));
 			return ret;
 		}
 	}
 	return 0;
 err_size:
-	printf("Can't increase blob size: %s\n", fdt_strerror(ret));
+	pr_err("Can't increase blob size: %s\n", fdt_strerror(ret));
 	return ret;
 }
 #endif
@@ -1793,21 +1797,21 @@ int fdt_verify_alias_address(void *fdt, int anode, const char *alias, u64 addr)
 
 	node = fdt_path_offset(fdt, path);
 	if (node < 0) {
-		printf("Warning: device tree alias '%s' points to invalid "
+		pr_debug("Warning: device tree alias '%s' points to invalid "
 		       "node %s.\n", alias, path);
 		return 0;
 	}
 
 	reg = fdt_getprop(fdt, node, "reg", &len);
 	if (!reg) {
-		printf("Warning: device tree node '%s' has no address.\n",
+		pr_debug("Warning: device tree node '%s' has no address.\n",
 		       path);
 		return 0;
 	}
 
 	dt_addr = fdt_translate_address(fdt, node, reg);
 	if (addr != dt_addr) {
-		printf("Warning: U-Boot configured device %s at address %llu,\n"
+		pr_debug("Warning: U-Boot configured device %s at address %llu,\n"
 		       "but the device tree has it address %llx.\n",
 		       alias, addr, dt_addr);
 		return 0;
@@ -2048,11 +2052,11 @@ int fdt_overlay_apply_verbose(void *fdt, void *fdto)
 
 	err = fdt_overlay_apply(fdt, fdto);
 	if (err < 0) {
-		printf("failed on fdt_overlay_apply(): %s\n",
+		pr_err("failed on fdt_overlay_apply(): %s\n",
 				fdt_strerror(err));
 		if (!has_symbols) {
-			printf("base fdt does did not have a /__symbols__ node\n");
-			printf("make sure you've compiled with -@\n");
+			pr_debug("base fdt does did not have a /__symbols__ node\n");
+			pr_debug("make sure you've compiled with -@\n");
 		}
 	}
 	return err;
@@ -2071,7 +2075,7 @@ int fdt_valid(struct fdt_header **blobp)
 	int err;
 
 	if (!blob) {
-		printf("The address of the fdt is invalid (NULL).\n");
+		pr_debug("The address of the fdt is invalid (NULL).\n");
 		return 0;
 	}
 
@@ -2080,25 +2084,25 @@ int fdt_valid(struct fdt_header **blobp)
 		return 1;	/* valid */
 
 	if (err < 0) {
-		printf("libfdt fdt_check_header(): %s", fdt_strerror(err));
+		pr_debug("libfdt fdt_check_header(): %s", fdt_strerror(err));
 		/*
 		 * Be more informative on bad version.
 		 */
 		if (err == -FDT_ERR_BADVERSION) {
 			if (fdt_version(blob) <
 			    FDT_FIRST_SUPPORTED_VERSION) {
-				printf(" - too old, fdt %d < %d",
+				pr_debug(" - too old, fdt %d < %d",
 				       fdt_version(blob),
 				       FDT_FIRST_SUPPORTED_VERSION);
 			}
 			if (fdt_last_comp_version(blob) >
 			    FDT_LAST_SUPPORTED_VERSION) {
-				printf(" - too new, fdt %d > %d",
+				pr_debug(" - too new, fdt %d > %d",
 				       fdt_version(blob),
 				       FDT_LAST_SUPPORTED_VERSION);
 			}
 		}
-		printf("\n");
+		pr_debug("\n");
 		*blobp = NULL;
 		return 0;
 	}

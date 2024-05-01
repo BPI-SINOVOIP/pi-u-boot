@@ -1,0 +1,74 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+configure)
+    target=""
+    if grep -q '^spacemit' /sys/firmware/devicetree/base/model; then
+        target="spacemit"
+    else
+        exit 0
+    fi
+
+    for x in $(cat /proc/cmdline); do
+        case $x in
+        root=*)
+            ROOT=${x#root=}
+            ;;
+        esac
+    done
+
+    if [ -n $ROOT ]; then
+        case $ROOT in
+        "/dev/mmcblk0"*)
+            BOOTINFO_FILE=bootinfo_sd.bin
+            BOOTINFO=/dev/mmcblk0
+            FSBL=/dev/mmcblk0p1
+            FSBL_SEEK=0
+            ENV=/dev/mmcblk0p2
+            UBOOT=/dev/mmcblk0p4
+            ;;
+        "/dev/mmcblk2"*)
+            BOOTINFO_FILE=bootinfo_emmc.bin
+            BOOTINFO=/dev/mmcblk2boot0
+            FSBL=/dev/mmcblk2boot0
+            FSBL_SEEK=512
+            ENV=/dev/mmcblk2p2
+            UBOOT=/dev/mmcblk2p4
+            if [ -e $BOOTINFO ]; then
+                echo 0 | tee /sys/block/mmcblk2boot0/force_ro
+            else
+                exit 0
+            fi
+            ;;
+        *)
+            echo "Unsupported root=$ROOT"
+            exit 0
+            ;;
+        esac
+    else
+        echo "Missing root= in cmdline"
+        exit 0
+    fi
+
+    BIN_DIR="/usr/lib/u-boot/$target"
+    # 待检查文件/分区列表
+    files="${BIN_DIR}/${BOOTINFO_FILE} ${BIN_DIR}/FSBL.bin ${BIN_DIR}/env.bin ${BIN_DIR}/u-boot.itb $BOOTINFO $FSBL $ENV $UBOOT"
+    for file in $files; do
+        if [ ! -e "$file" ]; then
+            # 任意不存在则退出
+            echo "Missing $file"
+            exit 0
+        fi
+    done
+
+    # 此前已经做了所有检查
+    dd if=/usr/lib/u-boot/$target/$BOOTINFO_FILE of=$BOOTINFO && sync
+    dd if=/usr/lib/u-boot/$target/FSBL.bin of=$FSBL seek=$FSBL_SEEK bs=1 && sync
+    dd if=/usr/lib/u-boot/$target/env.bin of=$ENV bs=1 && sync
+    dd if=/usr/lib/u-boot/$target/u-boot.itb of=$UBOOT bs=1M && sync
+
+    ;;
+esac
+
+exit 0

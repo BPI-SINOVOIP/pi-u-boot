@@ -70,8 +70,8 @@ __weak int board_mmc_getcd(struct mmc *mmc)
 #ifdef CONFIG_MMC_TRACE
 void mmmc_trace_before_send(struct mmc *mmc, struct mmc_cmd *cmd)
 {
-	printf("CMD_SEND:%d\n", cmd->cmdidx);
-	printf("\t\tARG\t\t\t 0x%08x\n", cmd->cmdarg);
+	pr_debug("CMD_SEND:%d\n", cmd->cmdidx);
+	pr_debug("\t\tARG\t\t\t 0x%08x\n", cmd->cmdarg);
 }
 
 void mmmc_trace_after_send(struct mmc *mmc, struct mmc_cmd *cmd, int ret)
@@ -80,47 +80,48 @@ void mmmc_trace_after_send(struct mmc *mmc, struct mmc_cmd *cmd, int ret)
 	u8 *ptr;
 
 	if (ret) {
-		printf("\t\tRET\t\t\t %d\n", ret);
+		pr_debug("\t\tRET\t\t\t %d\n", ret);
 	} else {
 		switch (cmd->resp_type) {
 		case MMC_RSP_NONE:
-			printf("\t\tMMC_RSP_NONE\n");
+			pr_debug("\t\tMMC_RSP_NONE\n");
 			break;
 		case MMC_RSP_R1:
-			printf("\t\tMMC_RSP_R1,5,6,7 \t 0x%08x \n",
+			pr_debug("\t\tMMC_RSP_R1,5,6,7 \t 0x%08x \n",
 				cmd->response[0]);
 			break;
 		case MMC_RSP_R1b:
-			printf("\t\tMMC_RSP_R1b\t\t 0x%08x \n",
+			pr_debug("\t\tMMC_RSP_R1b\t\t 0x%08x \n",
 				cmd->response[0]);
 			break;
 		case MMC_RSP_R2:
-			printf("\t\tMMC_RSP_R2\t\t 0x%08x \n",
+			pr_debug("\t\tMMC_RSP_R2\t\t 0x%08x \n",
 				cmd->response[0]);
-			printf("\t\t          \t\t 0x%08x \n",
+			pr_debug("\t\t          \t\t 0x%08x \n",
 				cmd->response[1]);
-			printf("\t\t          \t\t 0x%08x \n",
+			pr_debug("\t\t          \t\t 0x%08x \n",
 				cmd->response[2]);
-			printf("\t\t          \t\t 0x%08x \n",
+			pr_debug("\t\t          \t\t 0x%08x \n",
 				cmd->response[3]);
-			printf("\n");
-			printf("\t\t\t\t\tDUMPING DATA\n");
+			pr_debug("\n");
+			pr_debug("\t\t\t\t\tDUMPING DATA\n");
 			for (i = 0; i < 4; i++) {
 				int j;
-				printf("\t\t\t\t\t%03d - ", i*4);
+				pr_debug("\t\t\t\t\t%03d - ", i*4);
 				ptr = (u8 *)&cmd->response[i];
 				ptr += 3;
-				for (j = 0; j < 4; j++)
-					printf("%02x ", *ptr--);
-				printf("\n");
+				for (j = 0; j < 4; j++){
+					pr_debug("%02x ", *ptr--);
+				}
+				pr_debug("\n");
 			}
 			break;
 		case MMC_RSP_R3:
-			printf("\t\tMMC_RSP_R3,4\t\t 0x%08x \n",
+			pr_debug("\t\tMMC_RSP_R3,4\t\t 0x%08x \n",
 				cmd->response[0]);
 			break;
 		default:
-			printf("\t\tERROR MMC rsp not supported\n");
+			pr_debug("\t\tERROR MMC rsp not supported\n");
 			break;
 		}
 	}
@@ -131,7 +132,7 @@ void mmc_trace_state(struct mmc *mmc, struct mmc_cmd *cmd)
 	int status;
 
 	status = (cmd->response[0] & MMC_STATUS_CURR_STATE) >> 9;
-	printf("CURR STATE:%d\n", status);
+	pr_debug("CURR STATE:%d\n", status);
 }
 #endif
 
@@ -1789,6 +1790,12 @@ static int sd_select_mode_and_width(struct mmc *mmc, uint card_caps)
 		return 0;
 	}
 
+#if CONFIG_IS_ENABLED(MMC_WRITE)
+	err = sd_read_ssr(mmc);
+	if (err)
+		pr_warn("unable to read ssr\n");
+#endif
+
 	/* Restrict card's capabilities by what the host can do */
 	caps = card_caps & mmc->host_caps;
 
@@ -1833,11 +1840,6 @@ static int sd_select_mode_and_width(struct mmc *mmc, uint card_caps)
 				}
 #endif
 
-#if CONFIG_IS_ENABLED(MMC_WRITE)
-				err = sd_read_ssr(mmc);
-				if (err)
-					pr_warn("unable to read ssr\n");
-#endif
 				if (!err)
 					return 0;
 
@@ -2066,7 +2068,7 @@ static int mmc_select_hs400es(struct mmc *mmc)
 			 EXT_CSD_BUS_WIDTH_8 | EXT_CSD_DDR_FLAG |
 			 EXT_CSD_BUS_WIDTH_STROBE);
 	if (err) {
-		printf("switch to bus width for hs400 failed\n");
+		pr_err("switch to bus width for hs400 failed\n");
 		return err;
 	}
 	/* TODO: driver strength */
@@ -2165,13 +2167,13 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint card_caps)
 			if (mwt->mode == MMC_HS_400) {
 				err = mmc_select_hs400(mmc);
 				if (err) {
-					printf("Select HS400 failed %d\n", err);
+					pr_err("Select HS400 failed %d\n", err);
 					goto error;
 				}
 			} else if (mwt->mode == MMC_HS_400_ES) {
 				err = mmc_select_hs400es(mmc);
 				if (err) {
-					printf("Select HS400ES failed %d\n",
+					pr_err("Select HS400ES failed %d\n",
 					       err);
 					goto error;
 				}
@@ -2757,7 +2759,7 @@ static int mmc_power_on(struct mmc *mmc)
 		int ret = regulator_set_enable(mmc->vmmc_supply, true);
 
 		if (ret && ret != -EACCES) {
-			printf("Error enabling VMMC supply : %d\n", ret);
+			pr_err("Error enabling VMMC supply : %d\n", ret);
 			return ret;
 		}
 	}

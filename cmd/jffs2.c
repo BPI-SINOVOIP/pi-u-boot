@@ -83,6 +83,7 @@
 #include <linux/list.h>
 #include <linux/ctype.h>
 #include <cramfs/cramfs_fs.h>
+#include <linux/mtd/mtd.h>
 
 #if defined(CONFIG_CMD_NAND)
 #include <linux/mtd/rawnand.h>
@@ -122,14 +123,15 @@
 #define MTD_WRITEABLE_CMD		1
 
 /* current active device and partition number */
-#ifdef CONFIG_CMD_MTDPARTS
+#ifdef CONFIG_JFFS2_MTDPARTS
+/* Use local ones */
+static struct mtd_device *current_mtd_dev = NULL;
+static u8 current_mtd_partnum = 0;
+struct mtd_info *get_spi_flash(void);
+#else
 /* Use the ones declared in cmd_mtdparts.c */
 extern struct mtd_device *current_mtd_dev;
 extern u8 current_mtd_partnum;
-#else
-/* Use local ones */
-struct mtd_device *current_mtd_dev = NULL;
-u8 current_mtd_partnum = 0;
 #endif
 
 #if defined(CONFIG_CMD_CRAMFS)
@@ -146,7 +148,7 @@ extern int cramfs_info (struct part_info *info);
 #define cramfs_info(x)		(0)
 #endif
 
-#ifndef CONFIG_CMD_MTDPARTS
+#ifdef CONFIG_JFFS2_MTDPARTS
 /**
  * Check device number to be within valid range for given device type.
  *
@@ -235,7 +237,7 @@ static int mtd_id_parse(const char *id, const char **ret_id, u8 *dev_type, u8 *d
 }
 
 /*
- * 'Static' version of command line mtdparts_init() routine. Single partition on
+ * 'Static' version of command line jffs2_mtdparts_init() routine. Single partition on
  * a single device configuration.
  */
 
@@ -258,39 +260,17 @@ static inline u32 get_part_sector_size_nand(struct mtdids *id)
 #endif
 }
 
-static inline u32 get_part_sector_size_nor(struct mtdids *id, struct part_info *part)
+static u32 get_part_sector_size_nor(struct part_info *part)
 {
-#if defined(CONFIG_CMD_FLASH)
-	u32 end_phys, start_phys, sector_size = 0, size = 0;
-	int i;
-	flash_info_t *flash;
+	struct mtd_info *mtd;
 
-	flash = &flash_info[id->num];
-
-	start_phys = flash->start[0] + part->offset;
-	end_phys = start_phys + part->size - 1;
-
-	for (i = 0; i < flash->sector_count; i++) {
-		if (flash->start[i] >= end_phys)
-			break;
-
-		if (flash->start[i] >= start_phys) {
-			if (i == flash->sector_count - 1) {
-				size = flash->start[0] + flash->size - flash->start[i];
-			} else {
-				size = flash->start[i+1] - flash->start[i];
-			}
-
-			if (sector_size < size)
-				sector_size = size;
-		}
+	mtd = get_spi_flash();
+	if (!mtd) {
+		pr_err("Failed to get MTD device for SPI NOR\n");
+		return 0;
 	}
-
-	return sector_size;
-#else
-	BUG();
-	return 0;
-#endif
+	part->sector_size = mtd->erasesize;
+	return mtd->erasesize;
 }
 
 static inline u32 get_part_sector_size_onenand(void)
@@ -312,7 +292,7 @@ static inline u32 get_part_sector_size(struct mtdids *id, struct part_info *part
 	if (id->type == MTD_DEV_TYPE_NAND)
 		return get_part_sector_size_nand(id);
 	else if (id->type == MTD_DEV_TYPE_NOR)
-		return get_part_sector_size_nor(id, part);
+		return get_part_sector_size_nor(part);
 	else if (id->type == MTD_DEV_TYPE_ONENAND)
 		return get_part_sector_size_onenand();
 	else
@@ -325,18 +305,18 @@ static inline u32 get_part_sector_size(struct mtdids *id, struct part_info *part
  * Parse and initialize global mtdids mapping and create global
  * device/partition list.
  *
- * 'Static' version of command line mtdparts_init() routine. Single partition on
+ * 'Static' version of command line jffs2_mtdparts_init() routine. Single partition on
  * a single device configuration.
  *
  * Return: 0 on success, 1 otherwise
  */
-int mtdparts_init(void)
+int jffs2_mtdparts_init(void)
 {
 	static int initialized = 0;
 	u32 size;
 	char *dev_name;
 
-	DEBUGF("\n---mtdparts_init---\n");
+	DEBUGF("\n---jffs2_mtdparts_init---\n");
 	if (!initialized) {
 		struct mtdids *id;
 		struct part_info *part;
@@ -370,11 +350,11 @@ int mtdparts_init(void)
 		id->size = size;
 		INIT_LIST_HEAD(&id->link);
 
-		DEBUGF("dev id: type = %d, num = %d, size = 0x%08lx, mtd_id = %s\n",
+		DEBUGF("dev id: type = %d, num = %d, size = 0x%08llx, mtd_id = %s\n",
 				id->type, id->num, id->size, id->mtd_id);
 
 		/* partition */
-		part->name = "static";
+		part->name = "jffs2";
 		part->auto_name = 0;
 
 		part->size = CONFIG_JFFS2_PART_SIZE;
@@ -390,7 +370,7 @@ int mtdparts_init(void)
 
 		part->sector_size = get_part_sector_size(id, part);
 
-		DEBUGF("part  : name = %s, size = 0x%08lx, offset = 0x%08lx\n",
+		DEBUGF("part  : name = %s, size = 0x%08llx, offset = 0x%08llx\n",
 				part->name, part->size, part->offset);
 
 		/* device */
@@ -403,7 +383,7 @@ int mtdparts_init(void)
 
 	return 0;
 }
-#endif /* #ifndef CONFIG_CMD_MTDPARTS */
+#endif /* #ifdef CONFIG_JFFS2_MTDPARTS */
 
 /**
  * Return pointer to the partition of a requested number from a requested
@@ -483,9 +463,15 @@ int do_jffs2_fsload(struct cmd_tbl *cmdtp, int flag, int argc,
 		filename = argv[2];
 	}
 
+#ifdef CONFIG_JFFS2_MTDPARTS
+	/* make sure we are in sync with env variables */
+	if (jffs2_mtdparts_init() !=0)
+		return 1;
+#else
 	/* make sure we are in sync with env variables */
 	if (mtdparts_init() !=0)
 		return 1;
+#endif
 
 	if ((part = jffs2_part_info(current_mtd_dev, current_mtd_partnum))){
 
@@ -532,9 +518,15 @@ int do_jffs2_ls(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	if (argc == 2)
 		filename = argv[1];
 
+#ifdef CONFIG_JFFS2_MTDPARTS
+	/* make sure we are in sync with env variables */
+	if (jffs2_mtdparts_init() !=0)
+		return 1;
+#else
 	/* make sure we are in sync with env variables */
 	if (mtdparts_init() !=0)
 		return 1;
+#endif
 
 	if ((part = jffs2_part_info(current_mtd_dev, current_mtd_partnum))){
 
@@ -568,9 +560,15 @@ int do_jffs2_fsinfo(struct cmd_tbl *cmdtp, int flag, int argc,
 	char *fsname;
 	int ret;
 
+#ifdef CONFIG_JFFS2_MTDPARTS
+	/* make sure we are in sync with env variables */
+	if (jffs2_mtdparts_init() !=0)
+		return 1;
+#else
 	/* make sure we are in sync with env variables */
 	if (mtdparts_init() !=0)
 		return 1;
+#endif
 
 	if ((part = jffs2_part_info(current_mtd_dev, current_mtd_partnum))){
 

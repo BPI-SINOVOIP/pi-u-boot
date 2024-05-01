@@ -279,6 +279,12 @@ int run_commandf(const char *fmt, ...);
  * Return: 0 on success, or != 0 on error.
  */
 int run_command_list(const char *cmd, int len, int flag);
+
+#ifdef CONFIG_FASTBOOT_CMD_OEM_READ
+#define LOG_BUFFER_SIZE 20480
+#endif
+
+
 #endif	/* __ASSEMBLY__ */
 
 /*

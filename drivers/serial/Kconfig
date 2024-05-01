@@ -751,6 +751,13 @@ config NS16550_DYNAMIC
 	  UARTs in a system. This option avoids this problem at the cost of a
 	  slightly increased code size.
 
+config SYS_NS16550_IER
+	hex "NS16550 ier bit"
+	depends on SYS_NS16550
+	default 0x00
+	help
+	  Set ier bit for ns16550.
+
 config INTEL_MID_SERIAL
 	bool "Intel MID platform UART support"
 	depends on DM_SERIAL && OF_CONTROL

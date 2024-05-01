@@ -18,7 +18,7 @@
 #include <usb_mass_storage.h>
 #include <dfu.h>
 #include <thor.h>
-
+#include <asm/io.h>
 #include <env_callback.h>
 
 #include "gadget_chips.h"
@@ -225,6 +225,16 @@ static int on_serialno(const char *name, const char *value, enum env_op op,
 }
 U_BOOT_ENV_CALLBACK(serialno, on_serialno);
 
+#if defined(CONFIG_K1_X_BOARD_FPGA) || defined(CONFIG_K1_X_BOARD_ASIC)
+static bool g_dnl_is_bootfromusb(void)
+{
+	if(readl((void __iomem *)0xd4282d10) == 0x55a)
+		return true;
+	else
+		return false;
+}
+#endif
+
 static int g_dnl_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
@@ -271,6 +281,18 @@ static int g_dnl_bind(struct usb_composite_dev *cdev)
 		device_desc.bcdDevice = __constant_cpu_to_le16(0x9999);
 	}
 
+#if defined(CONFIG_K1_X_BOARD_FPGA) || defined(CONFIG_K1_X_BOARD_ASIC)
+	/*
+	 * In brom stage usb product id is 0x1001, if boot from usb, 
+	 * hold usb product id, ignore CONFIG_USB_GADGET_PRODUCT_NUM
+	 */
+	if (g_dnl_is_bootfromusb()) {
+		debug("%s: controller '%s' is already initiated by brom\n",
+			__func__, gadget->name);
+		device_desc.idProduct = __constant_cpu_to_le16(0x1001);
+	}
+#endif
+
 	debug("%s: calling usb_gadget_connect for "
 			"controller '%s'\n", __func__, gadget->name);
 	usb_gadget_connect(gadget);
@@ -306,7 +328,7 @@ int g_dnl_register(const char *name)
 
 	ret = usb_composite_register(&g_dnl_driver);
 	if (ret) {
-		printf("%s: failed!, error: %d\n", __func__, ret);
+		pr_err("%s: failed!, error: %d\n", __func__, ret);
 		return ret;
 	}
 	return 0;

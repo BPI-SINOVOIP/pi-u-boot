@@ -212,4 +212,18 @@ config RESET_DRA7
 	help
 	  Support for TI DRA7-RESET subsystem. Basic Assert/Deassert
 	  is supported.
+
+config RESET_SPACEMIT_K1PRO
+	bool "Support for SPACEMIT's K1-PRO Reset driver"
+	depends on DM_RESET
+	help
+	  Support for SPACEMIT's K1-PRO Reset system. Basic Assert/Deassert
+	  is supported.
+
+config RESET_SPACEMIT_K1X
+	bool "Support for SPACEMIT's K1X Reset driver"
+	depends on DM_RESET
+	help
+	  Support for SPACEMIT's K1X Reset system. Basic Assert/Deassert
+	  is supported.
 endmenu

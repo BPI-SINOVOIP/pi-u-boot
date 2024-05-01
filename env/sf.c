@@ -141,7 +141,7 @@ static int env_sf_save(void)
 
 	gd->env_valid = gd->env_valid == ENV_REDUND ? ENV_VALID : ENV_REDUND;
 
-	printf("Valid environment: %d\n", (int)gd->env_valid);
+	pr_err("Valid environment: %d\n", (int)gd->env_valid);
 
 done:
 	spi_flash_free(env_flash);

@@ -118,7 +118,7 @@ static int env_print(char *name, int flag)
 	}
 
 	/* should never happen */
-	printf("## Error: cannot export environment\n");
+	pr_err("## Error: cannot export environment\n");
 	return 0;
 }
 
@@ -145,7 +145,7 @@ static int do_env_print(struct cmd_tbl *cmdtp, int flag, int argc,
 		rcode = env_print(NULL, env_flag);
 		if (!rcode)
 			return 1;
-		printf("\nEnvironment size: %d/%ld bytes\n",
+		pr_debug("\nEnvironment size: %d/%ld bytes\n",
 			rcode, (ulong)ENV_SIZE);
 		return 0;
 	}
@@ -155,7 +155,7 @@ static int do_env_print(struct cmd_tbl *cmdtp, int flag, int argc,
 	for (i = 1; i < argc; ++i) {
 		int rc = env_print(argv[i], env_flag);
 		if (!rc) {
-			printf("## Error: \"%s\" not defined\n", argv[i]);
+			pr_err("## Error: \"%s\" not defined\n", argv[i]);
 			++rcode;
 		}
 	}
@@ -255,7 +255,7 @@ static int _do_env_set(int flag, int argc, char *const argv[], int env_flag)
 	name = argv[1];
 
 	if (strchr(name, '=')) {
-		printf("## Error: illegal character '='"
+		pr_err("## Error: illegal character '='"
 		       "in variable name \"%s\"\n", name);
 		return 1;
 	}
@@ -278,7 +278,7 @@ static int _do_env_set(int flag, int argc, char *const argv[], int env_flag)
 
 	value = malloc(len);
 	if (value == NULL) {
-		printf("## Can't malloc %d bytes\n", len);
+		pr_err("## Can't malloc %d bytes\n", len);
 		return 1;
 	}
 	for (i = 2, s = value; i < argc; ++i) {
@@ -296,7 +296,7 @@ static int _do_env_set(int flag, int argc, char *const argv[], int env_flag)
 	hsearch_r(e, ENV_ENTER, &ep, &env_htab, env_flag);
 	free(value);
 	if (!ep) {
-		printf("## Error inserting \"%s\" variable, errno=%d\n",
+		pr_err("## Error inserting \"%s\" variable, errno=%d\n",
 			name, errno);
 		return 1;
 	}
@@ -411,7 +411,7 @@ int do_env_ask(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 static int print_static_binding(const char *var_name, const char *callback_name,
 				void *priv)
 {
-	printf("\t%-20s %-20s\n", var_name, callback_name);
+	pr_debug("\t%-20s %-20s\n", var_name, callback_name);
 
 	return 0;
 }
@@ -440,9 +440,9 @@ static int print_active_callback(struct env_entry *entry)
 
 	if (i == num_callbacks)
 		/* this should probably never happen, but just in case... */
-		printf("\t%-20s %p\n", entry->key, entry->callback);
+		pr_debug("\t%-20s %p\n", entry->key, entry->callback);
 	else
-		printf("\t%-20s %-20s\n", entry->key, clbkp->name);
+		pr_debug("\t%-20s %-20s\n", entry->key, clbkp->name);
 
 	return 0;
 }
@@ -465,20 +465,20 @@ int do_env_callback(struct cmd_tbl *cmdtp, int flag, int argc,
 	for (i = 0, clbkp = ll_entry_start(struct env_clbk_tbl, env_clbk);
 	     i < num_callbacks;
 	     i++, clbkp++)
-		printf("\t%s\n", clbkp->name);
+		pr_debug("\t%s\n", clbkp->name);
 	puts("\n");
 
 	/* Print the static bindings that may exist */
 	puts("Static callback bindings:\n");
-	printf("\t%-20s %-20s\n", "Variable Name", "Callback Name");
-	printf("\t%-20s %-20s\n", "-------------", "-------------");
+	pr_debug("\t%-20s %-20s\n", "Variable Name", "Callback Name");
+	pr_debug("\t%-20s %-20s\n", "-------------", "-------------");
 	env_attr_walk(ENV_CALLBACK_LIST_STATIC, print_static_binding, NULL);
 	puts("\n");
 
 	/* walk through each variable and print the callback if it has one */
 	puts("Active callback bindings:\n");
-	printf("\t%-20s %-20s\n", "Variable Name", "Callback Name");
-	printf("\t%-20s %-20s\n", "-------------", "-------------");
+	pr_debug("\t%-20s %-20s\n", "Variable Name", "Callback Name");
+	pr_debug("\t%-20s %-20s\n", "-------------", "-------------");
 	hwalk_r(&env_htab, print_active_callback);
 	return 0;
 }
@@ -491,7 +491,7 @@ static int print_static_flags(const char *var_name, const char *flags,
 	enum env_flags_vartype type = env_flags_parse_vartype(flags);
 	enum env_flags_varaccess access = env_flags_parse_varaccess(flags);
 
-	printf("\t%-20s %-20s %-20s\n", var_name,
+	pr_debug("\t%-20s %-20s %-20s\n", var_name,
 		env_flags_get_vartype_name(type),
 		env_flags_get_varaccess_name(access));
 
@@ -509,7 +509,7 @@ static int print_active_flags(struct env_entry *entry)
 	type = (enum env_flags_vartype)
 		(entry->flags & ENV_FLAGS_VARTYPE_BIN_MASK);
 	access = env_flags_parse_varaccess_from_binflags(entry->flags);
-	printf("\t%-20s %-20s %-20s\n", entry->key,
+	pr_debug("\t%-20s %-20s %-20s\n", entry->key,
 		env_flags_get_vartype_name(type),
 		env_flags_get_varaccess_name(access));
 
@@ -522,7 +522,7 @@ static int print_active_flags(struct env_entry *entry)
 int do_env_flags(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	/* Print the available variable types */
-	printf("Available variable type flags (position %d):\n",
+	pr_debug("Available variable type flags (position %d):\n",
 		ENV_FLAGS_VARTYPE_LOC);
 	puts("\tFlag\tVariable Type Name\n");
 	puts("\t----\t------------------\n");
@@ -530,7 +530,7 @@ int do_env_flags(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	puts("\n");
 
 	/* Print the available variable access types */
-	printf("Available variable access flags (position %d):\n",
+	pr_debug("Available variable access flags (position %d):\n",
 		ENV_FLAGS_VARACCESS_LOC);
 	puts("\tFlag\tVariable Access Name\n");
 	puts("\t----\t--------------------\n");
@@ -539,18 +539,18 @@ int do_env_flags(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 
 	/* Print the static flags that may exist */
 	puts("Static flags:\n");
-	printf("\t%-20s %-20s %-20s\n", "Variable Name", "Variable Type",
+	pr_debug("\t%-20s %-20s %-20s\n", "Variable Name", "Variable Type",
 		"Variable Access");
-	printf("\t%-20s %-20s %-20s\n", "-------------", "-------------",
+	pr_debug("\t%-20s %-20s %-20s\n", "-------------", "-------------",
 		"---------------");
 	env_attr_walk(ENV_FLAGS_LIST_STATIC, print_static_flags, NULL);
 	puts("\n");
 
 	/* walk through each variable and print the flags if non-default */
 	puts("Active flags:\n");
-	printf("\t%-20s %-20s %-20s\n", "Variable Name", "Variable Type",
+	pr_debug("\t%-20s %-20s %-20s\n", "Variable Name", "Variable Type",
 		"Variable Access");
-	printf("\t%-20s %-20s %-20s\n", "-------------", "-------------",
+	pr_debug("\t%-20s %-20s %-20s\n", "-------------", "-------------",
 		"---------------");
 	hwalk_r(&env_htab, print_active_flags);
 	return 0;
@@ -865,7 +865,7 @@ NXTARG:		;
 	return 0;
 
 sep_err:
-	printf("## Error: %s: only one of \"-b\", \"-c\" or \"-t\" allowed\n",
+	pr_err("## Error: %s: only one of \"-b\", \"-c\" or \"-t\" allowed\n",
 	       cmd);
 	return 1;
 }
@@ -946,8 +946,9 @@ static int do_env_import(struct cmd_tbl *cmdtp, int flag,
 	if (argc < 1)
 		return CMD_RET_USAGE;
 
-	if (!fmt)
-		printf("## Warning: defaulting to text format\n");
+	if (!fmt){
+		pr_info("## Warning: defaulting to text format\n");
+	}
 
 	if (sep != '\n' && crlf_is_lf )
 		crlf_is_lf = 0;
@@ -972,11 +973,11 @@ static int do_env_import(struct cmd_tbl *cmdtp, int flag,
 			++size;
 		}
 		if (size == MAX_ENV_SIZE) {
-			printf("## Warning: Input data exceeds %d bytes"
+			pr_info("## Warning: Input data exceeds %d bytes"
 				" - truncated\n", MAX_ENV_SIZE);
 		}
 		size += 2;
-		printf("## Info: input data size = %zu = 0x%zX\n", size, size);
+		pr_info("## Info: input data size = %zu = 0x%zX\n", size, size);
 	}
 
 	if (argc > 2)
@@ -987,7 +988,7 @@ static int do_env_import(struct cmd_tbl *cmdtp, int flag,
 		env_t *ep = (env_t *)ptr;
 
 		if (size <= offsetof(env_t, data)) {
-			printf("## Error: Invalid size 0x%zX\n", size);
+			pr_err("## Error: Invalid size 0x%zX\n", size);
 			return 1;
 		}
 
@@ -1012,7 +1013,7 @@ static int do_env_import(struct cmd_tbl *cmdtp, int flag,
 	return 0;
 
 sep_err:
-	printf("## %s: only one of \"-b\", \"-c\" or \"-t\" allowed\n",
+	pr_err("## %s: only one of \"-b\", \"-c\" or \"-t\" allowed\n",
 		cmd);
 	return 1;
 }
@@ -1036,7 +1037,7 @@ static int do_env_indirect(struct cmd_tbl *cmdtp, int flag,
 	}
 
 	if (env_get(from) == NULL && default_value == NULL) {
-		printf("## env indirect: Environment variable for <from> (%s) does not exist.\n", from);
+		pr_err("## env indirect: Environment variable for <from> (%s) does not exist.\n", from);
 
 		return CMD_RET_FAILURE;
 	}
@@ -1080,15 +1081,15 @@ static int print_env_info(void)
 		value = "unknown";
 		break;
 	}
-	printf("env_valid = %s\n", value);
+	pr_debug("env_valid = %s\n", value);
 
 	/* print environment ready flag */
 	value = gd->flags & GD_FLG_ENV_READY ? "true" : "false";
-	printf("env_ready = %s\n", value);
+	pr_debug("env_ready = %s\n", value);
 
 	/* print environment using default flag */
 	value = gd->flags & GD_FLG_ENV_DEFAULT ? "true" : "false";
-	printf("env_use_default = %s\n", value);
+	pr_debug("env_use_default = %s\n", value);
 
 	return CMD_RET_SUCCESS;
 }
@@ -1142,11 +1143,11 @@ static int do_env_info(struct cmd_tbl *cmdtp, int flag,
 	if (eval_flags & ENV_INFO_IS_DEFAULT) {
 		if (gd->flags & GD_FLG_ENV_DEFAULT) {
 			if (!quiet)
-				printf("Default environment is used\n");
+				pr_debug("Default environment is used\n");
 			eval_results |= ENV_INFO_IS_DEFAULT;
 		} else {
 			if (!quiet)
-				printf("Environment was loaded from persistent storage\n");
+				pr_debug("Environment was loaded from persistent storage\n");
 		}
 	}
 
@@ -1156,15 +1157,15 @@ static int do_env_info(struct cmd_tbl *cmdtp, int flag,
 		loc = env_get_location(ENVOP_SAVE, gd->env_load_prio);
 		if (ENVL_NOWHERE != loc && ENVL_UNKNOWN != loc) {
 			if (!quiet)
-				printf("Environment can be persisted\n");
+				pr_debug("Environment can be persisted\n");
 			eval_results |= ENV_INFO_IS_PERSISTED;
 		} else {
 			if (!quiet)
-				printf("Environment cannot be persisted\n");
+				pr_debug("Environment cannot be persisted\n");
 		}
 #else
 		if (!quiet)
-			printf("Environment cannot be persisted\n");
+			pr_debug("Environment cannot be persisted\n");
 #endif
 	}
 

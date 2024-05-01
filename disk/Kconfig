@@ -89,6 +89,27 @@ config SPL_AMIGA_PARTITION
 	default y if AMIGA_PARTITION
 	select SPL_PARTITIONS
 
+config ENABLE_SET_NUM_PART_SEARCH
+	bool "Enable custom maximum partition search limit"
+	default n
+	help
+	  Enable this to specify a custom maximum number of partitions
+	  that U-Boot will search on a block device. Disabling this
+	  will use the default maximum search limit.
+
+config MAX_SEARCH_PARTITIONS
+	int "Maximum number of partitions to search"
+	depends on ENABLE_SET_NUM_PART_SEARCH
+	default 16
+	help
+	  Specifies the maximum number of partitions that U-Boot will
+	  search on a block device when ENABLE_MAX_PART_SEARCH is enabled.
+	  Reducing this number can speed up the boot process by limiting
+	  the number of partitions that U-Boot scans during boot. The
+	  maximum supported value is 128.
+
+	  If unsure, leave at the default value of 16.
+
 config EFI_PARTITION
 	bool "Enable EFI GPT partition table"
 	default y if DISTRO_DEFAULTS

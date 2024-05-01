@@ -51,7 +51,7 @@ int riscv_fdt_copy_resv_mem_node(const void *src, void *dst)
 	 */
 	err = fdt_open_into(dst, dst, fdt_totalsize(dst) + 1024);
 	if (err < 0) {
-		printf("Device Tree can't be expanded to accommodate new node");
+		pr_info("Device Tree can't be expanded to accommodate new node");
 		return err;
 	}
 
@@ -133,6 +133,41 @@ int board_fix_fdt(void *fdt)
 }
 #endif
 
+#ifdef CONFIG_FDT_ADD_MEMORY_NODE
+#if CONFIG_NR_DRAM_BANKS > 4
+#define _MEMORY_BANKS_MAX CONFIG_NR_DRAM_BANKS
+#else
+#define _MEMORY_BANKS_MAX 4
+#endif
+/*
+ * fdt_pack_reg - pack address and size array into the "reg"-suitable stream
+ */
+static int fdt_pack_reg(const void *fdt, void *buf, u64 *address, u64 *size,
+			int n)
+{
+	int i;
+	int address_cells = fdt_address_cells(fdt, 0);
+	int size_cells = fdt_size_cells(fdt, 0);
+	char *p = buf;
+
+	for (i = 0; i < n; i++) {
+		if (address_cells == 2)
+			*(fdt64_t *)p = cpu_to_fdt64(address[i]);
+		else
+			*(fdt32_t *)p = cpu_to_fdt32(address[i]);
+		p += 4 * address_cells;
+
+		if (size_cells == 2)
+			*(fdt64_t *)p = cpu_to_fdt64(size[i]);
+		else
+			*(fdt32_t *)p = cpu_to_fdt32(size[i]);
+		p += 4 * size_cells;
+	}
+
+	return p - (char *)buf;
+}
+#endif
+
 int arch_fixup_fdt(void *blob)
 {
 	int err;
@@ -159,6 +194,53 @@ int arch_fixup_fdt(void *blob)
 			      gd->arch.boot_hart);
 	if (err < 0)
 		return log_msg_ret("could not set boot-hartid", err);
+#endif
+
+
+#ifdef CONFIG_FDT_ADD_MEMORY_NODE
+	u8 tmp[_MEMORY_BANKS_MAX * 16];
+	u64 ram_base[1];
+	u64 ram_size[1];
+	char memstart[32];
+	int nodeoffset, len;
+
+	/* delete memory node before add new memory node. */
+	do {
+		nodeoffset = fdt_subnode_offset(blob, 0, "memory");
+		if (nodeoffset >= 0) {
+			fdt_del_node(blob, nodeoffset);
+		}
+	} while(nodeoffset >= 0);
+
+	for (int bank_index = CONFIG_NR_DRAM_BANKS - 1; bank_index >= 0; bank_index--){
+		if (0 == gd->bd->bi_dram[bank_index].size)
+			continue;
+
+		memset(memstart, 0, 32);
+		sprintf(memstart, "memory@%llx", gd->bd->bi_dram[bank_index].start);
+
+		ram_base[0] = gd->bd->bi_dram[bank_index].start;
+		ram_size[0] = gd->bd->bi_dram[bank_index].size;
+
+		nodeoffset = fdt_add_subnode(blob, 0, memstart);
+
+		err = fdt_setprop(blob, nodeoffset, "device_type", "memory",
+				sizeof("memory"));
+		if (err < 0) {
+			pr_info("WARNING: could not set %s %s.\n", "device_type",
+					fdt_strerror(err));
+			return err;
+		}
+
+		len = fdt_pack_reg(blob, tmp, ram_base, ram_size, 1);
+
+		err = fdt_setprop(blob, nodeoffset, "reg", tmp, len);
+		if (err < 0) {
+			pr_info("WARNING: could not set %s %s.\n",
+					"reg", fdt_strerror(err));
+			return err;
+		}
+	}
 #endif
 
 	/* Copy the reserved-memory node to the DT used by OS */

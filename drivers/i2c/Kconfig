@@ -87,6 +87,18 @@ config SYS_I2C_EARLY_INIT
 	  Add the function prototype for i2c_early_init_f which is called in
 	  board_early_init_f.
 
+config SYS_I2C_SPACEMIT
+        bool "SPACEMIT I2C driver"
+        depends on DM_I2C
+        help
+          Support for SPACEMIT I2C controllers.
+
+config SPL_SYS_I2C_SPACEMIT
+        bool "SPACEMIT I2C SPL driver"
+        depends on SPL_SYS_I2C_LEGACY
+        help
+          Support for SPACEMIT I2C controllers in SPL.
+
 config I2C_CROS_EC_TUNNEL
 	tristate "Chrome OS EC tunnel I2C bus"
 	depends on CROS_EC

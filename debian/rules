@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+# Always set CROSS_COMPILE, which also works for native builds.
+export CROSS_COMPILE=riscv64-unknown-linux-gnu-
+export ARCH=riscv
+%:
+	dh $@
+
+override_dh_auto_build:
+	make k1_defconfig
+	make -j$(nproc)
+	cp -f u-boot-env-default.bin env.bin
+
+override_dh_auto_test-indep:

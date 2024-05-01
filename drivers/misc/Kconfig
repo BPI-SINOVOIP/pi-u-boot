@@ -645,4 +645,23 @@ config SL28CPLD
 	  the base driver which provides common access methods for the
 	  sub-drivers.
 
+config MCP4725
+	bool "Enable simple DAC mcp4725 driver"
+	depends on DM_I2C
+	help
+	  Support for the mcp4725 device, which is a simple DAC chip used
+	  for i2c debug.
+
+config SPACEMIT_K1X_EFUSE
+	bool "Spacemit K1x soc eFUSE operation support"
+	depends on MISC
+	help
+	  This enable efuse read/porgram support, on Spacemit K1x SoCs.
+
+config SPL_SPACEMIT_K1X_EFUSE
+	bool "Support Spacemit K1x soc eFUSE read in spl"
+	depends on MISC
+	help
+	  This enable efuse read support in SPL, on Spacemit K1x SoCs.
+
 endmenu

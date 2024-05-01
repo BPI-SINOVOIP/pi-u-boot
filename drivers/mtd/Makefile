@@ -36,5 +36,6 @@ obj-$(CONFIG_$(SPL_TPL_)NAND_SUPPORT) += nand/
 obj-$(CONFIG_SPL_ONENAND_SUPPORT) += onenand/
 obj-$(CONFIG_$(SPL_TPL_)SPI_FLASH_SUPPORT) += spi/
 obj-$(CONFIG_SPL_UBI) += ubispl/
+obj-$(CONFIG_SPL_NAND_DRIVERS) += mtdcore.o nand/
 
 endif

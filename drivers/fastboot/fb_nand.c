@@ -189,7 +189,7 @@ void fastboot_nand_flash_write(const char *cmd, void *download_buffer,
 
 	if (is_sparse_image(download_buffer)) {
 		struct fb_nand_sparse sparse_priv;
-		struct sparse_storage sparse;
+		struct sparse_storage sparse = { .erase = NULL };
 
 		sparse_priv.mtd = mtd;
 		sparse_priv.part = part;

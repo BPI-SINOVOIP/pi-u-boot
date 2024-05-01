@@ -14,6 +14,8 @@
 #include <malloc.h>
 #include <spi.h>
 #include <spi_flash.h>
+#include <blk.h>
+#include <dm/device-internal.h>
 
 #include "sf_internal.h"
 
@@ -30,7 +32,7 @@ static int spi_flash_probe_slave(struct spi_flash *flash)
 
 	/* Setup spi_slave */
 	if (!spi) {
-		printf("SF: Failed to set up slave\n");
+		pr_err("SF: Failed to set up slave\n");
 		return -ENODEV;
 	}
 
@@ -163,6 +165,38 @@ static int spi_flash_std_remove(struct udevice *dev)
 	return 0;
 }
 
+#ifdef CONFIG_SPINOR_BLOCK_SUPPORT
+int spacemit_spinor_bind(struct udevice *dev)
+{
+	struct blk_desc *bdesc;
+	struct udevice *bdev;
+	int ret;
+	struct udevice *parent_dev = dev->parent;
+
+	// Create the block device interface for the SPI NOR device with the same parent as dev
+	ret = blk_create_devicef(parent_dev, "nor_blk", "blk", IF_TYPE_NOR,
+							 dev_seq(dev), SPI_NOR_BLOCK_SIZE, 0, &bdev);
+	if (ret) {
+		pr_err("Cannot create block device\n");
+		return ret;
+	}
+
+	// Obtain the block device descriptor
+	bdesc = dev_get_uclass_plat(bdev);
+	if (!bdesc) {
+		pr_err("Failed to get block device descriptor\n");
+		return -ENODEV;
+	}
+
+	// Initialize block device descriptor
+	bdesc->if_type = IF_TYPE_NOR;
+	bdesc->removable = 0;
+
+	dev_set_priv(bdev, dev);
+	return 0;
+}
+#endif /* CONFIG_SPINOR_BLOCK_SUPPORT */
+
 static const struct dm_spi_flash_ops spi_flash_std_ops = {
 	.read = spi_flash_std_read,
 	.write = spi_flash_std_write,
@@ -183,6 +217,9 @@ U_BOOT_DRIVER(jedec_spi_nor) = {
 	.remove		= spi_flash_std_remove,
 	.priv_auto	= sizeof(struct spi_nor),
 	.ops		= &spi_flash_std_ops,
+#ifdef CONFIG_SPINOR_BLOCK_SUPPORT
+	.bind		= spacemit_spinor_bind,
+#endif /* CONFIG_SPINOR_BLOCK_SUPPORT */
 	.flags		= DM_FLAG_OS_PREPARE,
 };
 

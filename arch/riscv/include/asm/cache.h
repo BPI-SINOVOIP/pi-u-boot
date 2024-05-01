@@ -7,6 +7,38 @@
 #ifndef _ASM_RISCV_CACHE_H
 #define _ASM_RISCV_CACHE_H
 
+#ifndef __ASSEMBLY__
+#define cbo_clean(start)			\
+	({								\
+		unsigned long __v = (unsigned long)(start); \
+		__asm__ __volatile__("cbo.clean"	\
+							 " 0(%0)"		\
+							 :				\
+							 : "rK"(__v)	\
+							 : "memory");	\
+	})
+
+#define cbo_invalid(start)			\
+	({								\
+		unsigned long __v = (unsigned long)(start); \
+		__asm__ __volatile__("cbo.inval"	\
+							 " 0(%0)"		\
+							 :				\
+							 : "rK"(__v)	\
+							 : "memory");	\
+	})
+
+#define cbo_flush(start)			\
+	({								\
+		unsigned long __v = (unsigned long)(start); \
+		__asm__ __volatile__("cbo.flush"	\
+							 " 0(%0)"		\
+							 :				\
+							 : "rK"(__v)	\
+							 : "memory");	\
+	})
+#endif /* __ASSEMBLY__ */
+
 /* cache */
 void cache_flush(void);
 

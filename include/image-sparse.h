@@ -13,12 +13,19 @@ struct sparse_storage {
 	lbaint_t	blksz;
 	lbaint_t	start;
 	lbaint_t	size;
+	lbaint_t	erase_size;
 	void		*priv;
 
 	lbaint_t	(*write)(struct sparse_storage *info,
 				 lbaint_t blk,
 				 lbaint_t blkcnt,
 				 const void *buffer);
+
+	lbaint_t	(*erase)(struct sparse_storage *info,
+				 lbaint_t blk,
+				 lbaint_t blkcnt,
+				 const void *buffer);
+
 
 	lbaint_t	(*reserve)(struct sparse_storage *info,
 				 lbaint_t blk,

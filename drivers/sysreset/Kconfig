@@ -193,6 +193,11 @@ config SYSRESET_MPC83XX
 	help
 	  Reboot support for NXP MPC83xx SoCs.
 
+config SYSRESET_SPACEMIT
+	bool "Enable support spacemit SoC family reboot driver"
+	help
+	  Reboot support for spacemit SoCs.
+
 endif
 
 endmenu

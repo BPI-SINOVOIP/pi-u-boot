@@ -225,6 +225,14 @@ config DWC_ETH_QOS_TEGRA186
 	  The Synopsys Designware Ethernet QOS IP block with specific
 	  configuration used in NVIDIA's Tegra186 chip.
 
+config DWC_ETH_QOS_SPACEMIT
+	bool "Synopsys DWC Ethernet QOS device support for Spacemit"
+	depends on DWC_ETH_QOS
+	default y if CONFIG_TARGET_SPACEMIT_K1PRO
+	help
+	  The Synopsys Designware Ethernet QOS IP block with specific
+	  configuration used in Spacemit's k1pro chip.
+
 config E1000
 	bool "Intel PRO/1000 Gigabit Ethernet support"
 	depends on PCI
@@ -649,6 +657,7 @@ config SH_ETHER
 	  This driver supports the Ethernet for Renesas SH and ARM SoCs.
 
 source "drivers/net/ti/Kconfig"
+source "drivers/net/spacemit/Kconfig"
 
 config TULIP
 	bool "DEC Tulip DC2114x Ethernet support"

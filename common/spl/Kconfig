@@ -690,6 +690,20 @@ config SPL_FS_LOAD_PAYLOAD_NAME
 	help
 	  Filename to read to load U-Boot when reading from filesystem.
 
+config SPL_FS_LOAD_OTHERS_FILES
+	bool "Support onother file to load"
+	depends on SPL_FS_EXT4 || SPL_FS_FAT || SPL_FS_SQUASHFS
+	help
+	  it support that load onother file from the filessystem
+	  independent.
+
+config SPL_FS_LOAD_OTHERS_FILES_NAME
+	string "another File to load for U-Boot from the filesystem"
+	depends on SPL_FS_LOAD_OTHERS_FILES
+	default "u-boot.itb"
+	help
+	  if it has onother file should load independent from filesystem.
+
 config SPL_FS_LOAD_KERNEL_NAME
 	string "File to load for the OS kernel from the filesystem"
 	depends on (SPL_FS_EXT4 || SPL_FS_FAT || SPL_FS_SQUASHFS) && SPL_OS_BOOT
@@ -1297,7 +1311,38 @@ config SPL_SPI_LOAD
 	  Enable support for loading next stage, U-Boot or otherwise, from
 	  SPI NOR in U-Boot SPL.
 
+config SPL_MTD_LOAD
+	bool "Support loading from mtd device"
+	help
+	  Enable support for loading next stage, U-Boot or otherwise, from
+	  SPI NOR in U-Boot SPL. it would dynamic to get the current mtd dev.
+
 endif # SPL_SPI_FLASH_SUPPORT
+
+config SYS_LOAD_IMAGE_PARTITION_NAME
+	string "Partition name to use to load U-Boot from"
+	depends on SPL_MTD_LOAD || SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION
+	help
+	  Partition name on the storage to load U-Boot from.
+
+config SYS_LOAD_IMAGE_SEC_PARTITION
+	bool "Second partition to use to load U-Boot from"
+	depends on SPL_MTD_LOAD || SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION
+	help
+	  Second Partition if need on the storage to load U-Boot from.
+
+config SYS_LOAD_IMAGE_SEC_PARTITION_INDEX
+	int "Second partition index to use to load U-Boot from"
+	depends on SYS_LOAD_IMAGE_SEC_PARTITION
+	default 2
+	help
+	  Second partition name on the storage to load U-Boot from.
+
+config SYS_LOAD_IMAGE_SEC_PARTITION_NAME
+	string "Second partition name to use to load U-Boot from"
+	depends on SYS_LOAD_IMAGE_SEC_PARTITION
+	help
+	  Second partition name on the storage to load U-Boot from.
 
 config SYS_SPI_U_BOOT_OFFS
 	hex "address of u-boot payload in SPI flash"
@@ -1375,6 +1420,12 @@ config SPL_DFU
 	  selected device partition from host-pc using dfu-utils.
 	  This feature is useful to flash the binaries to factory or bare-metal
 	  boards using USB interface.
+
+config SPL_FASTBOOT_LOAD
+	bool "Support fastboot in spl to load image"
+	help
+	  This feature enables fastboot in spl, and it could download image to
+	  ram and run it.
 
 choice
 	bool "DFU device selection"

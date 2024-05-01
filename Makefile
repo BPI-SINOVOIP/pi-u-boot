@@ -798,6 +798,10 @@ include scripts/Makefile.extrawarn
 KBUILD_CPPFLAGS += $(KCPPFLAGS)
 KBUILD_AFLAGS += $(KAFLAGS)
 KBUILD_CFLAGS += $(KCFLAGS)
+KBUILD_CFLAGS += $(call cc-option, -Werror)
+
+KBUILD_LDFLAGS  += -z noexecstack
+KBUILD_LDFLAGS  += $(call ld-option,--no-warn-rwx-segments)
 
 KBUILD_HOSTCFLAGS += $(if $(CONFIG_TOOLS_DEBUG),-g)
 

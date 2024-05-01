@@ -587,7 +587,7 @@ static int flash_status_check(flash_info_t *info, flash_sect_t sector,
 	WATCHDOG_RESET();
 	while (flash_is_busy(info, sector)) {
 		if (get_timer(start) > tout) {
-			printf("Flash %s timeout at address %lx data %lx\n",
+			pr_err("Flash %s timeout at address %lx data %lx\n",
 			       prompt, info->start[sector],
 			       flash_read_long(info, sector, 0));
 			flash_write_cmd(info, sector, 0, info->cmd_reset);
@@ -618,7 +618,7 @@ static int flash_full_status_check(flash_info_t *info, flash_sect_t sector,
 		if (retcode == ERR_OK &&
 		    !flash_isset(info, sector, 0, FLASH_STATUS_DONE)) {
 			retcode = ERR_INVAL;
-			printf("Flash %s error at address %lx\n", prompt,
+			pr_err("Flash %s error at address %lx\n", prompt,
 			       info->start[sector]);
 			if (flash_isset(info, sector, 0, FLASH_STATUS_ECLBS |
 					 FLASH_STATUS_PSLBS)) {
@@ -699,7 +699,7 @@ static int flash_status_poll(flash_info_t *info, void *src, void *dst,
 		if (ready)
 			break;
 		if (get_timer(start) > tout) {
-			printf("Flash %s timeout at address %lx data %lx\n",
+			pr_err("Flash %s timeout at address %lx data %lx\n",
 			       prompt, (ulong)dst, (ulong)flash_read8(dst));
 			return ERR_TIMEOUT;
 		}
@@ -1074,7 +1074,7 @@ int flash_erase(flash_info_t *info, int s_first, int s_last)
 		if (info->protect[sect])
 			prot++;
 	if (prot) {
-		printf("- Warning: %d protected sectors will not be erased!\n",
+		pr_debug("- Warning: %d protected sectors will not be erased!\n",
 		       prot);
 	} else if (flash_verbose) {
 		putc('\n');
@@ -1082,7 +1082,7 @@ int flash_erase(flash_info_t *info, int s_first, int s_last)
 
 	for (sect = s_first; sect <= s_last; sect++) {
 		if (ctrlc()) {
-			printf("\n");
+			pr_debug("\n");
 			return 1;
 		}
 
@@ -1212,57 +1212,59 @@ void flash_print_info(flash_info_t *info)
 		return;
 	}
 
-	printf("%s flash (%d x %d)",
+	pr_debug("%s flash (%d x %d)",
 	       info->name,
 	       (info->portwidth << 3), (info->chipwidth << 3));
-	if (info->size < 1024 * 1024)
-		printf("  Size: %ld kB in %d Sectors\n",
+	if (info->size < 1024 * 1024){
+		pr_debug("  Size: %ld kB in %d Sectors\n",
 		       info->size >> 10, info->sector_count);
-	else
-		printf("  Size: %ld MB in %d Sectors\n",
+	}else{
+		pr_debug("  Size: %ld MB in %d Sectors\n",
 		       info->size >> 20, info->sector_count);
-	printf("  ");
+	}
+	pr_debug("  ");
 	switch (info->vendor) {
 	case CFI_CMDSET_INTEL_PROG_REGIONS:
-		printf("Intel Prog Regions");
+		pr_debug("Intel Prog Regions");
 		break;
 	case CFI_CMDSET_INTEL_STANDARD:
-		printf("Intel Standard");
+		pr_debug("Intel Standard");
 		break;
 	case CFI_CMDSET_INTEL_EXTENDED:
-		printf("Intel Extended");
+		pr_debug("Intel Extended");
 		break;
 	case CFI_CMDSET_AMD_STANDARD:
-		printf("AMD Standard");
+		pr_debug("AMD Standard");
 		break;
 	case CFI_CMDSET_AMD_EXTENDED:
-		printf("AMD Extended");
+		pr_debug("AMD Extended");
 		break;
 #ifdef CONFIG_FLASH_CFI_LEGACY
 	case CFI_CMDSET_AMD_LEGACY:
-		printf("AMD Legacy");
+		pr_debug("AMD Legacy");
 		break;
 #endif
 	default:
-		printf("Unknown (%d)", info->vendor);
+		pr_debug("Unknown (%d)", info->vendor);
 		break;
 	}
-	printf(" command set, Manufacturer ID: 0x%02X, Device ID: 0x",
+	pr_debug(" command set, Manufacturer ID: 0x%02X, Device ID: 0x",
 	       info->manufacturer_id);
-	printf(info->chipwidth == FLASH_CFI_16BIT ? "%04X" : "%02X",
+	pr_debug(info->chipwidth == FLASH_CFI_16BIT ? "%04X" : "%02X",
 	       info->device_id);
 	if ((info->device_id & 0xff) == 0x7E) {
-		printf(info->chipwidth == FLASH_CFI_16BIT ? "%04X" : "%02X",
+		pr_debug(info->chipwidth == FLASH_CFI_16BIT ? "%04X" : "%02X",
 		       info->device_id2);
 	}
-	if (info->vendor == CFI_CMDSET_AMD_STANDARD && info->legacy_unlock)
-		printf("\n  Advanced Sector Protection (PPB) enabled");
-	printf("\n  Erase timeout: %ld ms, write timeout: %ld ms\n",
+	if (info->vendor == CFI_CMDSET_AMD_STANDARD && info->legacy_unlock){
+		pr_debug("\n  Advanced Sector Protection (PPB) enabled");
+	}
+	pr_debug("\n  Erase timeout: %ld ms, write timeout: %ld ms\n",
 	       info->erase_blk_tout, info->write_tout);
 	if (info->buffer_size > 1) {
-		printf("  Buffer write timeout: %ld ms, ",
+		pr_debug("  Buffer write timeout: %ld ms, ",
 		       info->buffer_write_tout);
-		printf("buffer size: %d bytes\n", info->buffer_size);
+		pr_debug("buffer size: %d bytes\n", info->buffer_size);
 	}
 
 	puts("\n  Sector Start Addresses:");
@@ -1273,12 +1275,12 @@ void flash_print_info(flash_info_t *info)
 			putc('\n');
 #ifdef CONFIG_SYS_FLASH_EMPTY_INFO
 		/* print empty and read-only info */
-		printf("  %08lX %c %s ",
+		pr_debug("  %08lX %c %s ",
 		       info->start[i],
 		       sector_erased(info, i) ? 'E' : ' ',
 		       info->protect[i] ? "RO" : "  ");
 #else	/* ! CONFIG_SYS_FLASH_EMPTY_INFO */
-		printf("  %08lX   %s ",
+		pr_debug("  %08lX   %s ",
 		       info->start[i],
 		       info->protect[i] ? "RO" : "  ");
 #endif
@@ -1553,7 +1555,7 @@ int flash_real_protect(flash_info_t *info, long sector, int prot)
 			if (flash_status_check(info, sector,
 					       info->erase_blk_tout,
 					       prot ? "protect" : "unprotect"))
-				printf("status check error\n");
+				pr_debug("status check error\n");
 
 			flash_write_cmd(info, 0, 0,
 					AMD_CMD_SET_PPB_EXIT_BC1);
@@ -2146,7 +2148,7 @@ ulong flash_get_size(phys_addr_t base, int banknum)
 			cmdset_amd_init(info, &qry);
 			break;
 		default:
-			printf("CFI: Unknown command set 0x%x\n",
+			pr_debug("CFI: Unknown command set 0x%x\n",
 			       info->vendor);
 			/*
 			 * Unfortunately, this means we don't know how
@@ -2205,7 +2207,7 @@ ulong flash_get_size(phys_addr_t base, int banknum)
 		sector = base;
 		for (i = 0; i < num_erase_regions; i++) {
 			if (i > NUM_ERASE_REGIONS) {
-				printf("%d erase regions found, only %d used\n",
+				pr_debug("%d erase regions found, only %d used\n",
 				       num_erase_regions, NUM_ERASE_REGIONS);
 				break;
 			}
@@ -2224,7 +2226,7 @@ ulong flash_get_size(phys_addr_t base, int banknum)
 				if (sector - base >= info->size)
 					break;
 				if (sect_cnt >= CONFIG_SYS_MAX_FLASH_SECT) {
-					printf("ERROR: too many flash sectors\n");
+					pr_debug("ERROR: too many flash sectors\n");
 					break;
 				}
 				info->start[sect_cnt] =
@@ -2424,8 +2426,8 @@ unsigned long flash_init(void)
 		size += flash_info[i].size;
 		if (flash_info[i].flash_id == FLASH_UNKNOWN) {
 #ifndef CONFIG_SYS_FLASH_QUIET_TEST
-			printf("## Unknown flash on Bank %d ", i + 1);
-			printf("- Size = 0x%08lx = %ld MB\n",
+			pr_debug("## Unknown flash on Bank %d ", i + 1);
+			pr_debug("- Size = 0x%08lx = %ld MB\n",
 			       flash_info[i].size,
 			       flash_info[i].size >> 20);
 #endif /* CONFIG_SYS_FLASH_QUIET_TEST */

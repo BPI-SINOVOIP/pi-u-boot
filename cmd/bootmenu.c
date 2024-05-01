@@ -424,7 +424,7 @@ static void menu_display_statusline(struct menu *m)
 	printf(ANSI_CURSOR_POSITION, menu->count + 5, 1);
 	puts(ANSI_CLEAR_LINE);
 	printf(ANSI_CURSOR_POSITION, menu->count + 6, 3);
-	puts("Press UP/DOWN to move, ENTER to select, ESC/CTRL+C to quit");
+	puts("Press UP/DOWN to move, ENTER to select, CTRL+C to quit");
 	puts(ANSI_CLEAR_LINE_TO_END);
 	printf(ANSI_CURSOR_POSITION, menu->count + 7, 1);
 	puts(ANSI_CLEAR_LINE);
@@ -581,6 +581,26 @@ cleanup:
 int menu_show(int bootdelay)
 {
 	int ret;
+#ifdef CONFIG_BOOTMENU_KEY_ESC
+	ret = run_command("usb start", 0);
+	if (ret != 0) {
+		printf("Error: Failed to execute 'usb start'\n");
+	}
+
+	if (tstc()) {
+		int key = fgetc(stdin);
+		/* 0x1B is the ASCII code for 'Esc' */
+		if (key == 0x1B){
+			printf("Enter boot menu\n");
+		}else{
+			return 0;
+		}
+	}
+	else
+		return 0;
+#endif
+
+	env_set("stdout","serial,vidconsole");
 
 	while (1) {
 		ret = bootmenu_show(bootdelay);

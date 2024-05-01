@@ -31,7 +31,23 @@ config TARGET_SIPEED_MAIX
 config TARGET_OPENPITON_RISCV64
 	bool "Support RISC-V cores on OpenPiton SoC"
 
+config TARGET_SPACEMIT_K1PRO
+	bool "Support Spacemit K1-Pro SoC"
+	select SYS_CACHE_SHIFT_6
+
+config TARGET_SPACEMIT_K1X
+	bool "Support Spacemit K1-X SoC"
+	select SYS_CACHE_SHIFT_6
+
 endchoice
+
+config NOT_RELOC_TEXT_SECTION
+	bool "Don't relocate text section for u-boot debug!!!"
+	depends on TARGET_SPACEMIT_K1PRO || TARGET_SPACEMIT_K1X
+	default n
+	help
+	  Attention: this feture is just used for u-boot debug,
+	  it will make fatal error when boot kernel.
 
 config SYS_ICACHE_OFF
 	bool "Do not enable icache"
@@ -44,6 +60,30 @@ config SPL_SYS_ICACHE_OFF
 	default SYS_ICACHE_OFF
 	help
 	  Do not enable instruction cache in SPL.
+
+config SYS_BRANCH_PREDICT_OFF
+	bool "Do not enable branch predict"
+	help
+	  Do not enable instruction branch predict in U-Boot.
+
+config SPL_SYS_BRANCH_PREDICT_OFF
+	bool "Do not enable branch predict in SPL"
+	depends on SPL
+	default SYS_BRANCH_PREDICT_OFF
+	help
+	  Do not enable instruction branch predict in SPL.
+
+config SYS_PREFETCH_OFF
+	bool "Do not enable prefetch"
+	help
+	  Do not enable instruction prefetch in U-Boot.
+
+config SPL_SYS_PREFETCH_OFF
+	bool "Do not enable prefetch in SPL"
+	depends on SPL
+	default SYS_PREFETCH_OFF
+	help
+	  Do not enable instruction prefetch in SPL.
 
 config SYS_DCACHE_OFF
 	bool "Do not enable dcache"
@@ -65,12 +105,14 @@ source "board/sifive/unleashed/Kconfig"
 source "board/sifive/unmatched/Kconfig"
 source "board/openpiton/riscv64/Kconfig"
 source "board/sipeed/maix/Kconfig"
+source "board/spacemit/k1-x/Kconfig"
 
 # platform-specific options below
 source "arch/riscv/cpu/ax25/Kconfig"
 source "arch/riscv/cpu/fu540/Kconfig"
 source "arch/riscv/cpu/fu740/Kconfig"
 source "arch/riscv/cpu/generic/Kconfig"
+source "arch/riscv/cpu/x60/Kconfig"
 
 # architecture-specific options below
 
@@ -154,6 +196,30 @@ config RISCV_ISA_C
 
 config RISCV_ISA_A
 	def_bool y
+
+config RISCV_ISA_DOUBLE_FLOAT
+	bool "double-precision floating-point instruction"
+	default y
+	help
+	  Choose this option to turn on double-precision floating-point support.
+
+config RISCV_ISA_ZICBOM
+	bool "Zicbom extension support for non-coherent DMA operation"
+	default y
+	help
+	   Adds support to dynamically detect the presence of the ZICBOM
+	   extension (Cache Block Management Operations) and enable its
+	   usage.
+
+	   The Zicbom extension can be used to handle for example
+	   non-coherent DMA support on devices that need it.
+
+	   If you don't know what to do here, say Y.
+
+config RISCV_CBOM_BLOCK_SIZE
+	int
+	depends on RISCV_ISA_ZICBOM
+	default SYS_CACHELINE_SIZE
 
 config 32BIT
 	bool

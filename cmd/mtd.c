@@ -253,7 +253,8 @@ static int do_mtd_io(struct cmd_tbl *cmdtp, int flag, int argc,
 	bool dump, read, raw, woob, write_empty_pages, has_pages = false;
 	u64 start_off, off, len, remaining, default_len;
 	struct mtd_oob_ops io_op = {};
-	uint user_addr = 0, npages;
+	uint npages;
+	u64 user_addr = 0;
 	const char *cmd = argv[0];
 	struct mtd_info *mtd;
 	u32 oob_len;

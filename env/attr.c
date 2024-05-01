@@ -155,7 +155,7 @@ static int regex_callback(const char *name, const char *attributes, void *priv)
 			}
 		}
 	} else {
-		printf("Error compiling regex: %s\n", slre.err_str);
+		pr_err("Error compiling regex: %s\n", slre.err_str);
 		retval = -EINVAL;
 	}
 done:

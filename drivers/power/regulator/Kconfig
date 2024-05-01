@@ -395,3 +395,25 @@ config DM_REGULATOR_TPS65219
 	features for REGULATOR TPS65219 and the family of TPS65219 PMICs.
 	TPS65219 series of PMICs have 3 single phase BUCKs & 4 LDOs.
 	The driver implements get/set api for value and enable.
+
+config DM_REGULATOR_SPM8XX
+	bool "Enable Driver Model for SPM8XX regulators"
+	depends on DM_REGULATOR && PMIC_SPM8XX
+	help
+	This config enables implementation of driver-model regulator uclass
+	features for regulators on spm8xx & pm8xx PMICs.
+
+config DM_REGULATOR_SPACEMIT_HUB
+	tristate "Spacemit onboard USB hub regulator wrapper support"
+	default SOC_SPACEMIT_K1X
+	depends on DM_REGULATOR
+	help
+	  Say Y here if you want to support onboard usb hubs on Spacemit
+	  platform. If unsure, say Y when compile for Spacemit platform.
+
+config SPL_DM_REGULATOR_SPACEMIT_HUB
+	tristate "Spacemit onboard USB hub regulator wrapper support in SPL"
+	depends on SPL_DM_REGULATOR && DM_REGULATOR_SPACEMIT_HUB
+	help
+	  Say Y here if you want to support onboard usb hubs on Spacemit
+	  platform in SPL.

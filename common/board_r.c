@@ -65,6 +65,7 @@
 #include <asm-generic/gpio.h>
 #include <efi_loader.h>
 #include <relocate.h>
+#include <command.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -582,6 +583,34 @@ static int run_main_loop(void)
 	return 0;
 }
 
+#ifdef CONFIG_FASTBOOT_CMD_OEM_READ
+int initialize_console_log_buffer(void)
+{
+	printf("initialize_console_log_buffer\n");
+
+	if (!gd->console_log.buffer) {
+		gd->console_log.buffer = (char *)malloc(LOG_BUFFER_SIZE);
+		if (gd->console_log.buffer) {
+			memset(gd->console_log.buffer, 0, LOG_BUFFER_SIZE);
+			gd->console_log.write_ptr = gd->console_log.buffer;
+			gd->console_log.read_ptr = gd->console_log.buffer;
+			printf("Have allocated memory for console log buffer\n");
+		} else {
+			printf("Error: Unable to allocate memory for console log buffer\n");
+			return -1;
+		}
+	}
+	return 0;
+}
+
+void free_console_log_buffer(void)
+{
+	if (gd->console_log.buffer) {
+		free(gd->console_log.buffer);
+	}
+}
+#endif
+
 /*
  * We hope to remove most of the driver-related init and do it if/when
  * the driver is later used.
@@ -724,6 +753,9 @@ static init_fnc_t init_sequence_r[] = {
 #endif
 	stdio_add_devices,
 	jumptable_init,
+#ifdef CONFIG_FASTBOOT_CMD_OEM_READ
+	initialize_console_log_buffer,
+#endif
 #ifdef CONFIG_API
 	api_init,
 #endif

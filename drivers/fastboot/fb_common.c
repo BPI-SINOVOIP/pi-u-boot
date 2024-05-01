@@ -79,6 +79,7 @@ void fastboot_okay(const char *reason, char *response)
 		fastboot_response("OKAY", response, NULL);
 }
 
+#if !defined(CONFIG_SPL_BUILD)
 /**
  * fastboot_set_reboot_flag() - Set flag to indicate reboot-bootloader
  *
@@ -142,7 +143,7 @@ void fastboot_boot(void)
 
 		snprintf(boot_addr_start, sizeof(boot_addr_start) - 1,
 			 "0x%p", fastboot_buf_addr);
-		printf("Booting kernel at %s...\n\n\n", boot_addr_start);
+		pr_info("Booting kernel at %s...\n\n\n", boot_addr_start);
 
 		do_bootm(NULL, 0, 2, bootm_args);
 
@@ -154,6 +155,7 @@ void fastboot_boot(void)
 		do_reset(NULL, 0, 0, NULL);
 	}
 }
+#endif /*#!defined(CONFIG_SPL_BUILD)*/
 
 /**
  * fastboot_set_progress_callback() - set progress callback

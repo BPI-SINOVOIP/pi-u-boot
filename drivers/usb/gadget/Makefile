@@ -10,6 +10,7 @@ ifdef CONFIG_SPL_BUILD
 obj-$(CONFIG_SPL_USB_GADGET) += g_dnl.o
 obj-$(CONFIG_SPL_DFU) += f_dfu.o
 obj-$(CONFIG_SPL_USB_SDP_SUPPORT) += f_sdp.o
+obj-$(CONFIG_SPL_FASTBOOT) += f_fastboot.o
 endif
 
 # new USB gadget layer dependencies
@@ -22,6 +23,7 @@ obj-$(CONFIG_USB_GADGET_DWC2_OTG_PHY) += dwc2_udc_otg_phy.o
 obj-$(CONFIG_USB_GADGET_FOTG210) += fotg210.o
 obj-$(CONFIG_USB_GADGET_MAX3420) += max3420_udc.o
 obj-$(CONFIG_CI_UDC)	+= ci_udc.o
+obj-$(CONFIG_USB2_K1X_CI)	+= k1x_usb2_ci.o
 ifndef CONFIG_SPL_BUILD
 obj-$(CONFIG_USB_GADGET_DOWNLOAD) += g_dnl.o
 obj-$(CONFIG_USB_FUNCTION_THOR) += f_thor.o

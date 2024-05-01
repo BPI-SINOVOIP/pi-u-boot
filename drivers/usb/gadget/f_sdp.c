@@ -318,7 +318,7 @@ static void sdp_rx_command_complete(struct usb_ep *ep, struct usb_request *req)
 		sdp->dnl_address = be32_to_cpu(cmd->addr);
 		sdp->dnl_bytes_remaining = be32_to_cpu(cmd->cnt);
 		sdp->next_state = SDP_STATE_TX_REGISTER;
-		printf("Reading %d registers at 0x%08x... ",
+		pr_debug("Reading %d registers at 0x%08x... ",
 		       sdp->dnl_bytes_remaining, sdp->dnl_address);
 		break;
 	case SDP_WRITE_FILE:
@@ -331,7 +331,7 @@ static void sdp_rx_command_complete(struct usb_ep *ep, struct usb_request *req)
 		sdp->dnl_bytes = sdp->dnl_bytes_remaining;
 		sdp->next_state = SDP_STATE_IDLE;
 
-		printf("Downloading file of size %d to 0x%08x... ",
+		pr_debug("Downloading file of size %d to 0x%08x... ",
 		       sdp->dnl_bytes_remaining, sdp->dnl_address);
 
 		break;
@@ -413,7 +413,7 @@ static void sdp_rx_data_complete(struct usb_ep *ep, struct usb_request *req)
 #ifndef CONFIG_SPL_BUILD
 	env_set_hex("filesize", sdp->dnl_bytes);
 #endif
-	printf("done\n");
+	pr_debug("done\n");
 
 	switch (sdp->state) {
 	case SDP_STATE_RX_FILE_DATA_BUSY:
@@ -704,7 +704,7 @@ static int sdp_bind_config(struct usb_configuration *c)
 
 int sdp_init(int controller_index)
 {
-	printf("SDP: initialize...\n");
+	pr_debug("SDP: initialize...\n");
 	while (!sdp_func->configuration_done) {
 		if (ctrlc()) {
 			puts("\rCTRL+C - Operation aborted.\n");
@@ -724,11 +724,11 @@ static u32 sdp_jump_imxheader(void *address)
 	ulong (*entry)(void);
 
 	if (headerv2->header.tag != IVT_HEADER_TAG) {
-		printf("Header Tag is not an IMX image\n");
+		pr_debug("Header Tag is not an IMX image\n");
 		return SDP_ERROR_IMXHEADER;
 	}
 
-	printf("Jumping to 0x%08x\n", headerv2->entry);
+	pr_debug("Jumping to 0x%08x\n", headerv2->entry);
 	entry = sdp_ptr(headerv2->entry);
 	entry();
 
@@ -820,7 +820,7 @@ static int sdp_handle_in_ep(struct spl_image_info *spl_image,
 		sdp_func->state = SDP_STATE_TX_REGISTER_BUSY;
 		break;
 	case SDP_STATE_JUMP:
-		printf("Jumping to header at 0x%08x\n", sdp_func->jmp_address);
+		pr_debug("Jumping to header at 0x%08x\n", sdp_func->jmp_address);
 		status = sdp_jump_imxheader(sdp_ptr(sdp_func->jmp_address));
 
 		/* If imx header fails, try some U-Boot specific headers */
@@ -833,7 +833,7 @@ static int sdp_handle_in_ep(struct spl_image_info *spl_image,
 			if (sdp_func->jmp_address == 0)
 				panic("Error in search header, failed to jump\n");
 
-			printf("Found header at 0x%08x\n", sdp_func->jmp_address);
+			pr_debug("Found header at 0x%08x\n", sdp_func->jmp_address);
 
 			image_header_t *header =
 				sdp_ptr(sdp_func->jmp_address);
@@ -895,16 +895,18 @@ static void sdp_handle_out_ep(void)
 	if (sdp_func->state == SDP_STATE_IDLE) {
 		sdp_func->out_req->complete = sdp_rx_command_complete;
 		rc = usb_ep_queue(sdp_func->out_ep, sdp_func->out_req, 0);
-		if (rc)
-			printf("error in submission: %s\n",
+		if (rc){
+			pr_debug("error in submission: %s\n",
 			       sdp_func->out_ep->name);
+		}
 		sdp_func->state = SDP_STATE_RX_CMD;
 	} else if (sdp_func->state == SDP_STATE_RX_FILE_DATA) {
 		sdp_func->out_req->complete = sdp_rx_data_complete;
 		rc = usb_ep_queue(sdp_func->out_ep, sdp_func->out_req, 0);
-		if (rc)
-			printf("error in submission: %s\n",
+		if (rc){
+			pr_debug("error in submission: %s\n",
 			       sdp_func->out_ep->name);
+		}
 		sdp_func->state = SDP_STATE_RX_FILE_DATA_BUSY;
 	}
 }
@@ -917,7 +919,7 @@ int spl_sdp_handle(int controller_index, struct spl_image_info *spl_image,
 #endif
 {
 	int flag = 0;
-	printf("SDP: handle requests...\n");
+	pr_debug("SDP: handle requests...\n");
 	while (1) {
 		if (ctrlc()) {
 			puts("\rCTRL+C - Operation aborted.\n");

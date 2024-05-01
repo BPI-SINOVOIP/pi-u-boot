@@ -523,13 +523,18 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	int			ret;
 
 	reg = dwc3_readl(dwc->regs, DWC3_GSNPSID);
+
 	/* This should read as U3 followed by revision number */
-	if ((reg & DWC3_GSNPSID_MASK) != 0x55330000) {
-		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
+	if ((reg & DWC3_GSNPSID_MASK) == 0x55330000) {
+		dev_err(dwc->dev, "this is a DesignWare USB3 DRD Core\n");
+		dwc->revision = reg;
+	}else if((reg & DWC3_GSNPSID_MASK) == 0x33310000) {
+		dev_err(dwc->dev, "this is a DesignWare USB31 DRD Core\n");
+		dwc->revision = dwc3_readl(dwc->regs, DWC3_VER_NUMBER);
+	}else{
 		ret = -ENODEV;
 		goto err0;
 	}
-	dwc->revision = reg;
 
 	/* Handle USB2.0-only core configuration */
 	if (DWC3_GHWPARAMS3_SSPHY_IFC(dwc->hwparams.hwparams3) ==
