@@ -1231,8 +1231,22 @@ dtb-$(CONFIG_ARCH_MEDIATEK) += \
 	mt7622-rfb.dtb \
 	mt7623a-unielec-u7623-02-emmc.dtb \
 	mt7622-bananapi-bpi-r64.dtb \
+	mt7622-linksys-e8450-ubi.dtb \
+	mt7622-ubnt-unifi-6-lr.dtb \
 	mt7623n-bananapi-bpi-r2.dtb \
 	mt7629-rfb.dtb \
+	mt7981-rfb.dtb \
+	mt7981-snfi-nand-rfb.dtb \
+	mt7981-emmc-rfb.dtb \
+	mt7981-sd-rfb.dtb \
+	mt7986a-bpi-r3-sd.dtb \
+	mt7986a-bpi-r3-emmc.dtb \
+	mt7986a-rfb.dtb \
+	mt7986b-rfb.dtb \
+	mt7986a-sd-rfb.dtb \
+	mt7986b-sd-rfb.dtb \
+	mt7986a-emmc-rfb.dtb \
+	mt7986b-emmc-rfb.dtb \
 	mt8183-pumpkin.dtb \
 	mt8512-bm1-emmc.dtb \
 	mt8516-pumpkin.dtb \

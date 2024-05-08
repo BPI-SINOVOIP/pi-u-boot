@@ -47,9 +47,12 @@
 	};
 
 	snfi_pins: snfi-pins {
+		u-boot,dm-pre-reloc;
+
 		mux {
 			function = "flash";
 			groups = "snfi";
+			u-boot,dm-pre-reloc;
 		};
 	};
 
@@ -100,6 +103,13 @@
 		spi-rx-bus-width = <4>;
 		u-boot,dm-pre-reloc;
 	};
+};
+
+&snand {
+	pinctrl-names = "default";
+	pinctrl-0 = <&snfi_pins>;
+	status = "okay";
+	quad-spi;
 };
 
 &uart0 {

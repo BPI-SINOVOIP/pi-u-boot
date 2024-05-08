@@ -41,7 +41,9 @@ ENVCRC-$(CONFIG_ENV_IS_EMBEDDED) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_EEPROM) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_FLASH) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_ONENAND) = y
+ENVCRC-$(CONFIG_ENV_IS_IN_MTD) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_NAND) = y
+ENVCRC-$(CONFIG_ENV_IS_IN_NMBM) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_NVRAM) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_SPI_FLASH) = y
 CONFIG_BUILD_ENVCRC ?= $(ENVCRC-y)
@@ -119,7 +121,6 @@ dumpimage-mkimage-objs := aisimage.o \
 			imximage.o \
 			imx8image.o \
 			imx8mimage.o \
-			kwbimage.o \
 			lib/md5.o \
 			lpc32xximage.o \
 			mxsimage.o \
@@ -147,6 +148,7 @@ dumpimage-mkimage-objs := aisimage.o \
 			gpimage.o \
 			gpimage-common.o \
 			mtk_image.o \
+			mtk_nand_headers.o \
 			$(ECDSA_OBJS-y) \
 			$(RSA_OBJS-y) \
 			$(AES_OBJS-y)

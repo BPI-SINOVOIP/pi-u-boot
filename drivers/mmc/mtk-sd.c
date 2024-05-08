@@ -778,18 +778,24 @@ static int msdc_ops_send_cmd(struct udevice *dev, struct mmc_cmd *cmd,
 	if (cmd_ret &&
 	    !(cmd_ret == -EIO &&
 	    (cmd->cmdidx == MMC_CMD_SEND_TUNING_BLOCK ||
-	    cmd->cmdidx == MMC_CMD_SEND_TUNING_BLOCK_HS200)))
+	    cmd->cmdidx == MMC_CMD_SEND_TUNING_BLOCK_HS200))) {
+		dev_dbg(dev, "MSDC start command failure with %d, cmd=%d, arg=0x%x\n",
+			cmd_ret, cmd->cmdidx, cmd->cmdarg);
 		return cmd_ret;
-
-	if (data) {
-		data_ret = msdc_start_data(host, data);
-		if (cmd_ret)
-			return cmd_ret;
-		else
-			return data_ret;
 	}
 
-	return 0;
+	if (!data)
+		return cmd_ret;
+
+	data_ret = msdc_start_data(host, data);
+	if (cmd_ret)
+		return cmd_ret;
+
+	if (data_ret)
+		dev_dbg(dev, "MSDC start data failure with %d, cmd=%d, arg=0x%x\n",
+			data_ret, cmd->cmdidx, cmd->cmdarg);
+
+	return data_ret;
 }
 
 static void msdc_set_timeout(struct msdc_host *host, u32 ns, u32 clks)
@@ -1496,7 +1502,12 @@ static void msdc_init_hw(struct msdc_host *host)
 	/* Enable data & cmd interrupts */
 	writel(DATA_INTS_MASK | CMD_INTS_MASK, &host->base->msdc_inten);
 
-	writel(0, tune_reg);
+	if (host->top_base) {
+		writel(0, &host->top_base->emmc_top_control);
+		writel(0, &host->top_base->emmc_top_cmd);
+	} else {
+		writel(0, tune_reg);
+	}
 	writel(0, &host->base->msdc_iocon);
 
 	if (host->r_smpl)
@@ -1507,9 +1518,14 @@ static void msdc_init_hw(struct msdc_host *host)
 	writel(0x403c0046, &host->base->patch_bit0);
 	writel(0xffff4089, &host->base->patch_bit1);
 
-	if (host->dev_comp->stop_clk_fix)
+	if (host->dev_comp->stop_clk_fix) {
 		clrsetbits_le32(&host->base->patch_bit1, MSDC_PB1_STOP_DLY_M,
 				3 << MSDC_PB1_STOP_DLY_S);
+		clrbits_le32(&host->base->sdc_fifo_cfg,
+			     SDC_FIFO_CFG_WRVALIDSEL);
+		clrbits_le32(&host->base->sdc_fifo_cfg,
+			     SDC_FIFO_CFG_RDVALIDSEL);
+	}
 
 	if (host->dev_comp->busy_check)
 		clrbits_le32(&host->base->patch_bit1, (1 << 7));
@@ -1544,15 +1560,28 @@ static void msdc_init_hw(struct msdc_host *host)
 	}
 
 	if (host->dev_comp->data_tune) {
-		setbits_le32(tune_reg,
-			     MSDC_PAD_TUNE_RD_SEL | MSDC_PAD_TUNE_CMD_SEL);
-		clrsetbits_le32(&host->base->patch_bit0,
-				MSDC_INT_DAT_LATCH_CK_SEL_M,
-				host->latch_ck <<
-				MSDC_INT_DAT_LATCH_CK_SEL_S);
+		if (host->top_base) {
+			setbits_le32(&host->top_base->emmc_top_control,
+				     PAD_DAT_RD_RXDLY_SEL);
+			clrbits_le32(&host->top_base->emmc_top_control,
+				     DATA_K_VALUE_SEL);
+			setbits_le32(&host->top_base->emmc_top_cmd,
+				     PAD_CMD_RD_RXDLY_SEL);
+		} else {
+			setbits_le32(tune_reg,
+				     MSDC_PAD_TUNE_RD_SEL | MSDC_PAD_TUNE_CMD_SEL);
+			clrsetbits_le32(&host->base->patch_bit0,
+					MSDC_INT_DAT_LATCH_CK_SEL_M,
+					host->latch_ck <<
+					MSDC_INT_DAT_LATCH_CK_SEL_S);
+		}
 	} else {
 		/* choose clock tune */
-		setbits_le32(tune_reg, MSDC_PAD_TUNE_RXDLYSEL);
+		if (host->top_base)
+			setbits_le32(&host->top_base->emmc_top_control,
+				     PAD_RXDLY_SEL);
+		else
+			setbits_le32(tune_reg, MSDC_PAD_TUNE_RXDLYSEL);
 	}
 
 	if (host->dev_comp->builtin_pad_ctrl) {
@@ -1604,12 +1633,6 @@ static void msdc_init_hw(struct msdc_host *host)
 	clrsetbits_le32(&host->base->sdc_cfg, SDC_CFG_DTOC_M,
 			3 << SDC_CFG_DTOC_S);
 
-	if (host->dev_comp->stop_clk_fix) {
-		clrbits_le32(&host->base->sdc_fifo_cfg,
-			     SDC_FIFO_CFG_WRVALIDSEL);
-		clrbits_le32(&host->base->sdc_fifo_cfg,
-			     SDC_FIFO_CFG_RDVALIDSEL);
-	}
 
 	host->def_tune_para.iocon = readl(&host->base->msdc_iocon);
 	host->def_tune_para.pad_tune = readl(&host->base->pad_tune);
@@ -1792,6 +1815,25 @@ static const struct msdc_compatible mt7623_compat = {
 	.enhance_rx = false
 };
 
+static const struct msdc_compatible mt7986_compat = {
+	.clk_div_bits = 12,
+	.pad_tune0 = true,
+	.async_fifo = true,
+	.data_tune = true,
+	.busy_check = true,
+	.stop_clk_fix = true,
+	.enhance_rx = true,
+};
+
+static const struct msdc_compatible mt7981_compat = {
+	.clk_div_bits = 12,
+	.pad_tune0 = true,
+	.async_fifo = true,
+	.data_tune = true,
+	.busy_check = true,
+	.stop_clk_fix = true,
+};
+
 static const struct msdc_compatible mt8512_compat = {
 	.clk_div_bits = 12,
 	.pad_tune0 = true,
@@ -1824,6 +1866,8 @@ static const struct udevice_id msdc_ids[] = {
 	{ .compatible = "mediatek,mt7621-mmc", .data = (ulong)&mt7621_compat },
 	{ .compatible = "mediatek,mt7622-mmc", .data = (ulong)&mt7622_compat },
 	{ .compatible = "mediatek,mt7623-mmc", .data = (ulong)&mt7623_compat },
+	{ .compatible = "mediatek,mt7986-mmc", .data = (ulong)&mt7986_compat },
+	{ .compatible = "mediatek,mt7981-mmc", .data = (ulong)&mt7981_compat },
 	{ .compatible = "mediatek,mt8512-mmc", .data = (ulong)&mt8512_compat },
 	{ .compatible = "mediatek,mt8516-mmc", .data = (ulong)&mt8516_compat },
 	{ .compatible = "mediatek,mt8183-mmc", .data = (ulong)&mt8183_compat },

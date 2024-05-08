@@ -1062,7 +1062,7 @@ quiet_cmd_pad_cat = CAT     $@
 cmd_pad_cat = $(cmd_objcopy) && $(append) || { rm -f $@; false; }
 
 quiet_cmd_lzma = LZMA    $@
-cmd_lzma = lzma -c -z -k -9 $< > $@
+cmd_lzma = xz --format=lzma -c -z -k -9 $< > $@
 
 cfg: u-boot.cfg
 
@@ -2032,26 +2032,7 @@ endif
 # Check dtc and pylibfdt, if DTC is provided, else build them
 PHONY += scripts_dtc
 scripts_dtc: scripts_basic
-	$(Q)if test "$(DTC)" = "$(DTC_INTREE)"; then \
-		$(MAKE) $(build)=scripts/dtc; \
-	else \
-		if ! $(DTC) -v >/dev/null; then \
-			echo '*** Failed to check dtc version: $(DTC)'; \
-			false; \
-		else \
-			if test "$(call dtc-version)" -lt $(DTC_MIN_VERSION); then \
-				echo '*** Your dtc is too old, please upgrade to dtc $(DTC_MIN_VERSION) or newer'; \
-				false; \
-			else \
-				if [ -n "$(CONFIG_PYLIBFDT)" ]; then \
-					if ! echo "import libfdt" | $(PYTHON3) 2>/dev/null; then \
-						echo '*** pylibfdt does not seem to be available with $(PYTHON3)'; \
-						false; \
-					fi; \
-				fi; \
-			fi; \
-		fi; \
-	fi
+	$(MAKE) $(build)=scripts/dtc
 
 # ---------------------------------------------------------------------------
 quiet_cmd_cpp_lds = LDS     $@

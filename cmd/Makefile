@@ -114,6 +114,8 @@ obj-y += legacy-mtd-utils.o
 endif
 obj-$(CONFIG_CMD_MUX) += mux.o
 obj-$(CONFIG_CMD_NAND) += nand.o
+obj-$(CONFIG_CMD_NAND_EXT) += nand-ext.o
+obj-$(CONFIG_CMD_NMBM) += nmbm.o
 obj-$(CONFIG_CMD_NET) += net.o
 obj-$(CONFIG_CMD_NVEDIT_EFI) += nvedit_efi.o
 obj-$(CONFIG_CMD_ONENAND) += onenand.o

@@ -47,6 +47,33 @@ struct menu {
 	int item_cnt;
 };
 
+const char choice_chars[] = {
+	'1', '2', '3', '4', '5', '6', '7', '8', '9',
+	'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+	'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+	'u', 'v', 'w', 'x', 'y', 'z'
+};
+
+static int find_choice(char choice)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(choice_chars); i++)
+		if (tolower(choice) == choice_chars[i])
+			return i;
+
+	return -1;
+}
+
+int get_choice_char(int index, char *result)
+{
+	if (index < ARRAY_SIZE(choice_chars))
+		*result = choice_chars[index];
+	else
+		return -1;
+	return 0;
+}
+
 /*
  * An iterator function for menu items. callback will be called for each item
  * in m, with m, a pointer to the item, and extra being passed to callback. If
@@ -426,7 +453,7 @@ int menu_destroy(struct menu *m)
 }
 
 void bootmenu_autoboot_loop(struct bootmenu_data *menu,
-			    enum bootmenu_key *key, int *esc)
+			    enum bootmenu_key *key, int *esc, int *choice)
 {
 	int i, c;
 
@@ -456,6 +483,19 @@ void bootmenu_autoboot_loop(struct bootmenu_data *menu,
 				break;
 			default:
 				*key = KEY_NONE;
+				if (*esc)
+					break;
+
+				*choice = find_choice(c);
+				if ((*choice >= 0 &&
+				     *choice < menu->count - 1)) {
+					*key = KEY_CHOICE;
+				} else if (c == '0') {
+					*choice = menu->count - 1;
+					*key = KEY_CHOICE;
+				} else {
+					*key = KEY_NONE;
+				}
 				break;
 			}
 
@@ -475,9 +515,15 @@ void bootmenu_autoboot_loop(struct bootmenu_data *menu,
 }
 
 void bootmenu_loop(struct bootmenu_data *menu,
-		   enum bootmenu_key *key, int *esc)
+		   enum bootmenu_key *key, int *esc, int *choice)
 {
 	int c;
+
+	if (menu->last_choiced) {
+		menu->last_choiced = false;
+		*key = KEY_SELECT;
+		return;
+	}
 
 	if (*esc == 1) {
 		if (tstc()) {
@@ -504,6 +550,14 @@ void bootmenu_loop(struct bootmenu_data *menu,
 		if (c == '\e') {
 			*esc = 1;
 			*key = KEY_NONE;
+		} else {
+			*choice = find_choice(c);
+			if ((*choice >= 0 && *choice < menu->count - 1)) {
+				*key = KEY_CHOICE;
+			} else if (c == '0') {
+				*choice = menu->count - 1;
+				*key = KEY_CHOICE;
+			}
 		}
 		break;
 	case 1:

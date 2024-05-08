@@ -40,3 +40,11 @@
 &snfi {
 	u-boot,dm-pre-reloc;
 };
+
+&pinctrl {
+	u-boot,dm-pre-reloc;
+};
+
+&snand {
+	u-boot,dm-pre-reloc;
+};

@@ -87,16 +87,17 @@ static char *bootmenu_choice_entry(void *data)
 	struct bootmenu_data *menu = data;
 	struct bootmenu_entry *iter;
 	enum bootmenu_key key = KEY_NONE;
+	int choice = -1;
 	int esc = 0;
 	int i;
 
 	while (1) {
 		if (menu->delay >= 0) {
 			/* Autoboot was not stopped */
-			bootmenu_autoboot_loop(menu, &key, &esc);
+			bootmenu_autoboot_loop(menu, &key, &esc, &choice);
 		} else {
 			/* Some key was pressed, so autoboot was stopped */
-			bootmenu_loop(menu, &key, &esc);
+			bootmenu_loop(menu, &key, &esc, &choice);
 		}
 
 		switch (key) {
@@ -110,6 +111,12 @@ static char *bootmenu_choice_entry(void *data)
 				++menu->active;
 			/* no menu key selected, regenerate menu */
 			return NULL;
+		case KEY_CHOICE:
+			menu->active = choice;
+			if (!menu->last_choiced) {
+				menu->last_choiced = true;
+				return NULL;
+			}
 		case KEY_SELECT:
 			iter = menu->first;
 			for (i = 0; i < menu->active; ++i)
@@ -167,6 +174,9 @@ static int prepare_bootmenu_entry(struct bootmenu_data *menu,
 	unsigned short int i = *index;
 	struct bootmenu_entry *entry = NULL;
 	struct bootmenu_entry *iter = *current;
+	char *choice_option;
+	char choice_char;
+	int len;
 
 	while ((option = bootmenu_getoption(i))) {
 
@@ -181,11 +191,24 @@ static int prepare_bootmenu_entry(struct bootmenu_data *menu,
 		if (!entry)
 			return -ENOMEM;
 
-		entry->title = strndup(option, sep - option);
+		/* Add KEY_CHOICE support: '%d. %s\0' : len --> len + 4 */
+		len = sep - option + 4;
+		choice_option = malloc(len);
+		if (!choice_option) {
+			free(entry->title);
+			free(entry);
+			return -ENOMEM;
+		}
+		if (!get_choice_char(i, &choice_char))
+			len = snprintf(choice_option, len, "%c. %s", choice_char, option);
+		else
+			len = snprintf(choice_option, len, "   %s", option);
+		entry->title = strndup(choice_option, len);
 		if (!entry->title) {
 			free(entry);
 			return -ENOMEM;
 		}
+		free(choice_option);
 
 		entry->command = strdup(sep + 1);
 		if (!entry->command) {
@@ -331,6 +354,7 @@ static struct bootmenu_data *bootmenu_create(int delay)
 	menu->delay = delay;
 	menu->active = 0;
 	menu->first = NULL;
+	menu->last_choiced = false;
 
 	default_str = env_get("bootmenu_default");
 	if (default_str)
@@ -356,9 +380,9 @@ static struct bootmenu_data *bootmenu_create(int delay)
 
 		/* Add Quit entry if entering U-Boot console is disabled */
 		if (!IS_ENABLED(CONFIG_BOOTMENU_DISABLE_UBOOT_CONSOLE))
-			entry->title = strdup("U-Boot console");
+			entry->title = strdup("0. U-Boot console");
 		else
-			entry->title = strdup("Quit");
+			entry->title = strdup("0. Quit");
 
 		if (!entry->title) {
 			free(entry);
@@ -415,7 +439,11 @@ static void menu_display_statusline(struct menu *m)
 	printf(ANSI_CURSOR_POSITION, 1, 1);
 	puts(ANSI_CLEAR_LINE);
 	printf(ANSI_CURSOR_POSITION, 2, 3);
-	puts("*** U-Boot Boot Menu ***");
+	if (menu->mtitle)
+		puts(menu->mtitle);
+	else
+		puts("  *** U-Boot Boot Menu ***");
+
 	puts(ANSI_CLEAR_LINE_TO_END);
 	printf(ANSI_CURSOR_POSITION, 3, 1);
 	puts(ANSI_CLEAR_LINE);
@@ -500,6 +528,7 @@ static enum bootmenu_ret bootmenu_show(int delay)
 		return BOOTMENU_RET_FAIL;
 	}
 
+	bootmenu->mtitle = env_get("bootmenu_title");
 	for (iter = bootmenu->first; iter; iter = iter->next) {
 		if (menu_item_add(menu, iter->key, iter) != 1)
 			goto cleanup;
