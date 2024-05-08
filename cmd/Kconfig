@@ -622,6 +622,12 @@ config CMD_ENV_EXISTS
 	  Check if a variable is defined in the environment for use in
 	  shell scripting.
 
+config CMD_ENV_READMEM
+	bool "env readmem"
+	default y
+	help
+	  Store memory content into environment variable.
+
 config CMD_ENV_CALLBACK
 	bool "env callbacks - print callbacks and their associated variables"
 	help
@@ -1391,6 +1397,20 @@ config CMD_NAND_TORTURE
 	  NAND torture support.
 
 endif # CMD_NAND
+
+config CMD_NAND_EXT
+	bool "nand - extended nand utility for debugging"
+	depends on !CMD_NAND
+	default y if MTD_RAW_NAND || MTD_SPI_NAND || MTK_SPI_NAND
+	select MTD_PARTITIONS
+	help
+	  NAND flash R/W and debugging support.
+
+config CMD_NMBM
+	depends on NMBM_MTD
+	bool "nmbm"
+	help
+	  NAND mapping block management (NMBM) utility
 
 config CMD_NVME
 	bool "nvme"

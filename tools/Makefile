@@ -37,7 +37,9 @@ subdir-$(HOST_TOOLS_ALL) += gdb
 ENVCRC-$(CONFIG_ENV_IS_IN_EEPROM) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_FLASH) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_ONENAND) = y
+ENVCRC-$(CONFIG_ENV_IS_IN_MTD) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_NAND) = y
+ENVCRC-$(CONFIG_ENV_IS_IN_NMBM) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_NVRAM) = y
 ENVCRC-$(CONFIG_ENV_IS_IN_SPI_FLASH) = y
 BUILD_ENVCRC ?= $(ENVCRC-y)
@@ -114,7 +116,6 @@ dumpimage-mkimage-objs := aisimage.o \
 			imximage.o \
 			imx8image.o \
 			imx8mimage.o \
-			kwbimage.o \
 			generated/lib/md5.o \
 			lpc32xximage.o \
 			mxsimage.o \

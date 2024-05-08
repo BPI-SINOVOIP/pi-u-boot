@@ -49,6 +49,33 @@ struct menu {
 	int item_cnt;
 };
 
+const char choice_chars[] = {
+	'1', '2', '3', '4', '5', '6', '7', '8', '9',
+	'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+	'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+	'u', 'v', 'w', 'x', 'y', 'z'
+};
+
+static int find_choice(char choice)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(choice_chars); i++)
+		if (tolower(choice) == choice_chars[i])
+			return i;
+
+	return -1;
+}
+
+int get_choice_char(int index, char *result)
+{
+	if (index < ARRAY_SIZE(choice_chars))
+		*result = choice_chars[index];
+	else
+		return -1;
+	return 0;
+}
+
 /*
  * An iterator function for menu items. callback will be called for each item
  * in m, with m, a pointer to the item, and extra being passed to callback. If
@@ -428,7 +455,7 @@ int menu_destroy(struct menu *m)
 }
 
 enum bootmenu_key bootmenu_autoboot_loop(struct bootmenu_data *menu,
-					 struct cli_ch_state *cch)
+					 struct cli_ch_state *cch, int *choice)
 {
 	enum bootmenu_key key = BKEY_NONE;
 	int i, c;
@@ -463,6 +490,19 @@ enum bootmenu_key bootmenu_autoboot_loop(struct bootmenu_data *menu,
 				break;
 			default:
 				key = BKEY_NONE;
+				if (cch->esc_len || !choice)
+					break;
+
+				*choice = find_choice(c);
+				if ((*choice >= 0 &&
+				     *choice < menu->count - 1)) {
+					key = BKEY_CHOICE;
+				} else if (c == '0') {
+					*choice = menu->count - 1;
+					key = BKEY_CHOICE;
+				} else {
+					key = BKEY_NONE;
+				}
 				break;
 			}
 			break;
@@ -483,7 +523,8 @@ enum bootmenu_key bootmenu_autoboot_loop(struct bootmenu_data *menu,
 	return key;
 }
 
-enum bootmenu_key bootmenu_conv_key(int ichar)
+enum bootmenu_key bootmenu_conv_key(struct bootmenu_data *menu, int ichar,
+				    int *choice)
 {
 	enum bootmenu_key key;
 
@@ -515,6 +556,20 @@ enum bootmenu_key bootmenu_conv_key(int ichar)
 	case ' ':
 		key = BKEY_SPACE;
 		break;
+	case '0' ... '9':
+	case 'a' ... 'z':
+		if (choice && menu) {
+			*choice = find_choice(ichar);
+			if ((*choice >= 0 && *choice < menu->count - 1)) {
+				key = BKEY_CHOICE;
+				break;
+			} else if (ichar == '0') {
+				*choice = menu->count - 1;
+				key = BKEY_CHOICE;
+				break;
+			}
+		}
+		fallthrough;
 	default:
 		key = BKEY_NONE;
 		break;
@@ -524,10 +579,15 @@ enum bootmenu_key bootmenu_conv_key(int ichar)
 }
 
 enum bootmenu_key bootmenu_loop(struct bootmenu_data *menu,
-				struct cli_ch_state *cch)
+				struct cli_ch_state *cch, int *choice)
 {
 	enum bootmenu_key key;
 	int c;
+
+	if (menu->last_choiced) {
+		menu->last_choiced = false;
+		return BKEY_SELECT;
+	}
 
 	c = cli_ch_process(cch, 0);
 	if (!c) {
@@ -542,7 +602,7 @@ enum bootmenu_key bootmenu_loop(struct bootmenu_data *menu,
 		}
 	}
 
-	key = bootmenu_conv_key(c);
+	key = bootmenu_conv_key(menu, c, choice);
 
 	return key;
 }

@@ -6,6 +6,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/input/linux-event-codes.h>
 #include "mt7623.dtsi"
 #include "mt7623-u-boot.dtsi"
 
@@ -48,6 +49,18 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-boot-on;
 		regulator-always-on;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&key_pins_a>;
+
+		factory {
+			label = "factory";
+			gpios = <&gpio 256 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RESTART>;
+		};
 	};
 
 	leds {
@@ -106,6 +119,19 @@
 			       "MDC", "MDIO";
 			drive-strength = <12>;
 			mediatek,tdsel = <5>;
+		};
+	};
+
+	key_pins_a: keys-alt {
+		mux {
+			function = "gpio";
+			groups = "msdc3";
+		};
+
+		conf {
+			pins = "MSDC0E_DAT0", "MSDC0E_DAT1";
+			input-enable;
+			bias-pull-up;
 		};
 	};
 

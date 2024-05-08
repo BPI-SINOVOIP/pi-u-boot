@@ -6,6 +6,8 @@
 #ifndef __MENU_H__
 #define __MENU_H__
 
+#include <linux/ctype.h>
+
 struct cli_ch_state;
 struct menu;
 
@@ -19,6 +21,8 @@ int menu_get_choice(struct menu *m, void **choice);
 int menu_item_add(struct menu *m, char *item_key, void *item_data);
 int menu_destroy(struct menu *m);
 int menu_default_choice(struct menu *m, void **choice);
+/* Add KEY_CHOICE support */
+int get_choice_char(int index, char *result);
 
 /**
  * menu_show() Show a boot menu
@@ -41,6 +45,8 @@ struct bootmenu_data {
 	int active;			/* active menu entry */
 	int count;			/* total count of menu entries */
 	struct bootmenu_entry *first;	/* first menu entry */
+	char *mtitle;			/* custom menu title */
+	bool last_choiced;
 };
 
 /** enum bootmenu_key - keys that can be returned by the bootmenu */
@@ -51,6 +57,7 @@ enum bootmenu_key {
 	BKEY_SELECT,
 	BKEY_QUIT,
 	BKEY_SAVE,
+	BKEY_CHOICE,
 
 	/* 'extra' keys, which are used by menus but not cedit */
 	BKEY_PLUS,
@@ -81,7 +88,7 @@ enum bootmenu_key {
  *	anything else: KEY_NONE
  */
 enum bootmenu_key bootmenu_autoboot_loop(struct bootmenu_data *menu,
-					 struct cli_ch_state *cch);
+					 struct cli_ch_state *cch, int *choice);
 
 /**
  * bootmenu_loop() - handle waiting for a keypress when autoboot is disabled
@@ -107,7 +114,7 @@ enum bootmenu_key bootmenu_autoboot_loop(struct bootmenu_data *menu,
  *	Space: BKEY_SPACE
  */
 enum bootmenu_key bootmenu_loop(struct bootmenu_data *menu,
-				struct cli_ch_state *cch);
+				struct cli_ch_state *cch, int *choice);
 
 /**
  * bootmenu_conv_key() - Convert a U-Boot keypress into a menu key
@@ -115,6 +122,7 @@ enum bootmenu_key bootmenu_loop(struct bootmenu_data *menu,
  * @ichar: Keypress to convert (ASCII, including control characters)
  * Returns: Menu key that corresponds to @ichar, or BKEY_NONE if none
  */
-enum bootmenu_key bootmenu_conv_key(int ichar);
+enum bootmenu_key bootmenu_conv_key(struct bootmenu_data *menu, int ichar,
+				    int *choice);
 
 #endif /* __MENU_H__ */

@@ -235,7 +235,7 @@ int bootflow_menu_run(struct bootstd_priv *std, bool text_mode,
 
 		key = 0;
 		if (ichar) {
-			key = bootmenu_conv_key(ichar);
+			key = bootmenu_conv_key(NULL, ichar, NULL);
 			if (key == BKEY_NONE)
 				key = ichar;
 		}

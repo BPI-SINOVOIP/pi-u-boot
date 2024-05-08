@@ -66,6 +66,7 @@
 #include <asm-generic/gpio.h>
 #include <efi_loader.h>
 #include <relocate.h>
+#include <spi_flash.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -373,12 +374,40 @@ static int initr_nand(void)
 }
 #endif
 
+#ifdef CONFIG_NMBM_MTD
+
+__weak int board_nmbm_init(void)
+{
+	return 0;
+}
+
+/* go init the NMBM */
+static int initr_nmbm(void)
+{
+	return board_nmbm_init();
+}
+#endif
+
 #if defined(CONFIG_CMD_ONENAND)
 /* go init the NAND */
 static int initr_onenand(void)
 {
 	puts("NAND:  ");
 	onenand_init();
+	return 0;
+}
+#endif
+
+#if defined(CONFIG_SPI_FLASH)
+/* probe SPI FLASH */
+static int initr_spiflash(void)
+{
+	struct udevice *new;
+
+spi_flash_probe_bus_cs(CONFIG_SF_DEFAULT_BUS,
+			CONFIG_SF_DEFAULT_CS,
+			&new);
+
 	return 0;
 }
 #endif
@@ -674,6 +703,12 @@ static init_fnc_t init_sequence_r[] = {
 #endif
 #ifdef CONFIG_CMD_ONENAND
 	initr_onenand,
+#endif
+#ifdef CONFIG_NMBM_MTD
+	initr_nmbm,
+#endif
+#ifdef CONFIG_SPI_FLASH
+	initr_spiflash,
 #endif
 #ifdef CONFIG_MMC
 	initr_mmc,
