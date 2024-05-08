@@ -80,6 +80,15 @@ config SF_DEFAULT_SPEED
 
 if SPI_FLASH
 
+config BOOTDEV_SPI_FLASH
+	bool "SPI Flash bootdev support"
+	depends on BOOTSTD
+	help
+	  Enable a boot device for SPI flash. This allows reading a script
+	  from SPI flash so that it can be used to boot an Operating System.
+
+	  If unsure, say N
+
 config SPI_FLASH_SFDP_SUPPORT
 	bool "SFDP table parsing support for SPI NOR flashes"
 	depends on !SPI_FLASH_BAR
@@ -99,7 +108,6 @@ config SPI_FLASH_SMART_HWCAPS
 
 config SPI_NOR_BOOT_SOFT_RESET_EXT_INVERT
 	bool "Command extension type is INVERT for Software Reset on boot"
-	default n
 	help
 	 Because of SFDP information can not be get before boot.
 	 So define command extension type is INVERT when Software Reset on boot only.
@@ -125,6 +133,13 @@ config SPI_FLASH_BAR
 	  Enable the SPI flash Bank/Extended address register support.
 	  Bank/Extended address registers are used to access the flash
 	  which has size > 16MiB in 3-byte addressing.
+
+config SPI_FLASH_LOCK
+	bool "Enable the Locking feature"
+	default y
+	help
+	 Enable the SPI flash lock support. By default this is set to y.
+	 If you intend not to use the lock support you should say n here.
 
 config SPI_FLASH_UNLOCK_ALL
 	bool "Unlock the entire SPI flash on u-boot startup"
@@ -166,13 +181,13 @@ config SPI_FLASH_SPANSION
 	help
 	  Add support for various Spansion SPI flash chips (S25FLxxx)
 
-config SPI_FLASH_S28HS512T
-	bool "Cypress S28HS512T chip support"
+config SPI_FLASH_S28HX_T
+	bool "Cypress SEMPER Octal (S28) chip support"
 	depends on SPI_FLASH_SPANSION
 	help
-	 Add support for the Cypress S28HS512T chip. This is a separate config
-	 because the fixup hooks for this flash add extra size overhead. Boards
-	 that don't use the flash can disable this to save space.
+	 Add support for the Cypress S28HL-T and S28HS-T chip. This is a separate
+	 config because the fixup hooks for this flash add extra size overhead.
+	 Boards that don't use the flash can disable this to save space.
 
 config SPI_FLASH_STMICRO
 	bool "STMicro SPI flash support"
@@ -208,6 +223,11 @@ config SPI_FLASH_XTX
 	help
 	  Add support for various XTX (XTX Technology Limited)
 	  SPI flash chips (XT25xxx).
+
+config SPI_FLASH_ZBIT
+	bool "ZBIT SPI flash support"
+	help
+	  Add support for Zbit Semiconductor Inc. SPI flash chips (ZB25xxx).
 
 endif
 

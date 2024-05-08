@@ -10,7 +10,6 @@
 
 #ifdef USE_HOSTCC
 #include <arpa/inet.h>
-#include <u-boot/crc.h>
 #else
 #include <common.h>
 #include <efi_loader.h>
@@ -255,7 +254,7 @@ uint32_t crc32_wd(uint32_t crc, const unsigned char *buf, uInt len,
 			chunk = chunk_sz;
 		crc = crc32(crc, curr, chunk);
 		curr += chunk;
-		WATCHDOG_RESET ();
+		schedule();
 	}
 #else
 	crc = crc32(crc, buf, len);

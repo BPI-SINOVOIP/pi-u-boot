@@ -25,6 +25,7 @@
 #include "asm/arch/iomux.h"
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/gpio.h>
+#include <asm/sections.h>
 #include <fsl_esdhc_imx.h>
 #include <netdev.h>
 #include <bootcount.h>
@@ -329,7 +330,7 @@ void board_init_f(ulong dummy)
 	/* Initialize and reset WDT in SPL */
 #ifdef CONFIG_SPL_WATCHDOG
 	hw_watchdog_init();
-	WATCHDOG_RESET();
+	schedule();
 #endif
 
 	/* load/boot image from boot device */

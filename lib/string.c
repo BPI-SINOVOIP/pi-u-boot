@@ -116,20 +116,18 @@ char * strncpy(char * dest,const char *src,size_t count)
  * of course, the buffer size is zero). It does not pad
  * out the result like strncpy() does.
  *
- * Return: the number of bytes copied
+ * Return: strlen(src)
  */
 size_t strlcpy(char *dest, const char *src, size_t size)
 {
-	if (size) {
-		size_t srclen = strlen(src);
-		size_t len = (srclen >= size) ? size - 1 : srclen;
+	size_t ret = strlen(src);
 
+	if (size) {
+		size_t len = (ret >= size) ? size - 1 : ret;
 		memcpy(dest, src, len);
 		dest[len] = '\0';
-		return len + 1;
 	}
-
-	return 0;
+	return ret;
 }
 #endif
 
@@ -191,6 +189,8 @@ char * strncat(char *dest, const char *src, size_t count)
  * Compatible with *BSD: the result is always a valid NUL-terminated string that
  * fits in the buffer (unless, of course, the buffer size is zero). It does not
  * write past @size like strncat() does.
+ *
+ * Return: min(strlen(dest), size) + strlen(src)
  */
 size_t strlcat(char *dest, const char *src, size_t size)
 {
@@ -206,16 +206,20 @@ size_t strlcat(char *dest, const char *src, size_t size)
  * @cs: One string
  * @ct: Another string
  */
-int strcmp(const char * cs,const char * ct)
+int strcmp(const char *cs, const char *ct)
 {
-	register signed char __res;
+	int ret;
 
 	while (1) {
-		if ((__res = *cs - *ct++) != 0 || !*cs++)
+		unsigned char a = *cs++;
+		unsigned char b = *ct++;
+
+		ret = a - b;
+		if (ret || !b)
 			break;
 	}
 
-	return __res;
+	return ret;
 }
 #endif
 
@@ -226,17 +230,20 @@ int strcmp(const char * cs,const char * ct)
  * @ct: Another string
  * @count: The maximum number of bytes to compare
  */
-int strncmp(const char * cs,const char * ct,size_t count)
+int strncmp(const char *cs, const char *ct, size_t count)
 {
-	register signed char __res = 0;
+	int ret = 0;
 
-	while (count) {
-		if ((__res = *cs - *ct++) != 0 || !*cs++)
+	while (count--) {
+		unsigned char a = *cs++;
+		unsigned char b = *ct++;
+
+		ret = a - b;
+		if (ret || !b)
 			break;
-		count--;
 	}
 
-	return __res;
+	return ret;
 }
 #endif
 

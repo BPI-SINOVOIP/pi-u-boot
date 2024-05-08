@@ -26,6 +26,7 @@
 #include <linux/bitops.h>
 #include <linux/compat.h>
 #include <linux/mtd/mtd.h>
+#include <linux/printk.h>
 #include "linux/mtd/flashchip.h"
 #include <linux/mtd/onenand.h>
 
@@ -478,7 +479,7 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 	u32 timeo = (CONFIG_SYS_HZ * 20) / 1000;
 	u32 time_start = get_timer(0);
 	do {
-		WATCHDOG_RESET();
+		schedule();
 		if (get_timer(time_start) > timeo)
 			return -EIO;
 		interrupt = this->read_word(this->base + ONENAND_REG_INTERRUPT);
@@ -1170,7 +1171,7 @@ static int onenand_bbt_wait(struct mtd_info *mtd, int state)
 	u32 timeo = (CONFIG_SYS_HZ * 20) / 1000;
 	u32 time_start = get_timer(0);
 	do {
-		WATCHDOG_RESET();
+		schedule();
 		if (get_timer(time_start) > timeo)
 			return ONENAND_BBT_READ_FATAL_ERROR;
 		interrupt = this->read_word(this->base + ONENAND_REG_INTERRUPT);

@@ -22,6 +22,8 @@
 #define __aligned(x)	__attribute__((__aligned__(x)))
 #endif
 
+#define ARRAY_SIZE(x)		(sizeof(x) / sizeof((x)[0]))
+
 typedef struct {
 	uint8_t b[16];
 } efi_guid_t __aligned(8);
@@ -41,6 +43,14 @@ typedef struct {
 	EFI_GUID(0x4aafd29d, 0x68df, 0x49ee, 0x8a, 0xa9, \
 		 0x34, 0x7d, 0x37, 0x56, 0x65, 0xa7)
 
+#define FW_ACCEPT_OS_GUID \
+	EFI_GUID(0x0c996046, 0xbcc0, 0x4d04, 0x85, 0xec, \
+		 0xe1, 0xfc, 0xed, 0xf1, 0xc6, 0xf8)
+
+#define FW_REVERT_OS_GUID \
+	EFI_GUID(0xacd58b4b, 0xc0e8, 0x475f, 0x99, 0xb5, \
+		 0x6b, 0x3f, 0x7e, 0x07, 0xaa, 0xf0)
+
 /* flags */
 #define CAPSULE_FLAGS_PERSIST_ACROSS_RESET      0x00010000
 
@@ -55,7 +65,7 @@ struct efi_firmware_management_capsule_header {
 	uint32_t version;
 	uint16_t embedded_driver_count;
 	uint16_t payload_item_count;
-	uint32_t item_offset_list[];
+	uint64_t item_offset_list[];
 } __packed;
 
 /* image_capsule_support */
@@ -104,5 +114,35 @@ struct efi_firmware_image_authentication {
 	uint64_t monotonic_count;
 	struct win_certificate_uefi_guid auth_info;
 } __packed;
+
+/* fmp payload header */
+#define SIGNATURE_16(A, B)	((A) | ((B) << 8))
+#define SIGNATURE_32(A, B, C, D)	\
+	(SIGNATURE_16(A, B) | (SIGNATURE_16(C, D) << 16))
+
+#define FMP_PAYLOAD_HDR_SIGNATURE	SIGNATURE_32('M', 'S', 'S', '1')
+
+/**
+ * struct fmp_payload_header - EDK2 header for the FMP payload
+ *
+ * This structure describes the header which is preprended to the
+ * FMP payload by the edk2 capsule generation scripts.
+ *
+ * @signature:			Header signature used to identify the header
+ * @header_size:		Size of the structure
+ * @fw_version:			Firmware versions used
+ * @lowest_supported_version:	Lowest supported version (not used)
+ */
+struct fmp_payload_header {
+	uint32_t signature;
+	uint32_t header_size;
+	uint32_t fw_version;
+	uint32_t lowest_supported_version;
+};
+
+struct fmp_payload_header_params {
+	bool have_header;
+	uint32_t fw_version;
+};
 
 #endif /* _EFI_CAPSULE_H */

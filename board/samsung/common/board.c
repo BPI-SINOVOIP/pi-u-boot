@@ -26,7 +26,6 @@
 #include <asm/arch/pinmux.h>
 #include <asm/arch/power.h>
 #include <asm/arch/system.h>
-#include <lcd.h>
 #include <i2c.h>
 #include <mmc.h>
 #include <stdio_dev.h>
@@ -42,6 +41,10 @@ DECLARE_GLOBAL_DATA_PTR;
 __weak int exynos_early_init_f(void)
 {
 	return 0;
+}
+
+__weak void exynos_init(void)
+{
 }
 
 __weak int exynos_power_init(void)
@@ -114,7 +117,9 @@ int board_init(void)
 	gd->ram_size -= size;
 	gd->bd->bi_dram[CONFIG_NR_DRAM_BANKS - 1].size -= size;
 #endif
-	return exynos_init();
+	exynos_init();
+
+	return 0;
 }
 
 int dram_init(void)
@@ -123,7 +128,7 @@ int dram_init(void)
 	unsigned long addr;
 
 	for (i = 0; i < CONFIG_NR_DRAM_BANKS; i++) {
-		addr = CONFIG_SYS_SDRAM_BASE + (i * SDRAM_BANK_SIZE);
+		addr = CFG_SYS_SDRAM_BASE + (i * SDRAM_BANK_SIZE);
 		gd->ram_size += get_ram_size((long *)addr, SDRAM_BANK_SIZE);
 	}
 	return 0;
@@ -135,7 +140,7 @@ int dram_init_banksize(void)
 	unsigned long addr, size;
 
 	for (i = 0; i < CONFIG_NR_DRAM_BANKS; i++) {
-		addr = CONFIG_SYS_SDRAM_BASE + (i * SDRAM_BANK_SIZE);
+		addr = CFG_SYS_SDRAM_BASE + (i * SDRAM_BANK_SIZE);
 		size = get_ram_size((long *)addr, SDRAM_BANK_SIZE);
 
 		gd->bd->bi_dram[i].start = addr;
@@ -176,10 +181,6 @@ int board_early_init_f(void)
 		debug("UART init failed\n");
 		return err;
 	}
-
-#ifdef CONFIG_SYS_I2C_INIT_BOARD
-	board_i2c_init(gd->fdt_blob);
-#endif
 
 	return exynos_early_init_f();
 }
@@ -228,7 +229,7 @@ int board_late_init(void)
 	char mmcbootdev_str[16];
 
 	ret = uclass_first_device_err(UCLASS_CROS_EC, &dev);
-	if (ret && ret != -ENODEV) {
+	if (ret && ret != -ENODEV && ret != -EPFNOSUPPORT) {
 		/* Force console on */
 		gd->flags &= ~GD_FLG_SILENT;
 
@@ -261,10 +262,6 @@ int misc_init_r(void)
 
 #ifdef CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
 	set_board_info();
-#endif
-#ifdef CONFIG_LCD_MENU
-	keys_init();
-	check_boot_mode();
 #endif
 #ifdef CONFIG_CMD_BMP
 	if (panel_info.logo_on)

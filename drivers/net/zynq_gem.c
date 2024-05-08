@@ -30,6 +30,7 @@
 #include <asm/arch/hardware.h>
 #include <asm/arch/sys_proto.h>
 #include <dm/device_compat.h>
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/errno.h>
@@ -67,11 +68,6 @@
 #define ZYNQ_GEM_NWCFG_FSREM		0x00020000 /* FCS removal */
 #define ZYNQ_GEM_NWCFG_SGMII_ENBL	0x08000000 /* SGMII Enable */
 #define ZYNQ_GEM_NWCFG_PCS_SEL		0x00000800 /* PCS select */
-#ifdef CONFIG_ARM64
-#define ZYNQ_GEM_NWCFG_MDCCLKDIV	0x00100000 /* Div pclk by 64, max 160MHz */
-#else
-#define ZYNQ_GEM_NWCFG_MDCCLKDIV	0x000c0000 /* Div pclk by 48, max 120MHz */
-#endif
 
 #ifdef CONFIG_ARM64
 # define ZYNQ_GEM_DBUS_WIDTH	(1 << 21) /* 64 bit bus */
@@ -81,8 +77,7 @@
 
 #define ZYNQ_GEM_NWCFG_INIT		(ZYNQ_GEM_DBUS_WIDTH | \
 					ZYNQ_GEM_NWCFG_FDEN | \
-					ZYNQ_GEM_NWCFG_FSREM | \
-					ZYNQ_GEM_NWCFG_MDCCLKDIV)
+					ZYNQ_GEM_NWCFG_FSREM)
 
 #define ZYNQ_GEM_NWSR_MDIOIDLE_MASK	0x00000004 /* PHY management idle */
 
@@ -125,6 +120,10 @@
  */
 #define PHY_DETECT_MASK 0x1808
 
+/* PCS (SGMII) Link Status */
+#define ZYNQ_GEM_PCSSTATUS_LINK		BIT(2)
+#define ZYNQ_GEM_PCSSTATUS_ANEG_COMPL	BIT(5)
+
 /* TX BD status masks */
 #define ZYNQ_GEM_TXBUF_FRMLEN_MASK	0x000007ff
 #define ZYNQ_GEM_TXBUF_EXHAUSTED	0x08000000
@@ -136,6 +135,18 @@
 #define ZYNQ_GEM_FREQUENCY_1000	125000000UL
 
 #define RXCLK_EN		BIT(0)
+
+/* GEM specific constants for CLK. */
+#define GEM_CLK_DIV8		0
+#define GEM_CLK_DIV16		1
+#define GEM_CLK_DIV32		2
+#define GEM_CLK_DIV48		3
+#define GEM_CLK_DIV64		4
+#define GEM_CLK_DIV96		5
+#define GEM_CLK_DIV128		6
+#define GEM_CLK_DIV224		7
+
+#define GEM_MDC_SET(val)	FIELD_PREP(GENMASK(20, 18), val)
 
 /* Device registers */
 struct zynq_gem_regs {
@@ -164,7 +175,8 @@ struct zynq_gem_regs {
 	u32 stat[STAT_SIZE]; /* 0x100 - Octects transmitted Low reg */
 	u32 reserved9[20];
 	u32 pcscntrl;
-	u32 rserved12[36];
+	u32 pcsstatus;
+	u32 rserved12[35];
 	u32 dcfg6; /* 0x294 Design config reg6 */
 	u32 reserved7[106];
 	u32 transmit_q1_ptr; /* 0x440 - Transmit priority queue 1 */
@@ -215,6 +227,7 @@ struct zynq_gem_priv {
 	struct mii_dev *bus;
 	struct clk rx_clk;
 	struct clk tx_clk;
+	struct clk pclk;
 	u32 max_speed;
 	bool int_pcs;
 	bool dma_64bit;
@@ -308,17 +321,48 @@ static int zynq_gem_setup_mac(struct udevice *dev)
 	return 0;
 }
 
+static u32 gem_mdc_clk_div(struct zynq_gem_priv *priv)
+{
+	u32 config;
+	unsigned long pclk_hz;
+
+	pclk_hz = clk_get_rate(&priv->pclk);
+	if (pclk_hz <= 20000000)
+		config = GEM_MDC_SET(GEM_CLK_DIV8);
+	else if (pclk_hz <= 40000000)
+		config = GEM_MDC_SET(GEM_CLK_DIV16);
+	else if (pclk_hz <= 80000000)
+		config = GEM_MDC_SET(GEM_CLK_DIV32);
+	else if (pclk_hz <= 120000000)
+		config = GEM_MDC_SET(GEM_CLK_DIV48);
+	else if (pclk_hz <= 160000000)
+		config = GEM_MDC_SET(GEM_CLK_DIV64);
+	else if (pclk_hz <= 240000000)
+		config = GEM_MDC_SET(GEM_CLK_DIV96);
+	else if (pclk_hz <= 320000000)
+		config = GEM_MDC_SET(GEM_CLK_DIV128);
+	else
+		config = GEM_MDC_SET(GEM_CLK_DIV224);
+
+	return config;
+}
+
 static int zynq_phy_init(struct udevice *dev)
 {
-	int ret;
+	int ret, val;
 	struct zynq_gem_priv *priv = dev_get_priv(dev);
 	struct zynq_gem_regs *regs_mdio = priv->mdiobase;
+	struct zynq_gem_regs *regs = priv->iobase;
 	const u32 supported = SUPPORTED_10baseT_Half |
 			SUPPORTED_10baseT_Full |
 			SUPPORTED_100baseT_Half |
 			SUPPORTED_100baseT_Full |
 			SUPPORTED_1000baseT_Half |
 			SUPPORTED_1000baseT_Full;
+
+	val = gem_mdc_clk_div(priv);
+	if (val)
+		writel(val, &regs->nwcfg);
 
 	/* Enable only MDIO bus */
 	writel(ZYNQ_GEM_NWCTRL_MDEN_MASK, &regs_mdio->nwctrl);
@@ -328,7 +372,7 @@ static int zynq_phy_init(struct udevice *dev)
 
 	priv->phydev = phy_connect(priv->bus, priv->phyaddr, dev,
 				   priv->interface);
-	if (!priv->phydev)
+	if (IS_ERR_OR_NULL(priv->phydev))
 		return -ENODEV;
 
 	if (priv->max_speed) {
@@ -347,9 +391,10 @@ static int zynq_phy_init(struct udevice *dev)
 	return phy_config(priv->phydev);
 }
 
+
 static int zynq_gem_init(struct udevice *dev)
 {
-	u32 i, nwconfig;
+	u32 i, nwconfig, nwcfg;
 	int ret;
 	unsigned long clk_rate = 0;
 	struct zynq_gem_priv *priv = dev_get_priv(dev);
@@ -469,19 +514,21 @@ static int zynq_gem_init(struct udevice *dev)
 
 	switch (priv->phydev->speed) {
 	case SPEED_1000:
-		writel(nwconfig | ZYNQ_GEM_NWCFG_SPEED1000,
-		       &regs->nwcfg);
+		nwconfig |= ZYNQ_GEM_NWCFG_SPEED1000;
 		clk_rate = ZYNQ_GEM_FREQUENCY_1000;
 		break;
 	case SPEED_100:
-		writel(nwconfig | ZYNQ_GEM_NWCFG_SPEED100,
-		       &regs->nwcfg);
+		nwconfig |= ZYNQ_GEM_NWCFG_SPEED100;
 		clk_rate = ZYNQ_GEM_FREQUENCY_100;
 		break;
 	case SPEED_10:
 		clk_rate = ZYNQ_GEM_FREQUENCY_10;
 		break;
 	}
+	nwcfg = readl(&regs->nwcfg);
+	nwcfg |= nwconfig;
+	if (nwcfg)
+		writel(nwcfg, &regs->nwcfg);
 
 #ifdef CONFIG_ARM64
 	if (priv->interface == PHY_INTERFACE_MODE_SGMII &&
@@ -491,19 +538,47 @@ static int zynq_gem_init(struct udevice *dev)
 		 * Must be written after PCS_SEL is set in nwconfig,
 		 * otherwise writes will not take effect.
 		 */
-		if (priv->phydev->phy_id != PHY_FIXED_ID)
+		if (priv->phydev->phy_id != PHY_FIXED_ID) {
 			writel(readl(&regs->pcscntrl) | ZYNQ_GEM_PCS_CTL_ANEG_ENBL,
 			       &regs->pcscntrl);
-		else
+			/*
+			 * When the PHY link is already up, the PCS link needs
+			 * to get re-checked
+			 */
+			if (priv->phydev->link) {
+				u32 pcsstatus;
+
+				pcsstatus = ZYNQ_GEM_PCSSTATUS_LINK |
+					ZYNQ_GEM_PCSSTATUS_ANEG_COMPL;
+				ret = wait_for_bit_le32(&regs->pcsstatus,
+							pcsstatus,
+							true, 5000, true);
+				if (ret) {
+					dev_warn(dev,
+						 "no PCS (SGMII) link\n");
+				} else {
+					/*
+					 * Some additional minimal delay seems
+					 * to be needed so that the first
+					 * packet will be sent correctly
+					 */
+					mdelay(1);
+				}
+			}
+		} else {
 			writel(readl(&regs->pcscntrl) & ~ZYNQ_GEM_PCS_CTL_ANEG_ENBL,
 			       &regs->pcscntrl);
+		}
 	}
 #endif
 
-	ret = clk_set_rate(&priv->tx_clk, clk_rate);
-	if (IS_ERR_VALUE(ret)) {
-		dev_err(dev, "failed to set tx clock rate\n");
-		return ret;
+	ret = clk_get_rate(&priv->tx_clk);
+	if (ret != clk_rate) {
+		ret = clk_set_rate(&priv->tx_clk, clk_rate);
+		if (IS_ERR_VALUE(ret)) {
+			dev_err(dev, "failed to set tx clock rate %ld\n", clk_rate);
+			return ret;
+		}
 	}
 
 	ret = clk_enable(&priv->tx_clk);
@@ -659,21 +734,6 @@ static void zynq_gem_halt(struct udevice *dev)
 						ZYNQ_GEM_NWCTRL_TXEN_MASK, 0);
 }
 
-__weak int zynq_board_read_rom_ethaddr(unsigned char *ethaddr)
-{
-	return -ENOSYS;
-}
-
-static int zynq_gem_read_rom_mac(struct udevice *dev)
-{
-	struct eth_pdata *pdata = dev_get_plat(dev);
-
-	if (!pdata)
-		return -ENOSYS;
-
-	return zynq_board_read_rom_ethaddr(pdata->enetaddr);
-}
-
 static int zynq_gem_miiphy_read(struct mii_dev *bus, int addr,
 				int devad, int reg)
 {
@@ -720,7 +780,7 @@ static int gem_zynqmp_set_dynamic_config(struct udevice *dev)
 	u32 pm_info[2];
 	int ret;
 
-	if (IS_ENABLED(CONFIG_ARCH_ZYNQMP)) {
+	if (IS_ENABLED(CONFIG_ARCH_ZYNQMP) && IS_ENABLED(CONFIG_ZYNQMP_FIRMWARE)) {
 		if (!zynqmp_pm_is_function_supported(PM_IOCTL,
 						     IOCTL_SET_GEM_CONFIG)) {
 			ret = ofnode_read_u32_array(dev_ofnode(dev),
@@ -810,6 +870,12 @@ static int zynq_gem_probe(struct udevice *dev)
 		}
 	}
 
+	ret = clk_get_by_name(dev, "pclk", &priv->pclk);
+	if (ret < 0) {
+		dev_err(dev, "failed to get pclk clock\n");
+		goto err2;
+	}
+
 	if (IS_ENABLED(CONFIG_DM_ETH_PHY))
 		priv->bus = eth_phy_get_mdio_bus(dev);
 
@@ -831,9 +897,11 @@ static int zynq_gem_probe(struct udevice *dev)
 	if (ret)
 		goto err3;
 
-	if (priv->interface == PHY_INTERFACE_MODE_SGMII && phy.dev) {
+	if (priv->interface == PHY_INTERFACE_MODE_SGMII &&
+	    generic_phy_valid(&phy)) {
 		if (IS_ENABLED(CONFIG_DM_ETH_PHY)) {
-			if (device_is_compatible(dev, "cdns,zynqmp-gem")) {
+			if (device_is_compatible(dev, "cdns,zynqmp-gem") ||
+			    device_is_compatible(dev, "xlnx,zynqmp-gem")) {
 				ret = gem_zynqmp_set_dynamic_config(dev);
 				if (ret) {
 					dev_err
@@ -881,7 +949,6 @@ static const struct eth_ops zynq_gem_ops = {
 	.free_pkt		= zynq_gem_free_pkt,
 	.stop			= zynq_gem_halt,
 	.write_hwaddr		= zynq_gem_setup_mac,
-	.read_rom_hwaddr	= zynq_gem_read_rom_mac,
 };
 
 static int zynq_gem_of_to_plat(struct udevice *dev)
@@ -935,8 +1002,11 @@ static int zynq_gem_of_to_plat(struct udevice *dev)
 }
 
 static const struct udevice_id zynq_gem_ids[] = {
+	{ .compatible = "xlnx,versal-gem", .data = RXCLK_EN },
 	{ .compatible = "cdns,versal-gem", .data = RXCLK_EN },
+	{ .compatible = "xlnx,zynqmp-gem" },
 	{ .compatible = "cdns,zynqmp-gem" },
+	{ .compatible = "xlnx,zynq-gem" },
 	{ .compatible = "cdns,zynq-gem" },
 	{ .compatible = "cdns,gem" },
 	{ }

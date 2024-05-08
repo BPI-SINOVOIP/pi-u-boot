@@ -18,7 +18,7 @@
 #define GIC400_ARB_END_ADDR             0x31007FFF
 #define APBH_DMA_ARB_BASE_ADDR          0x33000000
 #define APBH_DMA_ARB_END_ADDR           0x33007FFF
-#define M4_BOOTROM_BASE_ADDR            0x00180000
+#define MCU_BOOTROM_BASE_ADDR            0x00180000
 
 #define MXS_APBH_BASE			APBH_DMA_ARB_BASE_ADDR
 #define MXS_GPMI_BASE			(APBH_DMA_ARB_BASE_ADDR + 0x02000)
@@ -215,12 +215,12 @@
 
 #define FEC_QUIRK_ENET_MAC
 #define SNVS_LPGPR	0x68
-#define CONFIG_SYS_FSL_SEC_OFFSET       0
-#define CONFIG_SYS_FSL_SEC_ADDR         (CAAM_IPS_BASE_ADDR + \
-					 CONFIG_SYS_FSL_SEC_OFFSET)
-#define CONFIG_SYS_FSL_JR0_OFFSET       0x1000
-#define CONFIG_SYS_FSL_JR0_ADDR         (CONFIG_SYS_FSL_SEC_ADDR + \
-					 CONFIG_SYS_FSL_JR0_OFFSET)
+#define CFG_SYS_FSL_SEC_OFFSET       0
+#define CFG_SYS_FSL_SEC_ADDR         (CAAM_IPS_BASE_ADDR + \
+					 CFG_SYS_FSL_SEC_OFFSET)
+#define CFG_SYS_FSL_JR0_OFFSET       0x1000
+#define CFG_SYS_FSL_JR0_ADDR         (CFG_SYS_FSL_SEC_ADDR + \
+					 CFG_SYS_FSL_JR0_OFFSET)
 #if !(defined(__KERNEL_STRICT_NAMES) || defined(__ASSEMBLY__))
 #include <asm/mach-imx/regs-lcdif.h>
 #include <asm/types.h>

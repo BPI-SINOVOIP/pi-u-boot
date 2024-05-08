@@ -4,7 +4,6 @@
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  */
 
-#include <common.h>
 #include <bootstage.h>
 #include <command.h>
 #include <env.h>
@@ -36,7 +35,7 @@ void arch_lmb_reserve(struct lmb *lmb)
 }
 
 int do_bootm_linux(int flag, int argc, char *const argv[],
-		   bootm_headers_t *images)
+		   struct bootm_headers *images)
 {
 	int ret;
 	struct bd_info  *kbd;
@@ -60,7 +59,7 @@ int do_bootm_linux(int flag, int argc, char *const argv[],
 	}
 	set_clocks_in_mhz(kbd);
 
-	if (CONFIG_IS_ENABLED(LMB)) {
+	if (IS_ENABLED(CONFIG_LMB)) {
 		ret = image_setup_linux(images);
 		if (ret)
 			goto error;

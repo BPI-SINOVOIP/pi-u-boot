@@ -2,7 +2,7 @@
 /*
  * K3: System Firmware Loader
  *
- * Copyright (C) 2019 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2019 Texas Instruments Incorporated - https://www.ti.com/
  *	Andreas Dannenberg <dannenberg@ti.com>
  */
 
@@ -23,7 +23,6 @@
 #include <spi_flash.h>
 
 #include <asm/io.h>
-#include <asm/arch/sys_proto.h>
 #include "common.h"
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -88,10 +87,10 @@ static void *sysfw_load_address;
  * Populate SPL hook to override the default load address used by the SPL
  * loader function with a custom address for SYSFW loading.
  */
-struct image_header *spl_get_load_buffer(ssize_t offset, size_t size)
+struct legacy_img_hdr *spl_get_load_buffer(ssize_t offset, size_t size)
 {
 	if (sysfw_loaded)
-		return (struct image_header *)(CONFIG_SYS_TEXT_BASE + offset);
+		return (struct legacy_img_hdr *)(CONFIG_TEXT_BASE + offset);
 	else if (sysfw_load_address)
 		return sysfw_load_address;
 	else
@@ -322,7 +321,7 @@ exit:
 static void *k3_sysfw_get_spi_addr(void)
 {
 	struct udevice *dev;
-	fdt_addr_t addr;
+	void *addr;
 	int ret;
 	unsigned int sf_bus = spl_spi_boot_bus();
 
@@ -330,11 +329,11 @@ static void *k3_sysfw_get_spi_addr(void)
 	if (ret)
 		return NULL;
 
-	addr = dev_read_addr_index(dev, 1);
-	if (addr == FDT_ADDR_T_NONE)
+	addr = dev_read_addr_index_ptr(dev, 1);
+	if (!addr)
 		return NULL;
 
-	return (void *)(addr + CONFIG_K3_SYSFW_IMAGE_SPI_OFFS);
+	return addr + CONFIG_K3_SYSFW_IMAGE_SPI_OFFS;
 }
 
 static void k3_sysfw_spi_copy(u32 *dst, u32 *src, size_t len)
@@ -350,18 +349,18 @@ static void k3_sysfw_spi_copy(u32 *dst, u32 *src, size_t len)
 static void *get_sysfw_hf_addr(void)
 {
 	struct udevice *dev;
-	fdt_addr_t addr;
+	void *addr;
 	int ret;
 
 	ret = uclass_find_first_device(UCLASS_MTD, &dev);
 	if (ret)
 		return NULL;
 
-	addr = dev_read_addr_index(dev, 1);
-	if (addr == FDT_ADDR_T_NONE)
+	addr = dev_read_addr_index_ptr(dev, 1);
+	if (!addr)
 		return NULL;
 
-	return (void *)(addr + CONFIG_K3_SYSFW_IMAGE_SPI_OFFS);
+	return addr + CONFIG_K3_SYSFW_IMAGE_SPI_OFFS;
 }
 #endif
 
@@ -490,7 +489,7 @@ void k3_sysfw_loader(bool rom_loaded_sysfw,
 	sysfw_loaded = true;
 
 	/* Ensure the SYSFW image is in FIT format */
-	if (image_get_magic((const image_header_t *)sysfw_load_address) !=
+	if (image_get_magic((const struct legacy_img_hdr *)sysfw_load_address) !=
 	    FDT_MAGIC)
 		panic("SYSFW image not in FIT format!\n");
 

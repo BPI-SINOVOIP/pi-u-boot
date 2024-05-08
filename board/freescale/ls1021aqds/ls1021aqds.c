@@ -16,6 +16,7 @@
 #include <asm/arch/fsl_serdes.h>
 #include <asm/arch/ls102xa_soc.h>
 #include <asm/arch/ls102xa_devdis.h>
+#include <asm/sections.h>
 #include <hwconfig.h>
 #include <mmc.h>
 #include <fsl_csu.h>
@@ -160,7 +161,7 @@ int dram_init(void)
 
 int board_early_init_f(void)
 {
-	struct ccsr_scfg *scfg = (struct ccsr_scfg *)CONFIG_SYS_FSL_SCFG_ADDR;
+	struct ccsr_scfg *scfg = (struct ccsr_scfg *)CFG_SYS_FSL_SCFG_ADDR;
 
 #ifdef CONFIG_TSEC_ENET
 	/* clear BD & FR bits for BE BD's and frame data */
@@ -185,7 +186,7 @@ int board_early_init_f(void)
 void board_init_f(ulong dummy)
 {
 #ifdef CONFIG_NAND_BOOT
-	struct ccsr_gur __iomem *gur = (void *)CONFIG_SYS_FSL_GUTS_ADDR;
+	struct ccsr_gur __iomem *gur = (void *)CFG_SYS_FSL_GUTS_ADDR;
 	u32 porsr1, pinctl;
 
 	/*
@@ -196,7 +197,7 @@ void board_init_f(ulong dummy)
 	porsr1 = in_be32(&gur->porsr1);
 	pinctl = ((porsr1 & ~(DCFG_CCSR_PORSR1_RCW_MASK)) |
 		 DCFG_CCSR_PORSR1_RCW_SRC_I2C);
-	out_be32((unsigned int *)(CONFIG_SYS_DCSR_DCFG_ADDR + DCFG_DCSR_PORCR1),
+	out_be32((unsigned int *)(CFG_SYS_DCSR_DCFG_ADDR + DCFG_DCSR_PORCR1),
 		 pinctl);
 #endif
 
@@ -234,7 +235,7 @@ void board_init_f(ulong dummy)
 
 void config_etseccm_source(int etsec_gtx_125_mux)
 {
-	struct ccsr_scfg *scfg = (struct ccsr_scfg *)CONFIG_SYS_FSL_SCFG_ADDR;
+	struct ccsr_scfg *scfg = (struct ccsr_scfg *)CFG_SYS_FSL_SCFG_ADDR;
 
 	switch (etsec_gtx_125_mux) {
 	case GE0_CLK125:
@@ -308,7 +309,7 @@ int config_board_mux(int ctrl_type)
 
 int config_serdes_mux(void)
 {
-	struct ccsr_gur *gur = (struct ccsr_gur *)CONFIG_SYS_FSL_GUTS_ADDR;
+	struct ccsr_gur *gur = (struct ccsr_gur *)CFG_SYS_FSL_GUTS_ADDR;
 	u32 cfg;
 
 	cfg = in_be32(&gur->rcwsr[4]) & RCWSR4_SRDS1_PRTCL_MASK;

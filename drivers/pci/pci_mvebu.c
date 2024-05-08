@@ -28,6 +28,7 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/mbus.h>
+#include <linux/printk.h>
 #include <linux/sizes.h>
 
 /* PCIe unit register offsets */
@@ -640,7 +641,8 @@ static int mvebu_pcie_port_parse_dt(ofnode node, ofnode parent, struct mvebu_pci
 		pcie->is_x4 = true;
 
 	/* devfn is in bits [15:8], see PCI_DEV usage */
-	ret = ofnode_read_pci_addr(node, FDT_PCI_SPACE_CONFIG, "reg", &pci_addr);
+	ret = ofnode_read_pci_addr(node, FDT_PCI_SPACE_CONFIG, "reg", &pci_addr,
+				   NULL);
 	if (ret < 0) {
 		printf("%s: property \"reg\" is invalid\n", pcie->name);
 		goto err;
@@ -740,7 +742,7 @@ static int mvebu_pcie_bind(struct udevice *parent)
 
 	/* First phase: Fill mvebu_pcie struct for each port */
 	ofnode_for_each_subnode(subnode, dev_ofnode(parent)) {
-		if (!ofnode_is_available(subnode))
+		if (!ofnode_is_enabled(subnode))
 			continue;
 
 		pcie = calloc(1, sizeof(*pcie));

@@ -9,7 +9,7 @@
 #include <init.h>
 #include <linux/libfdt.h>
 
-#ifdef CONFIG_DM_VIDEO
+#ifdef CONFIG_VIDEO
 #include <bmp_logo.h>
 #include <dm.h>
 #include <splash.h>
@@ -31,7 +31,7 @@ static char tdx_board_rev_str[MODULE_VER_STR_LEN + MODULE_REV_STR_LEN + 1];
 #ifdef CONFIG_TDX_CFG_BLOCK_EXTRA
 static char tdx_car_serial_str[SERIAL_STR_LEN + 1];
 static char tdx_car_rev_str[MODULE_VER_STR_LEN + MODULE_REV_STR_LEN + 1];
-static char *tdx_carrier_board_name;
+static const char *tdx_carrier_board_name;
 #endif
 
 #if defined(CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG)
@@ -125,8 +125,8 @@ int show_board_info(void)
 			printf("MISSING TORADEX CARRIER CONFIG BLOCKS\n");
 			try_migrate_tdx_cfg_block_carrier();
 		} else {
-			tdx_carrier_board_name = (char *)
-				toradex_carrier_boards[tdx_car_hw_tag.prodid];
+			tdx_carrier_board_name =
+				get_toradex_carrier_boards(tdx_car_hw_tag.prodid);
 
 			snprintf(tdx_car_serial_str, sizeof(tdx_car_serial_str),
 				 "%08u", tdx_car_serial);

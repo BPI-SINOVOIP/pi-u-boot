@@ -14,6 +14,7 @@
 #include <asm/arch/sys_proto.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/arch/ddr.h>
+#include <asm/sections.h>
 
 #include <dm/uclass.h>
 #include <dm/device.h>
@@ -34,6 +35,10 @@ int spl_board_boot_device(enum boot_device boot_dev_spl)
 	case SD3_BOOT:
 	case MMC3_BOOT:
 		return BOOT_DEVICE_MMC2;
+	case USB_BOOT:
+		return BOOT_DEVICE_BOARD;
+	case QSPI_BOOT:
+		return BOOT_DEVICE_NOR;
 	default:
 		return BOOT_DEVICE_NONE;
 	}
@@ -46,7 +51,7 @@ static void spl_dram_init(void)
 
 void spl_board_init(void)
 {
-	debug("Normal Boot\n");
+	arch_misc_init();
 }
 
 #ifdef CONFIG_SPL_LOAD_FIT

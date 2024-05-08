@@ -17,6 +17,7 @@
 #include <generic-phy.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/printk.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <malloc.h>
@@ -28,11 +29,7 @@
 #include <usb/xhci.h>
 #include <asm/gpio.h>
 
-struct dwc3_glue_data {
-	struct clk_bulk		clks;
-	struct reset_ctl_bulk	resets;
-	fdt_addr_t regs;
-};
+#include "dwc3-generic.h"
 
 struct dwc3_generic_plat {
 	fdt_addr_t base;
@@ -44,7 +41,7 @@ struct dwc3_generic_priv {
 	void *base;
 	struct dwc3 dwc3;
 	struct phy_bulk phys;
-	struct gpio_desc ulpi_reset;
+	struct gpio_desc *ulpi_reset;
 };
 
 struct dwc3_generic_host_priv {
@@ -59,12 +56,38 @@ static int dwc3_generic_probe(struct udevice *dev,
 	struct dwc3_generic_plat *plat = dev_get_plat(dev);
 	struct dwc3 *dwc3 = &priv->dwc3;
 	struct dwc3_glue_data *glue = dev_get_plat(dev->parent);
+	int __maybe_unused index;
+	ofnode __maybe_unused node;
 
 	dwc3->dev = dev;
 	dwc3->maximum_speed = plat->maximum_speed;
 	dwc3->dr_mode = plat->dr_mode;
 #if CONFIG_IS_ENABLED(OF_CONTROL)
 	dwc3_of_parse(dwc3);
+
+	/*
+	 * There are currently four disparate placement possibilities of DWC3
+	 * reference clock phandle in SoC DTs:
+	 * - in top level glue node, with generic subnode without clock (ZynqMP)
+	 * - in top level generic node, with no subnode (i.MX8MQ)
+	 * - in generic subnode, with other clock in top level node (i.MX8MP)
+	 * - in both top level node and generic subnode (Rockchip)
+	 * Cover all the possibilities here by looking into both nodes, start
+	 * with the top level node as that seems to be used in majority of DTs
+	 * to reference the clock.
+	 */
+	node = dev_ofnode(dev->parent);
+	index = ofnode_stringlist_search(node, "clock-names", "ref");
+	if (index < 0)
+		index = ofnode_stringlist_search(node, "clock-names", "ref_clk");
+	if (index < 0) {
+		node = dev_ofnode(dev);
+		index = ofnode_stringlist_search(node, "clock-names", "ref");
+		if (index < 0)
+			index = ofnode_stringlist_search(node, "clock-names", "ref_clk");
+	}
+	if (index >= 0)
+		dwc3->ref_clk = &glue->clks.clks[index];
 #endif
 
 	/*
@@ -82,23 +105,23 @@ static int dwc3_generic_probe(struct udevice *dev,
 
 	if (CONFIG_IS_ENABLED(DM_GPIO) &&
 	    device_is_compatible(dev->parent, "xlnx,zynqmp-dwc3")) {
-		rc = gpio_request_by_name(dev->parent, "reset-gpios", 0,
-					  &priv->ulpi_reset, GPIOD_ACTIVE_LOW);
-		if (rc)
-			return rc;
+		priv->ulpi_reset = devm_gpiod_get_optional(dev->parent, "reset",
+							   GPIOD_IS_OUT | GPIOD_ACTIVE_LOW);
+		/* property is optional, don't return error! */
+		if (priv->ulpi_reset) {
+			/* Toggle ulpi to reset the phy. */
+			rc = dm_gpio_set_value(priv->ulpi_reset, 1);
+			if (rc)
+				return rc;
 
-		/* Toggle ulpi to reset the phy. */
-		rc = dm_gpio_set_value(&priv->ulpi_reset, 1);
-		if (rc)
-			return rc;
+			mdelay(5);
 
-		mdelay(5);
+			rc = dm_gpio_set_value(priv->ulpi_reset, 0);
+			if (rc)
+				return rc;
 
-		rc = dm_gpio_set_value(&priv->ulpi_reset, 0);
-		if (rc)
-			return rc;
-
-		mdelay(5);
+			mdelay(5);
+		}
 	}
 
 	if (device_is_compatible(dev->parent, "rockchip,rk3399-dwc3"))
@@ -123,8 +146,9 @@ static int dwc3_generic_remove(struct udevice *dev,
 	struct dwc3 *dwc3 = &priv->dwc3;
 
 	if (CONFIG_IS_ENABLED(DM_GPIO) &&
-	    device_is_compatible(dev->parent, "xlnx,zynqmp-dwc3")) {
-		struct gpio_desc *ulpi_reset = &priv->ulpi_reset;
+	    device_is_compatible(dev->parent, "xlnx,zynqmp-dwc3") &&
+	    priv->ulpi_reset) {
+		struct gpio_desc *ulpi_reset = priv->ulpi_reset;
 
 		dm_gpio_free(ulpi_reset->dev, ulpi_reset);
 	}
@@ -204,8 +228,7 @@ U_BOOT_DRIVER(dwc3_generic_peripheral) = {
 };
 #endif
 
-#if defined(CONFIG_SPL_USB_HOST) || \
-	!defined(CONFIG_SPL_BUILD) && defined(CONFIG_USB_HOST)
+#if CONFIG_IS_ENABLED(USB_HOST)
 static int dwc3_generic_host_probe(struct udevice *dev)
 {
 	struct xhci_hcor *hcor;
@@ -248,11 +271,6 @@ U_BOOT_DRIVER(dwc3_generic_host) = {
 	.flags = DM_FLAG_ALLOC_PRIV_DMA,
 };
 #endif
-
-struct dwc3_glue_ops {
-	void (*glue_configure)(struct udevice *dev, int index,
-			       enum usb_dr_mode mode);
-};
 
 void dwc3_imx8mp_glue_configure(struct udevice *dev, int index,
 				enum usb_dr_mode mode)
@@ -389,54 +407,77 @@ struct dwc3_glue_ops ti_ops = {
 	.glue_configure = dwc3_ti_glue_configure,
 };
 
-static int dwc3_glue_bind(struct udevice *parent)
+static int dwc3_rk_glue_get_ctrl_dev(struct udevice *dev, ofnode *node)
 {
+	*node = dev_ofnode(dev);
+	if (!ofnode_valid(*node))
+		return -EINVAL;
+
+	return 0;
+}
+
+struct dwc3_glue_ops rk_ops = {
+	.glue_get_ctrl_dev = dwc3_rk_glue_get_ctrl_dev,
+};
+
+static int dwc3_glue_bind_common(struct udevice *parent, ofnode node)
+{
+	const char *name = ofnode_get_name(node);
+	const char *driver;
+	enum usb_dr_mode dr_mode;
+	struct udevice *dev;
+	int ret;
+
+	debug("%s: subnode name: %s\n", __func__, name);
+
+	/* if the parent node doesn't have a mode check the leaf */
+	dr_mode = usb_get_dr_mode(dev_ofnode(parent));
+	if (!dr_mode)
+		dr_mode = usb_get_dr_mode(node);
+
+	if (CONFIG_IS_ENABLED(DM_USB_GADGET) &&
+	    (dr_mode == USB_DR_MODE_PERIPHERAL || dr_mode == USB_DR_MODE_OTG)) {
+		debug("%s: dr_mode: OTG or Peripheral\n", __func__);
+		driver = "dwc3-generic-peripheral";
+	} else if (CONFIG_IS_ENABLED(USB_HOST) && dr_mode == USB_DR_MODE_HOST) {
+		debug("%s: dr_mode: HOST\n", __func__);
+		driver = "dwc3-generic-host";
+	} else {
+		debug("%s: unsupported dr_mode %d\n", __func__, dr_mode);
+		return -ENODEV;
+	}
+
+	ret = device_bind_driver_to_node(parent, driver, name,
+					 node, &dev);
+	if (ret) {
+		debug("%s: not able to bind usb device mode\n",
+		      __func__);
+		return ret;
+	}
+
+	return 0;
+}
+
+int dwc3_glue_bind(struct udevice *parent)
+{
+	struct dwc3_glue_ops *ops = (struct dwc3_glue_ops *)dev_get_driver_data(parent);
 	ofnode node;
 	int ret;
-	enum usb_dr_mode dr_mode;
 
-	dr_mode = usb_get_dr_mode(dev_ofnode(parent));
+	if (ops && ops->glue_get_ctrl_dev) {
+		ret = ops->glue_get_ctrl_dev(parent, &node);
+		if (ret)
+			return ret;
+
+		return dwc3_glue_bind_common(parent, node);
+	}
 
 	ofnode_for_each_subnode(node, dev_ofnode(parent)) {
-		const char *name = ofnode_get_name(node);
-		struct udevice *dev;
-		const char *driver = NULL;
-
-		debug("%s: subnode name: %s\n", __func__, name);
-
-		/* if the parent node doesn't have a mode check the leaf */
-		if (!dr_mode)
-			dr_mode = usb_get_dr_mode(node);
-
-		switch (dr_mode) {
-		case USB_DR_MODE_PERIPHERAL:
-		case USB_DR_MODE_OTG:
-#if CONFIG_IS_ENABLED(DM_USB_GADGET)
-			debug("%s: dr_mode: OTG or Peripheral\n", __func__);
-			driver = "dwc3-generic-peripheral";
-#endif
-			break;
-#if defined(CONFIG_SPL_USB_HOST) || !defined(CONFIG_SPL_BUILD)
-		case USB_DR_MODE_HOST:
-			debug("%s: dr_mode: HOST\n", __func__);
-			driver = "dwc3-generic-host";
-			break;
-#endif
-		default:
-			debug("%s: unsupported dr_mode\n", __func__);
-			return -ENODEV;
-		};
-
-		if (!driver)
+		ret = dwc3_glue_bind_common(parent, node);
+		if (ret == -ENXIO)
 			continue;
-
-		ret = device_bind_driver_to_node(parent, driver, name,
-						 node, &dev);
-		if (ret) {
-			debug("%s: not able to bind usb device mode\n",
-			      __func__);
+		if (ret)
 			return ret;
-		}
 	}
 
 	return 0;
@@ -484,7 +525,7 @@ static int dwc3_glue_clk_init(struct udevice *dev,
 	return 0;
 }
 
-static int dwc3_glue_probe(struct udevice *dev)
+int dwc3_glue_probe(struct udevice *dev)
 {
 	struct dwc3_glue_ops *ops = (struct dwc3_glue_ops *)dev_get_driver_data(dev);
 	struct dwc3_glue_data *glue = dev_get_plat(dev);
@@ -501,11 +542,9 @@ static int dwc3_glue_probe(struct udevice *dev)
 	} else if (ret != -ENOENT && ret != -ENODATA) {
 		debug("could not get phy (err %d)\n", ret);
 		return ret;
-	} else {
-		phy.dev = NULL;
 	}
 
-	glue->regs = dev_read_addr(dev);
+	glue->regs = dev_read_addr_size_index(dev, 0, &glue->size);
 
 	ret = dwc3_glue_clk_init(dev, glue);
 	if (ret)
@@ -515,15 +554,21 @@ static int dwc3_glue_probe(struct udevice *dev)
 	if (ret)
 		return ret;
 
-	if (phy.dev) {
+	if (generic_phy_valid(&phy)) {
 		ret = generic_phy_power_on(&phy);
 		if (ret)
 			return ret;
 	}
 
-	ret = device_find_first_child(dev, &child);
-	if (ret)
-		return ret;
+	device_find_first_child(dev, &child);
+	if (!child)
+		return 0;
+
+	if (glue->clks.count == 0) {
+		ret = dwc3_glue_clk_init(child, glue);
+		if (ret)
+			return ret;
+	}
 
 	if (glue->resets.count == 0) {
 		ret = dwc3_glue_reset_init(child, glue);
@@ -544,7 +589,7 @@ static int dwc3_glue_probe(struct udevice *dev)
 	return 0;
 }
 
-static int dwc3_glue_remove(struct udevice *dev)
+int dwc3_glue_remove(struct udevice *dev)
 {
 	struct dwc3_glue_data *glue = dev_get_plat(dev);
 
@@ -562,8 +607,10 @@ static const struct udevice_id dwc3_glue_ids[] = {
 	{ .compatible = "ti,dwc3", .data = (ulong)&ti_ops },
 	{ .compatible = "ti,am437x-dwc3", .data = (ulong)&ti_ops },
 	{ .compatible = "ti,am654-dwc3" },
-	{ .compatible = "rockchip,rk3328-dwc3" },
+	{ .compatible = "rockchip,rk3328-dwc3", .data = (ulong)&rk_ops },
 	{ .compatible = "rockchip,rk3399-dwc3" },
+	{ .compatible = "rockchip,rk3568-dwc3", .data = (ulong)&rk_ops },
+	{ .compatible = "rockchip,rk3588-dwc3", .data = (ulong)&rk_ops },
 	{ .compatible = "qcom,dwc3" },
 	{ .compatible = "fsl,imx8mp-dwc3", .data = (ulong)&imx8mp_ops },
 	{ .compatible = "fsl,imx8mq-dwc3" },

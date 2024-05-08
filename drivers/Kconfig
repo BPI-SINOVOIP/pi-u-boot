@@ -10,6 +10,8 @@ source "drivers/ata/Kconfig"
 
 source "drivers/axi/Kconfig"
 
+source "drivers/bios_emulator/Kconfig"
+
 source "drivers/bus/Kconfig"
 
 source "drivers/block/Kconfig"
@@ -36,6 +38,8 @@ source "drivers/dfu/Kconfig"
 
 source "drivers/dma/Kconfig"
 
+source "drivers/extcon/Kconfig"
+
 source "drivers/fastboot/Kconfig"
 
 source "drivers/firmware/Kconfig"
@@ -43,6 +47,8 @@ source "drivers/firmware/Kconfig"
 source "drivers/fuzz/Kconfig"
 
 source "drivers/fpga/Kconfig"
+
+source "drivers/fwu-mdata/Kconfig"
 
 source "drivers/gpio/Kconfig"
 
@@ -59,6 +65,8 @@ source "drivers/led/Kconfig"
 source "drivers/mailbox/Kconfig"
 
 source "drivers/memory/Kconfig"
+
+source "drivers/mfd/Kconfig"
 
 source "drivers/misc/Kconfig"
 
@@ -109,6 +117,8 @@ source "drivers/rtc/Kconfig"
 source "drivers/scsi/Kconfig"
 
 source "drivers/serial/Kconfig"
+
+source "drivers/sm/Kconfig"
 
 source "drivers/smem/Kconfig"
 

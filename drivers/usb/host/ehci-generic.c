@@ -39,14 +39,10 @@ static int ehci_enable_vbus_supply(struct udevice *dev)
 	if (ret && ret != -ENOENT)
 		return ret;
 
-	if (priv->vbus_supply) {
-		ret = regulator_set_enable(priv->vbus_supply, true);
-		if (ret) {
-			dev_err(dev, "Error enabling VBUS supply (ret=%d)\n", ret);
-			return ret;
-		}
-	} else {
-		dev_dbg(dev, "No vbus supply\n");
+	ret = regulator_set_enable_if_allowed(priv->vbus_supply, true);
+	if (ret && ret != -ENOSYS) {
+		dev_err(dev, "Error enabling VBUS supply (ret=%d)\n", ret);
+		return ret;
 	}
 
 	return 0;
@@ -54,10 +50,13 @@ static int ehci_enable_vbus_supply(struct udevice *dev)
 
 static int ehci_disable_vbus_supply(struct generic_ehci *priv)
 {
-	if (priv->vbus_supply)
-		return regulator_set_enable(priv->vbus_supply, false);
-	else
-		return 0;
+	int ret;
+
+	ret = regulator_set_enable_if_allowed(priv->vbus_supply, false);
+	if (ret && ret != -ENOSYS)
+		return ret;
+
+	return 0;
 }
 
 static int ehci_usb_probe(struct udevice *dev)
@@ -96,7 +95,7 @@ static int ehci_usb_probe(struct udevice *dev)
 	if (err)
 		goto reset_err;
 
-	err = ehci_setup_phy(dev, &priv->phy, 0);
+	err = generic_setup_phy(dev, &priv->phy, 0);
 	if (err)
 		goto regulator_err;
 
@@ -111,7 +110,7 @@ static int ehci_usb_probe(struct udevice *dev)
 	return 0;
 
 phy_err:
-	ret = ehci_shutdown_phy(dev, &priv->phy);
+	ret = generic_shutdown_phy(&priv->phy);
 	if (ret)
 		dev_err(dev, "failed to shutdown usb phy (ret=%d)\n", ret);
 
@@ -141,7 +140,7 @@ static int ehci_usb_remove(struct udevice *dev)
 	if (ret)
 		return ret;
 
-	ret = ehci_shutdown_phy(dev, &priv->phy);
+	ret = generic_shutdown_phy(&priv->phy);
 	if (ret)
 		return ret;
 

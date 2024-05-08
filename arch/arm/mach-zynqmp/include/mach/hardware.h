@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2014 - 2015 Xilinx, Inc.
- * Michal Simek <michal.simek@xilinx.com>
+ * Michal Simek <michal.simek@amd.com>
  */
 
 #ifndef _ASM_ARCH_HARDWARE_H
@@ -166,7 +166,7 @@ struct csu_regs {
 	u32 jtag_dap_cfg;
 	u32 idcode;
 	u32 version;
-	u32 reserved2[3055];
+	u32 reserved2[3054];
 	u32 pcap_prog;
 };
 
@@ -175,7 +175,9 @@ struct csu_regs {
 #define ZYNQMP_PMU_BASEADDR	0xFFD80000
 
 struct pmu_regs {
-	u32 reserved[18];
+	u32 reserved0[16];
+	u32 gen_storage4; /* 0x40 */
+	u32 reserved1[1];
 	u32 gen_storage6; /* 0x48 */
 };
 

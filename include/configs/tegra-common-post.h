@@ -7,12 +7,22 @@
 #ifndef __TEGRA_COMMON_POST_H
 #define __TEGRA_COMMON_POST_H
 
-#define CONFIG_SYS_NONCACHED_MEMORY	(1 << 20)	/* 1 MiB */
-
-#if CONFIG_IS_ENABLED(CMD_USB)
-# define BOOT_TARGET_USB(func) func(USB, usb, 0)
+#if IS_ENABLED(CONFIG_CMD_USB)
+#define BOOT_TARGET_USB(func) func(USB, usb, 0)
 #else
-# define BOOT_TARGET_USB(func)
+#define BOOT_TARGET_USB(func)
+#endif
+
+#if CONFIG_IS_ENABLED(CMD_DHCP) && CONFIG_IS_ENABLED(CMD_PXE)
+#define BOOT_TARGET_PXE(func) func(PXE, pxe, na)
+#else
+#define BOOT_TARGET_PXE(func)
+#endif
+
+#if CONFIG_IS_ENABLED(CMD_DHCP)
+#define BOOT_TARGET_DHCP(func) func(DHCP, dhcp, na)
+#else
+#define BOOT_TARGET_DHCP(func)
 #endif
 
 #ifndef BOOT_TARGET_DEVICES
@@ -20,8 +30,8 @@
 	func(MMC, mmc, 1) \
 	func(MMC, mmc, 0) \
 	BOOT_TARGET_USB(func) \
-	func(PXE, pxe, na) \
-	func(DHCP, dhcp, na)
+	BOOT_TARGET_PXE(func) \
+	BOOT_TARGET_DHCP(func)
 #endif
 #include <config_distro_bootcmd.h>
 
@@ -37,13 +47,13 @@
 #define STDIN_KBD_USB ""
 #endif
 
-#ifdef CONFIG_LCD
-#define STDOUT_LCD ",lcd"
+#ifdef CONFIG_BUTTON_KEYBOARD
+#define STDIN_BTN_KBD ",button-kbd"
 #else
-#define STDOUT_LCD ""
+#define STDIN_BTN_KBD ""
 #endif
 
-#ifdef CONFIG_DM_VIDEO
+#ifdef CONFIG_VIDEO
 #define STDOUT_VIDEO ",vidconsole"
 #else
 #define STDOUT_VIDEO ""
@@ -56,9 +66,9 @@
 #endif
 
 #define TEGRA_DEVICE_SETTINGS \
-	"stdin=serial" STDIN_KBD_KBC STDIN_KBD_USB STDOUT_CROS_EC "\0" \
-	"stdout=serial" STDOUT_LCD STDOUT_VIDEO "\0" \
-	"stderr=serial" STDOUT_LCD STDOUT_VIDEO "\0" \
+	"stdin=serial" STDIN_KBD_KBC STDIN_KBD_USB STDOUT_CROS_EC STDIN_BTN_KBD "\0" \
+	"stdout=serial" STDOUT_VIDEO "\0" \
+	"stderr=serial" STDOUT_VIDEO "\0" \
 	""
 
 #ifndef BOARD_EXTRA_ENV_SETTINGS
@@ -73,16 +83,12 @@
 #define INITRD_HIGH "ffffffff"
 #endif
 
-#define CONFIG_EXTRA_ENV_SETTINGS \
+#define CFG_EXTRA_ENV_SETTINGS \
 	TEGRA_DEVICE_SETTINGS \
 	MEM_LAYOUT_ENV_SETTINGS \
 	"fdt_high=" FDT_HIGH "\0" \
 	"initrd_high=" INITRD_HIGH "\0" \
 	BOOTENV \
 	BOARD_EXTRA_ENV_SETTINGS
-
-#if defined(CONFIG_TEGRA20_SFLASH) || defined(CONFIG_TEGRA20_SLINK) || defined(CONFIG_TEGRA114_SPI)
-#define CONFIG_TEGRA_SPI
-#endif
 
 #endif /* __TEGRA_COMMON_POST_H */

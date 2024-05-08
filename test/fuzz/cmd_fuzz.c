@@ -29,7 +29,7 @@ static struct udevice *find_fuzzing_engine(void)
 {
 	struct udevice *dev;
 
-	if (uclass_first_device(UCLASS_FUZZING_ENGINE, &dev))
+	if (uclass_first_device_err(UCLASS_FUZZING_ENGINE, &dev))
 		return NULL;
 
 	return dev;
@@ -70,11 +70,8 @@ static int do_fuzz(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]
 	return 1;
 }
 
-#ifdef CONFIG_SYS_LONGHELP
-static char fuzz_help_text[] =
-	"[fuzz-test-name] - execute the named fuzz test\n"
-	;
-#endif /* CONFIG_SYS_LONGHELP */
+U_BOOT_LONGHELP(fuzz,
+	"[fuzz-test-name] - execute the named fuzz test\n");
 
 U_BOOT_CMD(
 	fuzz, CONFIG_SYS_MAXARGS, 1, do_fuzz,

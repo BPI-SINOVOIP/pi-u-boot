@@ -5,6 +5,8 @@
  * From coreboot src/soc/intel/broadwell/romstage/raminit.c
  */
 
+#define LOG_CATEGORY UCLASS_RAM
+
 #include <common.h>
 #include <dm.h>
 #include <init.h>
@@ -25,7 +27,7 @@
 #include <asm/arch/pei_data.h>
 #include <asm/arch/pm.h>
 
-ulong board_get_usable_ram_top(ulong total_size)
+phys_addr_t board_get_usable_ram_top(phys_size_t total_size)
 {
 	return mrc_common_board_get_usable_ram_top(total_size);
 }

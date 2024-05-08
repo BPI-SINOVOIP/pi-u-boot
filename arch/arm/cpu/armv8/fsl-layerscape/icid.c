@@ -23,11 +23,11 @@ static void set_icid(struct icid_id_table *tbl, int size)
 			out_be32((u32 *)(tbl[i].reg_addr), tbl[i].reg);
 }
 
-#ifdef CONFIG_SYS_DPAA_FMAN
-void set_fman_icids(struct fman_icid_id_table *tbl, int size)
+#if defined(CONFIG_SYS_DPAA_FMAN) && !defined(CONFIG_SPL_BUILD)
+static void set_fman_icids(struct fman_icid_id_table *tbl, int size)
 {
 	int i;
-	ccsr_fman_t *fm = (void *)CONFIG_SYS_FSL_FM1_ADDR;
+	ccsr_fman_t *fm = (void *)CFG_SYS_FSL_FM1_ADDR;
 
 	for (i = 0; i < size; i++) {
 		out_be32(&fm->fm_bmi_common.fmbm_ppid[tbl[i].port_id - 1],
@@ -41,11 +41,12 @@ void set_icids(void)
 	/* setup general icid offsets */
 	set_icid(icid_tbl, icid_tbl_sz);
 
-#ifdef CONFIG_SYS_DPAA_FMAN
+#if defined(CONFIG_SYS_DPAA_FMAN) && !defined(CONFIG_SPL_BUILD)
 	set_fman_icids(fman_icid_tbl, fman_icid_tbl_sz);
 #endif
 }
 
+#ifndef CONFIG_SPL_BUILD
 int fdt_set_iommu_prop(void *blob, int off, int smmu_ph, u32 *ids, int num_ids)
 {
 	int i, ret;
@@ -70,7 +71,7 @@ int fdt_set_iommu_prop(void *blob, int off, int smmu_ph, u32 *ids, int num_ids)
 	return 0;
 }
 
-int fdt_fixup_icid_tbl(void *blob, int smmu_ph,
+static int fdt_fixup_icid_tbl(void *blob, int smmu_ph,
 		       struct icid_id_table *tbl, int size)
 {
 	int i, err, off;
@@ -97,7 +98,7 @@ int fdt_fixup_icid_tbl(void *blob, int smmu_ph,
 }
 
 #ifdef CONFIG_SYS_DPAA_FMAN
-int get_fman_port_icid(int port_id, struct fman_icid_id_table *tbl,
+static int get_fman_port_icid(int port_id, struct fman_icid_id_table *tbl,
 		       const int size)
 {
 	int i;
@@ -110,7 +111,7 @@ int get_fman_port_icid(int port_id, struct fman_icid_id_table *tbl,
 	return -1;
 }
 
-void fdt_fixup_fman_port_icid_by_compat(void *blob, int smmu_ph,
+static void fdt_fixup_fman_port_icid_by_compat(void *blob, int smmu_ph,
 					const char *compat)
 {
 	int noff, len, icid;
@@ -139,7 +140,7 @@ void fdt_fixup_fman_port_icid_by_compat(void *blob, int smmu_ph,
 	}
 }
 
-void fdt_fixup_fman_icids(void *blob, int smmu_ph)
+static void fdt_fixup_fman_icids(void *blob, int smmu_ph)
 {
 	static const char * const compats[] = {
 		"fsl,fman-v3-port-oh",
@@ -190,3 +191,4 @@ void fdt_fixup_icid(void *blob)
 	fdt_fixup_fman_icids(blob, smmu_ph);
 #endif
 }
+#endif

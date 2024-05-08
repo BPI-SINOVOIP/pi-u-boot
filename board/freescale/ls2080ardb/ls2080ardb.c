@@ -24,7 +24,6 @@
 #include <i2c.h>
 #include <asm/arch/mmu.h>
 #include <asm/arch/soc.h>
-#include <asm/arch/ppa.h>
 #include <asm/arch-fsl-layerscape/fsl_icid.h>
 #include "../common/i2c_mux.h"
 
@@ -242,7 +241,7 @@ int config_board_mux(int ctrl_type)
 ulong *cs4340_get_fw_addr(void)
 {
 #ifdef CONFIG_TFABOOT
-	struct ccsr_gur __iomem *gur = (void *)(CONFIG_SYS_FSL_GUTS_ADDR);
+	struct ccsr_gur __iomem *gur = (void *)(CFG_SYS_FSL_GUTS_ADDR);
 	u32 svr = gur_in32(&gur->svr);
 #endif
 	ulong cortina_fw_addr = CONFIG_CORTINA_FW_ADDR;
@@ -288,16 +287,12 @@ int board_init(void)
 	QIXIS_WRITE(rst_ctl, QIXIS_RST_CTL_RESET_EN);
 #endif
 
-#ifdef CONFIG_FSL_LS_PPA
-	ppa_init();
-#endif
-
 #ifdef CONFIG_FSL_MC_ENET
 	/* invert AQR405 IRQ pins polarity */
 	out_le32(irq_ccsr + IRQCR_OFFSET / 4, AQR405_IRQ_MASK);
 #endif
 
-#if !defined(CONFIG_SYS_EARLY_PCI_INIT) && defined(CONFIG_DM_ETH)
+#if !defined(CONFIG_SYS_EARLY_PCI_INIT)
 	pci_init();
 #endif
 
@@ -318,7 +313,7 @@ int misc_init_r(void)
 	char *env_hwconfig;
 	u32 __iomem *dcfg_ccsr = (u32 __iomem *)DCFG_BASE;
 	u32 val;
-	struct ccsr_gur __iomem *gur = (void *)(CONFIG_SYS_FSL_GUTS_ADDR);
+	struct ccsr_gur __iomem *gur = (void *)(CFG_SYS_FSL_GUTS_ADDR);
 	u32 svr = gur_in32(&gur->svr);
 
 	val = in_le32(dcfg_ccsr + DCFG_RCWSR13 / 4);
@@ -527,6 +522,7 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 
 #ifdef CONFIG_FSL_MC_ENET
 	fdt_fixup_board_enet(blob);
+	fdt_reserve_mc_mem(blob, 0x300);
 #endif
 
 	fdt_fixup_icid(blob);

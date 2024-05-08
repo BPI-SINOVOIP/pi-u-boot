@@ -9,6 +9,8 @@ import re
 from subprocess import call, check_call, check_output, CalledProcessError
 from fstest_defs import *
 import u_boot_utils as util
+# pylint: disable=E0611
+from tests import fs_helper
 
 supported_fs_basic = ['fat16', 'fat32', 'ext4']
 supported_fs_ext = ['fat16', 'fat32']
@@ -96,7 +98,7 @@ def pytest_generate_tests(metafunc):
 # Helper functions
 #
 def fstype_to_ubname(fs_type):
-    """Convert a file system type to an U-boot specific string
+    """Convert a file system type to an U-Boot specific string
 
     A generated string can be used as part of file system related commands
     or a config name in u-boot. Currently fat16 and fat32 are handled
@@ -131,53 +133,6 @@ def check_ubconfig(config, fs_type):
     if not config.buildconfig.get('config_%s_write' % fs_type, None):
         pytest.skip('.config feature "%s_WRITE" not enabled'
         % fs_type.upper())
-
-def mk_fs(config, fs_type, size, id):
-    """Create a file system volume.
-
-    Args:
-        fs_type: File system type.
-        size: Size of file system in MiB.
-        id: Prefix string of volume's file name.
-
-    Return:
-        Nothing.
-    """
-    fs_img = '%s.%s.img' % (id, fs_type)
-    fs_img = config.persistent_data_dir + '/' + fs_img
-
-    if fs_type == 'fat16':
-        mkfs_opt = '-F 16'
-    elif fs_type == 'fat32':
-        mkfs_opt = '-F 32'
-    else:
-        mkfs_opt = ''
-
-    if re.match('fat', fs_type):
-        fs_lnxtype = 'vfat'
-    else:
-        fs_lnxtype = fs_type
-
-    count = (size + 1048576 - 1) / 1048576
-
-    # Some distributions do not add /sbin to the default PATH, where mkfs lives
-    if '/sbin' not in os.environ["PATH"].split(os.pathsep):
-        os.environ["PATH"] += os.pathsep + '/sbin'
-
-    try:
-        check_call('rm -f %s' % fs_img, shell=True)
-        check_call('dd if=/dev/zero of=%s bs=1M count=%d'
-            % (fs_img, count), shell=True)
-        check_call('mkfs.%s %s %s'
-            % (fs_lnxtype, mkfs_opt, fs_img), shell=True)
-        if fs_type == 'ext4':
-            sb_content = check_output('tune2fs -l %s' % fs_img, shell=True).decode()
-            if 'metadata_csum' in sb_content:
-                check_call('tune2fs -O ^metadata_csum %s' % fs_img, shell=True)
-        return fs_img
-    except CalledProcessError:
-        call('rm -f %s' % fs_img, shell=True)
-        raise
 
 # from test/py/conftest.py
 def tool_is_in_path(tool):
@@ -263,7 +218,7 @@ def fs_obj_basic(request, u_boot_config):
 
     Args:
         request: Pytest request object.
-	u_boot_config: U-boot configuration.
+	u_boot_config: U-Boot configuration.
 
     Return:
         A fixture for basic fs test, i.e. a triplet of file system type,
@@ -283,7 +238,7 @@ def fs_obj_basic(request, u_boot_config):
     try:
 
         # 3GiB volume
-        fs_img = mk_fs(u_boot_config, fs_type, 0xc0000000, '3GB')
+        fs_img = fs_helper.mk_fs(u_boot_config, fs_type, 0xc0000000, '3GB')
     except CalledProcessError as err:
         pytest.skip('Creating failed for filesystem: ' + fs_type + '. {}'.format(err))
         return
@@ -385,7 +340,7 @@ def fs_obj_ext(request, u_boot_config):
 
     Args:
         request: Pytest request object.
-	u_boot_config: U-boot configuration.
+	u_boot_config: U-Boot configuration.
 
     Return:
         A fixture for extended fs test, i.e. a triplet of file system type,
@@ -405,7 +360,7 @@ def fs_obj_ext(request, u_boot_config):
     try:
 
         # 128MiB volume
-        fs_img = mk_fs(u_boot_config, fs_type, 0x8000000, '128MB')
+        fs_img = fs_helper.mk_fs(u_boot_config, fs_type, 0x8000000, '128MB')
     except CalledProcessError as err:
         pytest.skip('Creating failed for filesystem: ' + fs_type + '. {}'.format(err))
         return
@@ -486,7 +441,7 @@ def fs_obj_mkdir(request, u_boot_config):
 
     Args:
         request: Pytest request object.
-	u_boot_config: U-boot configuration.
+	u_boot_config: U-Boot configuration.
 
     Return:
         A fixture for mkdir test, i.e. a duplet of file system type and
@@ -500,7 +455,7 @@ def fs_obj_mkdir(request, u_boot_config):
 
     try:
         # 128MiB volume
-        fs_img = mk_fs(u_boot_config, fs_type, 0x8000000, '128MB')
+        fs_img = fs_helper.mk_fs(u_boot_config, fs_type, 0x8000000, '128MB')
     except:
         pytest.skip('Setup failed for filesystem: ' + fs_type)
         return
@@ -517,7 +472,7 @@ def fs_obj_unlink(request, u_boot_config):
 
     Args:
         request: Pytest request object.
-	u_boot_config: U-boot configuration.
+	u_boot_config: U-Boot configuration.
 
     Return:
         A fixture for unlink test, i.e. a duplet of file system type and
@@ -534,7 +489,7 @@ def fs_obj_unlink(request, u_boot_config):
     try:
 
         # 128MiB volume
-        fs_img = mk_fs(u_boot_config, fs_type, 0x8000000, '128MB')
+        fs_img = fs_helper.mk_fs(u_boot_config, fs_type, 0x8000000, '128MB')
     except CalledProcessError as err:
         pytest.skip('Creating failed for filesystem: ' + fs_type + '. {}'.format(err))
         return
@@ -597,7 +552,7 @@ def fs_obj_symlink(request, u_boot_config):
 
     Args:
         request: Pytest request object.
-        u_boot_config: U-boot configuration.
+        u_boot_config: U-Boot configuration.
 
     Return:
         A fixture for basic fs test, i.e. a triplet of file system type,
@@ -617,7 +572,7 @@ def fs_obj_symlink(request, u_boot_config):
     try:
 
         # 1GiB volume
-        fs_img = mk_fs(u_boot_config, fs_type, 0x40000000, '1GB')
+        fs_img = fs_helper.mk_fs(u_boot_config, fs_type, 0x40000000, '1GB')
     except CalledProcessError as err:
         pytest.skip('Creating failed for filesystem: ' + fs_type + '. {}'.format(err))
         return

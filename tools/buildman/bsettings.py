@@ -5,8 +5,9 @@ import configparser
 import os
 import io
 
+config_fname = None
 
-def Setup(fname=''):
+def setup(fname=''):
     """Set up the buildman settings module by reading config files
 
     Args:
@@ -22,15 +23,15 @@ def Setup(fname=''):
             config_fname = '%s/.buildman' % os.getenv('HOME')
         if not os.path.exists(config_fname):
             print('No config file found ~/.buildman\nCreating one...\n')
-            CreateBuildmanConfigFile(config_fname)
+            create_buildman_config_file(config_fname)
             print('To install tool chains, please use the --fetch-arch option')
         if config_fname:
             settings.read(config_fname)
 
-def AddFile(data):
+def add_file(data):
     settings.readfp(io.StringIO(data))
 
-def GetItems(section):
+def get_items(section):
     """Get the items from a section of the config.
 
     Args:
@@ -46,7 +47,18 @@ def GetItems(section):
     except:
         raise
 
-def SetItem(section, tag, value):
+def get_global_item_value(name):
+    """Get an item from the 'global' section of the config.
+
+    Args:
+        name: name of item to retrieve
+
+    Returns:
+        str: Value of item, or None if not present
+    """
+    return settings.get('global', name, fallback=None)
+
+def set_item(section, tag, value):
     """Set an item and write it back to the settings file"""
     global settings
     global config_fname
@@ -56,7 +68,7 @@ def SetItem(section, tag, value):
         with open(config_fname, 'w') as fd:
             settings.write(fd)
 
-def CreateBuildmanConfigFile(config_fname):
+def create_buildman_config_file(config_fname):
     """Creates a new config file with no tool chain information.
 
     Args:
@@ -83,9 +95,9 @@ other = /
 [toolchain-alias]
 # arch = alias
 # Indicates which toolchain should be used to build for that arch
+riscv = riscv32
+sh = sh4
 x86 = i386
-blackfin = bfin
-openrisc = or1k
 
 [make-flags]
 # Special flags to pass to 'make' for certain boards, e.g. to pass a test

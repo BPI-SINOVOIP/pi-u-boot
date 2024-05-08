@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <dm.h>
 #include <dm/uclass-internal.h>
+#include <linux/printk.h>
 #include <power/regulator.h>
 
 #define LIMIT_DEVNAME	20
@@ -37,6 +38,7 @@ static int do_dev(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			printf("Can't get the regulator: %s!\n", name);
 			return failure(ret);
 		}
+		fallthrough;
 	case 1:
 		if (!currdev) {
 			printf("Regulator device is not set!\n\n");
@@ -205,7 +207,7 @@ static void do_status_detail(struct udevice *dev,
 	constraint(" * mode id:", mode, mode_name);
 }
 
-static void do_status_line(struct udevice *dev)
+static void do_status_line(struct udevice *dev, int status)
 {
 	struct dm_regulator_uclass_plat *pdata;
 	int current, value, mode;
@@ -231,6 +233,7 @@ static void do_status_line(struct udevice *dev)
 		printf("%-10s", mode_name);
 	else
 		printf("%-10s", "-");
+	printf(" %i", status);
 	printf("\n");
 }
 
@@ -250,11 +253,11 @@ static int do_status(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 
 	/* Show all of them in a list, probing them as needed */
-	printf("%-20s %-10s %10s %10s %-10s\n", "Name", "Enabled", "uV", "mA",
-	       "Mode");
-	for (ret = uclass_first_device(UCLASS_REGULATOR, &dev); dev;
-	     ret = uclass_next_device(&dev))
-		do_status_line(dev);
+	printf("%-20s %-10s %10s %10s %-10s %s\n", "Name", "Enabled", "uV", "mA",
+	       "Mode", "Status");
+	for (ret = uclass_first_device_check(UCLASS_REGULATOR, &dev); dev;
+	     ret = uclass_next_device_check(&dev))
+		do_status_line(dev, ret);
 
 	return CMD_RET_SUCCESS;
 }

@@ -4,7 +4,7 @@ mx6ul_14x14_evk
 ===============
 
 How to use U-Boot on Freescale MX6UL 14x14 EVK
------------------------------------------------
+----------------------------------------------
 
 - Build U-Boot for MX6UL 14x14 EVK:
 
@@ -74,9 +74,9 @@ The following script should be created to boot SPL + u-boot-dtb.img binaries:
      SDPU: jump -addr 0x877fffc0
      SDPU: done
 
-Please note that the address above is calculated based on SYS_TEXT_BASE address:
+Please note that the address above is calculated based on TEXT_BASE address:
 
-0x877fffc0 = 0x87800000 (SYS_TEXT_BASE) - 0x40 (U-Boot proper Header size)
+0x877fffc0 = 0x87800000 (TEXT_BASE) - 0x40 (U-Boot proper Header size)
 
 Power on the target and run the following command from U-Boot root directory:
 

@@ -26,31 +26,6 @@ union gen_boot_header {
 #define SF_BOOT_NAME		"SF_BOOT"
 #define SDMMC_BOOT_NAME		"SDMMC_BOOT"
 
-/* Header for NAND */
-union nand_boot_header {
-	struct {
-		char name[12];
-		char version[4];
-		char id[8];
-		uint16_t ioif;
-		uint16_t pagesize;
-		uint16_t addrcycles;
-		uint16_t oobsize;
-		uint16_t pages_of_block;
-		uint16_t numblocks;
-		uint16_t writesize_shift;
-		uint16_t erasesize_shift;
-		uint8_t dummy[60];
-		uint8_t ecc_parity[28];
-	};
-
-	uint8_t data[0x80];
-};
-
-#define NAND_BOOT_NAME		"BOOTLOADER!"
-#define NAND_BOOT_VERSION	"V006"
-#define NAND_BOOT_ID		"NFIINFO"
-
 /* BootROM layout header */
 struct brom_layout_header {
 	char name[8];
@@ -88,13 +63,13 @@ struct gen_device_header {
 
 /* BootROM header definitions */
 struct gfh_common_header {
-	uint8_t magic[3];
-	uint8_t version;
+	uint32_t magic_version;
 	uint16_t size;
 	uint16_t type;
 };
 
-#define GFH_HEADER_MAGIC	"MMM"
+#define GFH_HEADER_MAGIC		0x4D4D4D
+#define GFH_HEADER_VERSION_SHIFT	24
 
 #define GFH_TYPE_FILE_INFO	0
 #define GFH_TYPE_BL_INFO	1

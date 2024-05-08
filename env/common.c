@@ -15,6 +15,7 @@
 #include <log.h>
 #include <sort.h>
 #include <asm/global_data.h>
+#include <linux/printk.h>
 #include <linux/stddef.h>
 #include <search.h>
 #include <errno.h>
@@ -115,7 +116,7 @@ char *env_get(const char *name)
 	if (gd->flags & GD_FLG_ENV_READY) { /* after import into hashtable */
 		struct env_entry e, *ep;
 
-		WATCHDOG_RESET();
+		schedule();
 
 		e.key	= name;
 		e.data	= NULL;
@@ -353,6 +354,7 @@ int env_check_redund(const char *buf1, int buf1_read_fail,
 				tmp_env2->crc;
 
 	if (!crc1_ok && !crc2_ok) {
+		gd->env_valid = ENV_INVALID;
 		return -ENOMSG; /* needed for env_load() */
 	} else if (crc1_ok && !crc2_ok) {
 		gd->env_valid = ENV_VALID;
@@ -427,11 +429,6 @@ int env_export(env_t *env_out)
 
 void env_relocate(void)
 {
-#if defined(CONFIG_NEEDS_MANUAL_RELOC)
-	env_reloc();
-	env_fix_drivers();
-	env_htab.change_ok += gd->reloc_off;
-#endif
 	if (gd->env_valid == ENV_INVALID) {
 #if defined(CONFIG_ENV_IS_NOWHERE) || defined(CONFIG_SPL_BUILD)
 		/* Environment not changable */
@@ -539,12 +536,12 @@ void env_import_fdt(void)
 		return;
 	}
 
-	for (res = ofnode_get_first_property(node, &prop);
+	for (res = ofnode_first_property(node, &prop);
 	     !res;
-	     res = ofnode_get_next_property(&prop)) {
+	     res = ofnode_next_property(&prop)) {
 		const char *name, *val;
 
-		val = ofnode_get_property_by_prop(&prop, &name, NULL);
+		val = ofprop_get_property(&prop, &name, NULL);
 		env_set(name, val);
 	}
 }

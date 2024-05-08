@@ -12,7 +12,7 @@ config SYS_CPU
 config SYS_CONFIG_NAME
 	default "openpiton-riscv64"
 
-config SYS_TEXT_BASE
+config TEXT_BASE
 	default 0x81000000 if SPL
 	default 0x80000000 if !RISCV_SMODE
 	default 0x81000000 if RISCV_SMODE
@@ -29,7 +29,7 @@ config BOARD_SPECIFIC_OPTIONS # dummy
 	select SUPPORT_SPL
 	imply CPU_RISCV
 	imply RISCV_TIMER
-	imply SPL_SIFIVE_CLINT
+	imply SPL_RISCV_ACLINT
 	imply CMD_CPU
 	imply SPL_CPU_SUPPORT
 	imply SPL_SMP

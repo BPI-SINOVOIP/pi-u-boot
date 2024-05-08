@@ -14,9 +14,10 @@
 #include <asm/io.h>
 #include <asm/gpio.h>
 #include <asm/arch/clock.h>
-#include <asm/arch/sci/sci.h>
+#include <firmware/imx/sci/sci.h>
 #include <asm/arch/imx8-pins.h>
 #include <asm/arch/iomux.h>
+#include <asm/sections.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -64,7 +65,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define USDHC1_CD_GPIO	IMX_GPIO_NR(5, 22)
 #define USDHC2_CD_GPIO	IMX_GPIO_NR(4, 12)
 
-static struct fsl_esdhc_cfg usdhc_cfg[CONFIG_SYS_FSL_USDHC_NUM] = {
+static struct fsl_esdhc_cfg usdhc_cfg[CFG_SYS_FSL_USDHC_NUM] = {
 	{USDHC1_BASE_ADDR, 0, 8},
 	{USDHC2_BASE_ADDR, 0, 4},
 	{USDHC3_BASE_ADDR, 0, 4},
@@ -108,11 +109,11 @@ int board_mmc_init(struct bd_info *bis)
 	 * mmc1                    USDHC2
 	 * mmc2                    USDHC3
 	 */
-	for (i = 0; i < CONFIG_SYS_FSL_USDHC_NUM; i++) {
+	for (i = 0; i < CFG_SYS_FSL_USDHC_NUM; i++) {
 		switch (i) {
 		case 0:
 			ret = sc_pm_set_resource_power_mode(-1, SC_R_SDHC_0, SC_PM_PW_MODE_ON);
-			if (ret != SC_ERR_NONE)
+			if (ret)
 				return ret;
 
 			imx8_iomux_setup_multiple_pads(emmc0, ARRAY_SIZE(emmc0));
@@ -121,10 +122,10 @@ int board_mmc_init(struct bd_info *bis)
 			break;
 		case 1:
 			ret = sc_pm_set_resource_power_mode(-1, SC_R_SDHC_2, SC_PM_PW_MODE_ON);
-			if (ret != SC_ERR_NONE)
+			if (ret)
 				return ret;
 			ret = sc_pm_set_resource_power_mode(-1, SC_R_GPIO_4, SC_PM_PW_MODE_ON);
-			if (ret != SC_ERR_NONE)
+			if (ret)
 				return ret;
 
 			imx8_iomux_setup_multiple_pads(usdhc2_sd, ARRAY_SIZE(usdhc2_sd));

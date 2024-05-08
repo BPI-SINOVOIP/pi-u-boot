@@ -13,6 +13,7 @@
 #include <asm/arch/mmc.h>
 #include <dm.h>
 #include <linux/delay.h>
+#include <linux/printk.h>
 #include <power/pmic.h>
 #include <usb/dwc2_udc.h>
 #include <asm/arch/cpu.h>
@@ -32,16 +33,6 @@ int board_init(void)
 
 	return 0;
 }
-
-#ifdef CONFIG_SYS_I2C_INIT_BOARD
-void i2c_init_board(void)
-{
-	gpio_request(S5PC110_GPIO_J43, "i2c_clk");
-	gpio_request(S5PC110_GPIO_J40, "i2c_data");
-	gpio_direction_output(S5PC110_GPIO_J43, 1);
-	gpio_direction_output(S5PC110_GPIO_J40, 1);
-}
-#endif
 
 int dram_init(void)
 {

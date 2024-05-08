@@ -20,6 +20,7 @@
 #include <linux/bitops.h>
 #include <linux/iopoll.h>
 #include <linux/list.h>
+#include <linux/printk.h>
 #include "pci_internal.h"
 
 /* PCIe shared registers */
@@ -657,10 +658,10 @@ static int mtk_pcie_probe(struct udevice *dev)
 		struct fdt_pci_addr addr;
 		u32 slot = 0;
 
-		if (!ofnode_is_available(subnode))
+		if (!ofnode_is_enabled(subnode))
 			continue;
 
-		err = ofnode_read_pci_addr(subnode, 0, "reg", &addr);
+		err = ofnode_read_pci_addr(subnode, 0, "reg", &addr, NULL);
 		if (err)
 			return err;
 
@@ -696,10 +697,10 @@ static int mtk_pcie_probe_v2(struct udevice *dev)
 	pcie->priv = dev;
 
 	dev_for_each_subnode(subnode, dev) {
-		if (!ofnode_is_available(subnode))
+		if (!ofnode_is_enabled(subnode))
 			continue;
 
-		err = ofnode_read_pci_addr(subnode, 0, "reg", &addr);
+		err = ofnode_read_pci_addr(subnode, 0, "reg", &addr, NULL);
 		if (err)
 			return err;
 

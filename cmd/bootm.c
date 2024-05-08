@@ -111,7 +111,7 @@ static int do_bootm_subcommand(struct cmd_tbl *cmdtp, int flag, int argc,
 			    bootm_get_addr(argc, argv) + image_load_offset);
 #endif
 
-	return ret;
+	return ret ? CMD_RET_FAILURE : 0;
 }
 
 /*******************************************************************/
@@ -120,19 +120,8 @@ static int do_bootm_subcommand(struct cmd_tbl *cmdtp, int flag, int argc,
 
 int do_bootm(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
-#ifdef CONFIG_NEEDS_MANUAL_RELOC
-	static int relocated = 0;
-
-	if (!relocated) {
-		int i;
-
-		/* relocate names of sub-command table */
-		for (i = 0; i < ARRAY_SIZE(cmd_bootm_sub); i++)
-			cmd_bootm_sub[i].name += gd->reloc_off;
-
-		relocated = 1;
-	}
-#endif
+	int states;
+	int ret;
 
 	/* determine if we have a sub command */
 	argc--; argv++;
@@ -152,17 +141,19 @@ int do_bootm(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			return do_bootm_subcommand(cmdtp, flag, argc, argv);
 	}
 
-	return do_bootm_states(cmdtp, flag, argc, argv, BOOTM_STATE_START |
-		BOOTM_STATE_FINDOS | BOOTM_STATE_PRE_LOAD | BOOTM_STATE_FINDOTHER |
-		BOOTM_STATE_LOADOS |
-#ifdef CONFIG_SYS_BOOT_RAMDISK_HIGH
-		BOOTM_STATE_RAMDISK |
-#endif
-#if defined(CONFIG_PPC) || defined(CONFIG_MIPS)
-		BOOTM_STATE_OS_CMDLINE |
-#endif
+	states = BOOTM_STATE_START | BOOTM_STATE_FINDOS | BOOTM_STATE_PRE_LOAD |
+		BOOTM_STATE_FINDOTHER | BOOTM_STATE_LOADOS |
 		BOOTM_STATE_OS_PREP | BOOTM_STATE_OS_FAKE_GO |
-		BOOTM_STATE_OS_GO, &images, 1);
+		BOOTM_STATE_OS_GO;
+	if (IS_ENABLED(CONFIG_SYS_BOOT_RAMDISK_HIGH))
+		states |= BOOTM_STATE_RAMDISK;
+	if (IS_ENABLED(CONFIG_MEASURED_BOOT))
+		states |= BOOTM_STATE_MEASURE;
+	if (IS_ENABLED(CONFIG_PPC) || IS_ENABLED(CONFIG_MIPS))
+		states |= BOOTM_STATE_OS_CMDLINE;
+	ret = do_bootm_states(cmdtp, flag, argc, argv, states, &images, 1);
+
+	return ret ? CMD_RET_FAILURE : 0;
 }
 
 int bootm_maybe_autostart(struct cmd_tbl *cmdtp, const char *cmd)
@@ -179,8 +170,7 @@ int bootm_maybe_autostart(struct cmd_tbl *cmdtp, const char *cmd)
 	return 0;
 }
 
-#ifdef CONFIG_SYS_LONGHELP
-static char bootm_help_text[] =
+U_BOOT_LONGHELP(bootm,
 	"[addr [arg ...]]\n    - boot application image stored in memory\n"
 	"\tpassing arguments 'arg ...'; when booting a Linux kernel,\n"
 	"\t'arg' can be the address of an initrd image\n"
@@ -219,8 +209,7 @@ static char bootm_help_text[] =
 #if defined(CONFIG_TRACE)
 	"\tfake    - OS specific fake start without go\n"
 #endif
-	"\tgo      - start OS";
-#endif
+	"\tgo      - start OS");
 
 U_BOOT_CMD(
 	bootm,	CONFIG_SYS_MAXARGS,	1,	do_bootm,
@@ -511,7 +500,7 @@ static int do_imls_nand(void)
 			continue;
 
 		for (off = 0; off < mtd->size; off += mtd->erasesize) {
-			const image_header_t *header;
+			const struct legacy_img_hdr *header;
 			int ret;
 
 			if (nand_block_isbad(mtd, off))
@@ -529,7 +518,7 @@ static int do_imls_nand(void)
 			switch (genimg_get_format(buffer)) {
 #if defined(CONFIG_LEGACY_IMAGE_FORMAT)
 			case IMAGE_FORMAT_LEGACY:
-				header = (const image_header_t *)buffer;
+				header = (const struct legacy_img_hdr *)buffer;
 
 				len = image_get_image_size(header);
 				nand_imls_legacyimage(mtd, nand_dev, off, len);

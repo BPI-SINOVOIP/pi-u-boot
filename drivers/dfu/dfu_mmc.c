@@ -17,6 +17,7 @@
 #include <mmc.h>
 #include <part.h>
 #include <command.h>
+#include <linux/printk.h>
 
 static unsigned char *dfu_file_buf;
 static u64 dfu_file_buf_len;
@@ -52,7 +53,7 @@ static int mmc_block_op(enum dfu_op op, struct dfu_entity *dfu,
 
 	if (dfu->data.mmc.hw_partition >= 0) {
 		part_num_bkp = mmc_get_blk_desc(mmc)->hwpart;
-		ret = blk_select_hwpart_devnum(IF_TYPE_MMC,
+		ret = blk_select_hwpart_devnum(UCLASS_MMC,
 					       dfu->data.mmc.dev_num,
 					       dfu->data.mmc.hw_partition);
 		if (ret)
@@ -77,14 +78,14 @@ static int mmc_block_op(enum dfu_op op, struct dfu_entity *dfu,
 	if (n != blk_count) {
 		pr_err("MMC operation failed");
 		if (dfu->data.mmc.hw_partition >= 0)
-			blk_select_hwpart_devnum(IF_TYPE_MMC,
+			blk_select_hwpart_devnum(UCLASS_MMC,
 						 dfu->data.mmc.dev_num,
 						 part_num_bkp);
 		return -EIO;
 	}
 
 	if (dfu->data.mmc.hw_partition >= 0) {
-		ret = blk_select_hwpart_devnum(IF_TYPE_MMC,
+		ret = blk_select_hwpart_devnum(UCLASS_MMC,
 					       dfu->data.mmc.dev_num,
 					       part_num_bkp);
 		if (ret)
@@ -384,6 +385,16 @@ int dfu_fill_entity_mmc(struct dfu_entity *dfu, char *devstr, char **argv, int a
 		dfu->data.mmc.lba_start		= second_arg;
 		dfu->data.mmc.lba_size		= third_arg;
 		dfu->data.mmc.lba_blk_size	= mmc->read_bl_len;
+
+		/*
+		 * In case the size is zero (i.e. mmc raw 0x10 0),
+		 * assume the user intends to use whole device.
+		 */
+		if (third_arg == 0) {
+			struct blk_desc *blk_dev = mmc_get_blk_desc(mmc);
+
+			dfu->data.mmc.lba_size = blk_dev->lba;
+		}
 
 		/*
 		 * Check for an extra entry at dfu_alt_info env variable

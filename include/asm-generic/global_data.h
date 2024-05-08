@@ -20,6 +20,7 @@
  */
 
 #ifndef __ASSEMBLY__
+#include <cyclic.h>
 #include <event_internal.h>
 #include <fdtdec.h>
 #include <membuff.h>
@@ -67,7 +68,7 @@ struct global_data {
 	 * @mem_clk: memory clock rate in Hz
 	 */
 	unsigned long mem_clk;
-#if defined(CONFIG_LCD) || defined(CONFIG_DM_VIDEO)
+#if CONFIG_IS_ENABLED(VIDEO)
 	/**
 	 * @fb_base: base address of frame buffer memory
 	 */
@@ -300,7 +301,13 @@ struct global_data {
 	 * @timebase_l: low 32 bits of timer
 	 */
 	unsigned int timebase_l;
-#if CONFIG_VAL(SYS_MALLOC_F_LEN)
+	/**
+	 * @malloc_start: start of malloc() region
+	 */
+#if CONFIG_IS_ENABLED(CMD_BDINFO_EXTRA)
+	unsigned long malloc_start;
+#endif
+#if CONFIG_IS_ENABLED(SYS_MALLOC_F)
 	/**
 	 * @malloc_base: base address of early malloc()
 	 */
@@ -358,7 +365,7 @@ struct global_data {
 	 */
 	struct membuff console_in;
 #endif
-#ifdef CONFIG_DM_VIDEO
+#if CONFIG_IS_ENABLED(VIDEO)
 	/**
 	 * @video_top: top of video frame buffer area
 	 */
@@ -456,7 +463,7 @@ struct global_data {
 	 */
 	fdt_addr_t translation_offset;
 #endif
-#ifdef CONFIG_GENERATE_ACPI_TABLE
+#ifdef CONFIG_ACPI
 	/**
 	 * @acpi_ctx: ACPI context pointer
 	 */
@@ -477,6 +484,12 @@ struct global_data {
 	 * @event_state: Points to the current state of events
 	 */
 	struct event_state event_state;
+#endif
+#ifdef CONFIG_CYCLIC
+	/**
+	 * @cyclic_list: list of registered cyclic functions
+	 */
+	struct hlist_head cyclic_list;
 #endif
 	/**
 	 * @dmtag_list: List of DM tags
@@ -529,7 +542,7 @@ static_assert(sizeof(struct global_data) == GD_SIZE);
 #define gd_dm_priv_base()		NULL
 #endif
 
-#ifdef CONFIG_GENERATE_ACPI_TABLE
+#ifdef CONFIG_ACPI
 #define gd_acpi_ctx()		gd->acpi_ctx
 #define gd_acpi_start()		gd->acpi_start
 #define gd_set_acpi_start(addr)	gd->acpi_start = addr
@@ -537,6 +550,14 @@ static_assert(sizeof(struct global_data) == GD_SIZE);
 #define gd_acpi_ctx()		NULL
 #define gd_acpi_start()		0UL
 #define gd_set_acpi_start(addr)
+#endif
+
+#ifdef CONFIG_SMBIOS
+#define gd_smbios_start()	gd->smbios_start
+#define gd_set_smbios_start(addr)	gd->arch.smbios_start = addr
+#else
+#define gd_smbios_start()	0UL
+#define gd_set_smbios_start(addr)
 #endif
 
 #if CONFIG_IS_ENABLED(MULTI_DTB_FIT)
@@ -551,6 +572,26 @@ static_assert(sizeof(struct global_data) == GD_SIZE);
 #define gd_event_state()	((struct event_state *)&gd->event_state)
 #else
 #define gd_event_state()	NULL
+#endif
+
+#if CONFIG_IS_ENABLED(CMD_BDINFO_EXTRA)
+#define gd_malloc_start()		gd->malloc_start
+#define gd_set_malloc_start(_val)	gd->malloc_start = (_val)
+#else
+#define gd_malloc_start()	0
+#define gd_set_malloc_start(val)
+#endif
+
+#if CONFIG_IS_ENABLED(PCI)
+#define gd_set_pci_ram_top(val)	gd->pci_ram_top = val
+#else
+#define gd_set_pci_ram_top(val)
+#endif
+
+#if CONFIG_VAL(SYS_MALLOC_F_LEN)
+#define gd_malloc_ptr()		gd->malloc_ptr
+#else
+#define gd_malloc_ptr()		0L
 #endif
 
 /**
@@ -628,9 +669,9 @@ enum gd_flags {
 	 */
 	GD_FLG_LOG_READY = 0x10000,
 	/**
-	 * @GD_FLG_WDT_READY: watchdog is ready for use
+	 * @GD_FLG_CYCLIC_RUNNING: cyclic_run is in progress
 	 */
-	GD_FLG_WDT_READY = 0x20000,
+	GD_FLG_CYCLIC_RUNNING = 0x20000,
 	/**
 	 * @GD_FLG_SKIP_LL_INIT: don't perform low-level initialization
 	 */
@@ -639,6 +680,23 @@ enum gd_flags {
 	 * @GD_FLG_SMP_READY: SMP initialization is complete
 	 */
 	GD_FLG_SMP_READY = 0x80000,
+	/**
+	 * @GD_FLG_FDT_CHANGED: Device tree change has been detected by tests
+	 */
+	GD_FLG_FDT_CHANGED = 0x100000,
+	/**
+	 * @GD_FLG_OF_TAG_MIGRATE: Device tree has old u-boot,dm- tags
+	 */
+	GD_FLG_OF_TAG_MIGRATE = 0x200000,
+	/**
+	 * @GD_FLG_DM_DEAD: Driver model is not accessible. This can be set when
+	 * the memory used to holds its tables has been mapped out.
+	 */
+	GD_FLG_DM_DEAD = 0x400000,
+	/**
+	 * @GD_FLG_BLOBLIST_READY: bloblist is ready for use
+	 */
+	GD_FLG_BLOBLIST_READY = 0x800000,
 };
 
 #endif /* __ASSEMBLY__ */

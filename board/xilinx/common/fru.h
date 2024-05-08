@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2019 Xilinx, Inc.
- * Siva Durga Prasad Paladugu <siva.durga.paladugu@xilinx.com>
+ * Siva Durga Prasad Paladugu <siva.durga.prasad.paladugu@amd.com>>
  */
 
 #ifndef __FRU_H
@@ -90,6 +90,7 @@ struct fru_table {
 #define FRU_MULTIREC_MAC_OFFSET		4
 #define FRU_LAST_REC			BIT(7)
 #define FRU_DUT_MACID			0x31
+#define FRU_SC_MACID			0x11
 
 /* This should be minimum of fields */
 #define FRU_BOARD_AREA_TOTAL_FIELDS	5

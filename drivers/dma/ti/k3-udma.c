@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Copyright (C) 2018 Texas Instruments Incorporated - http://www.ti.com
+ *  Copyright (C) 2018 Texas Instruments Incorporated - https://www.ti.com
  *  Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  */
 #define pr_fmt(fmt) "udma: " fmt
@@ -14,6 +14,7 @@
 #include <malloc.h>
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
+#include <linux/sizes.h>
 #include <dm.h>
 #include <dm/device_compat.h>
 #include <dm/devres.h>
@@ -24,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/bitmap.h>
 #include <linux/err.h>
+#include <linux/printk.h>
 #include <linux/soc/ti/k3-navss-ringacc.h>
 #include <linux/soc/ti/cppi5.h>
 #include <linux/soc/ti/ti-udma.h>
@@ -1285,7 +1287,7 @@ static int udma_get_mmrs(struct udevice *dev)
 	u32 cap2, cap3, cap4;
 	int i;
 
-	ud->mmrs[MMR_GCFG] = (uint32_t *)devfdt_get_addr_name(dev, mmr_names[MMR_GCFG]);
+	ud->mmrs[MMR_GCFG] = dev_read_addr_name_ptr(dev, mmr_names[MMR_GCFG]);
 	if (!ud->mmrs[MMR_GCFG])
 		return -EINVAL;
 
@@ -1323,8 +1325,7 @@ static int udma_get_mmrs(struct udevice *dev)
 		if (i == MMR_RCHANRT && ud->rchan_cnt == 0)
 			continue;
 
-		ud->mmrs[i] = (uint32_t *)devfdt_get_addr_name(dev,
-				mmr_names[i]);
+		ud->mmrs[i] = dev_read_addr_name_ptr(dev, mmr_names[i]);
 		if (!ud->mmrs[i])
 			return -EINVAL;
 	}
@@ -2149,7 +2150,7 @@ static int pktdma_tisci_rx_channel_config(struct udma_chan *uc)
 		flow_req.rx_psinfo_present = 1;
 	else
 		flow_req.rx_psinfo_present = 0;
-	flow_req.rx_error_handling = 1;
+	flow_req.rx_error_handling = 0;
 
 	ret = tisci_ops->rx_flow_cfg(tisci_rm->tisci, &flow_req);
 
@@ -2304,7 +2305,7 @@ err_res_free:
 }
 
 static int udma_transfer(struct udevice *dev, int direction,
-			 void *dst, void *src, size_t len)
+			 dma_addr_t dst, dma_addr_t src, size_t len)
 {
 	struct udma_dev *ud = dev_get_priv(dev);
 	/* Channel0 is reserved for memcpy */
@@ -2325,7 +2326,7 @@ static int udma_transfer(struct udevice *dev, int direction,
 	if (ret)
 		return ret;
 
-	udma_prep_dma_memcpy(uc, (dma_addr_t)dst, (dma_addr_t)src, len);
+	udma_prep_dma_memcpy(uc, dst, src, len);
 	udma_start(uc);
 	udma_poll_completion(uc, &paddr);
 	udma_stop(uc);

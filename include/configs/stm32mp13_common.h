@@ -13,21 +13,15 @@
 /*
  * Configuration of the external SRAM memory used by U-Boot
  */
-#define CONFIG_SYS_SDRAM_BASE		STM32_DDR_BASE
+#define CFG_SYS_SDRAM_BASE		STM32_DDR_BASE
 
 /*
  * For booting Linux, use the first 256 MB of memory, since this is
  * the maximum mapped by the Linux kernel during initialization.
  */
-#define CONFIG_SYS_BOOTMAPSZ		SZ_256M
-
-/* Extend size of kernel image for uncompression */
-
-/*MMC SD*/
-#define CONFIG_SYS_MMC_MAX_DEVICE	2
+#define CFG_SYS_BOOTMAPSZ		SZ_256M
 
 /* NAND support */
-#define CONFIG_SYS_MAX_NAND_DEVICE	1
 
 /*****************************************************************************/
 #ifdef CONFIG_DISTRO_DEFAULTS
@@ -41,16 +35,27 @@
 #define BOOT_TARGET_MMC1(func)
 #endif
 
+#ifdef CONFIG_CMD_USB
+#define BOOT_TARGET_USB(func)	func(USB, usb, 0)
+#else
+#define BOOT_TARGET_USB(func)
+#endif
+
 #define BOOT_TARGET_DEVICES(func)	\
 	BOOT_TARGET_MMC1(func)		\
-	BOOT_TARGET_MMC0(func)
+	BOOT_TARGET_MMC0(func)		\
+	BOOT_TARGET_USB(func)
 
 /*
  * default bootcmd for stm32mp13:
+ * for serial/usb: execute the stm32prog command
  * for mmc boot (eMMC, SD card), distro boot on the same mmc device
  */
 #define STM32MP_BOOTCMD "bootcmd_stm32mp=" \
 	"echo \"Boot over ${boot_device}${boot_instance}!\";" \
+	"if test ${boot_device} = serial || test ${boot_device} = usb;" \
+	"then stm32prog ${boot_device} ${boot_instance}; " \
+	"else " \
 		"run env_check;" \
 		"if test ${boot_device} = mmc;" \
 		"then env set boot_targets \"mmc${boot_instance}\"; fi;" \
@@ -87,7 +92,7 @@
 	"fdtoverlay_addr_r=" __FDTOVERLAY_ADDR_R "\0" \
 	"ramdisk_addr_r=" __RAMDISK_ADDR_R "\0"
 
-#define CONFIG_EXTRA_ENV_SETTINGS \
+#define CFG_EXTRA_ENV_SETTINGS \
 	STM32MP_MEM_LAYOUT \
 	STM32MP_BOOTCMD \
 	BOOTENV \

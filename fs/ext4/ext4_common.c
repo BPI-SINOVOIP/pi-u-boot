@@ -850,15 +850,20 @@ end:
 
 fail:
 	free(depth_dirname);
-	free(parse_dirname);
-	for (i = 0; i < depth; i++) {
-		if (!ptr[i])
-			break;
-		free(ptr[i]);
+	if (parse_dirname)
+		free(parse_dirname);
+	if (ptr) {
+		for (i = 0; i < depth; i++) {
+			if (!ptr[i])
+				break;
+			free(ptr[i]);
+		}
+		free(ptr);
 	}
-	free(ptr);
-	free(parent_inode);
-	free(first_inode);
+	if (parent_inode)
+		free(parent_inode);
+	if (first_inode)
+		free(first_inode);
 
 	return result_inode_no;
 }
@@ -2415,7 +2420,7 @@ int ext4fs_mount(unsigned part_length)
 
 	return 1;
 fail:
-	printf("Failed to mount ext2 filesystem...\n");
+	log_debug("Failed to mount ext2 filesystem...\n");
 fail_noerr:
 	free(data);
 	ext4fs_root = NULL;

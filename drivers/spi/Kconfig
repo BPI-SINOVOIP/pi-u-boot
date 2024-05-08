@@ -40,6 +40,16 @@ config SPI_MEM
 	  This extension is meant to simplify interaction with SPI memories
 	  by providing an high-level interface to send memory-like commands.
 
+config SPI_DIRMAP
+	bool "SPI direct mapping"
+	depends on SPI_MEM
+	help
+	  Enable the SPI direct mapping API. Most modern SPI controllers can
+	  directly map a SPI memory (or a portion of the SPI memory) in the CPU
+	  address space. Most of the time this brings significant performance
+	  improvements as it automates the whole process of sending SPI memory
+	  operations every time a new region is accessed.
+
 if DM_SPI
 
 config ALTERA_SPI
@@ -91,12 +101,20 @@ config ATMEL_SPI
 
 config BCM63XX_HSSPI
 	bool "BCM63XX HSSPI driver"
-	depends on (ARCH_BMIPS || ARCH_BCM68360 || \
-		    ARCH_BCM6858 || ARCH_BCM63158)
+	depends on (ARCH_BMIPS || ARCH_BCMBCA)
 	help
-	  Enable the BCM6328 HSSPI driver. This driver can be used to
+	  Enable the BCM63XX HSSPI driver. This driver can be used to
 	  access the SPI NOR flash on platforms embedding this Broadcom
 	  SPI core.
+
+config BCMBCA_HSSPI
+	bool "BCMBCA HSSPI driver"
+	depends on ARCH_BCMBCA && HAVE_SPI_CS_CTRL
+	help
+	  This enables support for the High Speed SPI controller present on
+	  newer Broadcom BCMBCA SoCs. These SoCs include an updated SPI controller
+	  that adds the capability to allow the driver to control chip select
+	  explicitly.
 
 config BCM63XX_SPI
 	bool "BCM6348 SPI driver"
@@ -138,7 +156,7 @@ config CQSPI_REF_CLK
 
 config CADENCE_OSPI_VERSAL
 	bool "Configure Versal OSPI"
-	depends on ARCH_VERSAL && CADENCE_QSPI
+	depends on (ARCH_VERSAL || ARCH_VERSAL_NET) && CADENCE_QSPI
 	imply DM_GPIO
 	help
 	  This option is used to enable Versal OSPI DMA operations which
@@ -227,6 +245,21 @@ config MESON_SPIFC
 	  This driver can be used to access the SPI NOR flash chips on
 	  Amlogic Meson SoCs.
 
+config MICROCHIP_COREQSPI
+	bool "Microchip FPGA QSPI Controller driver"
+	help
+	  Enable the QSPI driver for Microchip FPGA QSPI controllers.
+	  This driver can be used on Polarfire SoC.
+
+config MESON_SPIFC_A1
+	bool "Amlogic Meson A1 SPI Flash Controller driver"
+	depends on ARCH_MESON
+	help
+	  Enable the Amlogic A1 SPI Flash Controller (SPIFC) driver.
+	  This driver can be used to access the SPI NOR/NAND flash chips
+	  with STR mode frequency up to 98MHz. Dual and quad modes are
+	  supported by controller.
+
 config MPC8XX_SPI
 	bool "MPC8XX SPI Driver"
 	depends on MPC8xx
@@ -276,6 +309,14 @@ config MTK_SNFI_SPI
 	  used to access SPI memory devices like SPI-NOR or SPI-NAND on
 	  platforms embedding this IP core, like MT7622/M7629.
 
+config MTK_SPIM
+	bool "Mediatek SPI-MEM master controller driver"
+	depends on SPI_MEM
+	help
+	  Enable MediaTek SPI-MEM master controller driver. This driver mainly
+	  supports SPI flashes. You can use single, dual or quad mode
+	  transmission on this controller.
+
 config MVEBU_A3700_SPI
 	bool "Marvell Armada 3700 SPI driver"
 	select CLK_ARMADA_3720
@@ -302,6 +343,11 @@ config NPCM_FIU_SPI
 	help
 	  This enables support for the Flash Interface Unit SPI controller
 	  in master mode.
+
+config NPCM_PSPI
+	bool "PSPI driver for Nuvoton NPCM SoC"
+	help
+	  PSPI driver for NPCM SoC
 
 config NXP_FSPI
 	bool "NXP FlexSPI driver"
@@ -353,8 +399,8 @@ config SPI_QUP
 
 config RENESAS_RPC_SPI
 	bool "Renesas RPC SPI driver"
-	depends on RCAR_GEN3 || RZA1
-	imply SPI_FLASH_BAR
+	depends on RCAR_64 || RZA1
+	imply SPI_FLASH_SFDP_SUPPORT
 	help
 	  Enable the Renesas RPC SPI driver, used to access SPI NOR flash
 	  on Renesas RCar Gen3 SoCs. This uses driver model and requires a
@@ -401,6 +447,23 @@ config SANDBOX_SPI
 		};
 	  };
 
+config SANDBOX_SPI_MAX_BUS
+	int
+	depends on SANDBOX
+	default 1
+
+config SANDBOX_SPI_MAX_CS
+	int
+	depends on SANDBOX
+	default 10
+
+config SPI_ASPEED_SMC
+	bool "ASPEED SPI flash controller driver"
+	depends on DM_SPI && SPI_MEM
+	help
+	  Enable ASPEED SPI flash controller driver for AST2500
+	  and AST2600 SoCs.
+
 config SPI_SIFIVE
 	bool "SiFive SPI driver"
 	help
@@ -414,6 +477,14 @@ config SOFT_SPI
 	help
 	 Enable Soft SPI driver. This driver is to use GPIO simulate
 	 the SPI protocol.
+
+config SPI_SN_F_OSPI
+	tristate "Socionext F_OSPI SPI flash controller"
+	depends on SPI_MEM
+	help
+	  This enables support for the Socionext F_OSPI controller
+	  for connecting an SPI flash memory over up to 8-bit wide bus.
+	  It supports indirect access mode only.
 
 config SPI_SUNXI
 	bool "Allwinner SoC SPI controllers"
@@ -519,6 +590,7 @@ endif # if DM_SPI
 
 config FSL_ESPI
 	bool "Freescale eSPI driver"
+	depends on MPC85xx
 	imply SPI_FLASH_BAR
 	help
 	  Enable the Freescale eSPI driver. This driver can be used to

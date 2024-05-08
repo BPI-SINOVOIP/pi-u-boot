@@ -17,6 +17,7 @@
 #endif
 #include <asm/gpio.h>
 #include <linux/err.h>
+#include <dm/device_compat.h>
 
 __weak int name_to_gpio(const char *name)
 {
@@ -69,7 +70,8 @@ static void gpio_get_description(struct udevice *dev, const char *bank_name,
 	printf("%s\n", buf);
 	return;
 err:
-	printf("Error %d\n", ret);
+	if (ret != -ENOENT)
+		printf("Error %d\n", ret);
 }
 
 static int do_gpio_status(bool all, const char *gpio_name)
@@ -77,16 +79,23 @@ static int do_gpio_status(bool all, const char *gpio_name)
 	struct udevice *dev;
 	int banklen;
 	int flags;
-	int ret;
+	int ret, err = 0;
 
 	flags = 0;
 	if (gpio_name && !*gpio_name)
 		gpio_name = NULL;
-	for (ret = uclass_first_device(UCLASS_GPIO, &dev);
+	for (ret = uclass_first_device_check(UCLASS_GPIO, &dev);
 	     dev;
-	     ret = uclass_next_device(&dev)) {
+	     ret = uclass_next_device_check(&dev)) {
 		const char *bank_name;
 		int num_bits;
+
+		if (ret) {
+			printf("GPIO device %s probe error %i\n",
+			       dev->name, ret);
+			err = ret;
+			continue;
+		}
 
 		flags |= FLAG_SHOW_BANK;
 		if (all)
@@ -120,7 +129,7 @@ static int do_gpio_status(bool all, const char *gpio_name)
 			flags |= FLAG_SHOW_NEWLINE;
 	}
 
-	return ret;
+	return err;
 }
 #endif
 
