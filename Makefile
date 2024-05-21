@@ -1695,6 +1695,7 @@ MKIMAGEFLAGS_u-boot-mtk.bin = -T mtk_image \
 
 u-boot-mtk.bin: u-boot.bin FORCE
 	$(call if_changed,mkimage)
+	./fiptool create --soc-fw bl31.bin --nt-fw u-boot.bin u-boot.fip
 endif
 
 quiet_cmd_endian_swap = SWAP    $@
