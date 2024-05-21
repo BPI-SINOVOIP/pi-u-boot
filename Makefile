@@ -1205,6 +1205,7 @@ endif
 
 u-boot.bin: u-boot-fit-dtb.bin FORCE
 	$(call if_changed,copy)
+	./fiptool create --soc-fw bl31.bin --nt-fw u-boot.bin u-boot.fip
 
 u-boot-dtb.bin: u-boot-nodtb.bin dts/dt.dtb FORCE
 	$(call if_changed,cat)
