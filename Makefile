@@ -1205,7 +1205,6 @@ endif
 
 u-boot.bin: u-boot-fit-dtb.bin FORCE
 	$(call if_changed,copy)
-	./fiptool create --soc-fw bl31.bin --nt-fw u-boot.bin u-boot.fip
 
 u-boot-dtb.bin: u-boot-nodtb.bin dts/dt.dtb FORCE
 	$(call if_changed,cat)
@@ -1713,6 +1712,7 @@ MKIMAGEFLAGS_u-boot-mtk.bin = -T mtk_image \
 
 u-boot-mtk.bin: u-boot.bin FORCE
 	$(call if_changed,mkimage)
+	./fiptool create --soc-fw bl31.bin --nt-fw u-boot.bin u-boot.fip
 endif
 
 quiet_cmd_endian_swap = SWAP    $@
