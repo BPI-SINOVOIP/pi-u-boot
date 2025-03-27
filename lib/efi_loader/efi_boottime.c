@@ -97,6 +97,9 @@ static efi_status_t EFIAPI efi_disconnect_controller(
 					efi_handle_t driver_image_handle,
 					efi_handle_t child_handle);
 
+/* Minimum microseconds threshold for running timer check */
+#define TIMER_CHECK_THRESHOLD_US 1000  /* 1ms */
+
 /* Called on every callback entry */
 int __efi_entry_check(void)
 {
@@ -2253,8 +2256,11 @@ static efi_status_t EFIAPI efi_stall(unsigned long microseconds)
 	EFI_ENTRY("%ld", microseconds);
 
 	end_tick = get_ticks() + usec_to_tick(microseconds);
-	while (get_ticks() < end_tick)
-		efi_timer_check();
+	while (get_ticks() < end_tick) {
+		/* Only run timer check for delays > TIMER_CHECK_THRESHOLD_US (1ms) */
+		if (microseconds > TIMER_CHECK_THRESHOLD_US)
+			efi_timer_check();
+	}
 
 	return EFI_EXIT(EFI_SUCCESS);
 }

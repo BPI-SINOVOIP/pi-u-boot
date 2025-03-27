@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0+
+#
+
+comment "USB TYPEC"
+
+config TYPEC_HUSB239
+	bool "HUSB239 typec controller"

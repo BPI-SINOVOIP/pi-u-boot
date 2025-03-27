@@ -252,6 +252,11 @@ static void remove_inactive_children(struct uclass *uc, struct udevice *bus)
 
 int usb_init(void)
 {
+	return usb_init_name(NULL);
+}
+
+int usb_init_name(const char *name)
+{
 	int controllers_initialized = 0;
 	struct usb_uclass_priv *uc_priv;
 	struct usb_bus_priv *priv;
@@ -269,6 +274,8 @@ int usb_init(void)
 
 	uclass_foreach_dev(bus, uc) {
 		/* init low_level USB */
+		if (name && strncmp(name, bus->name, strlen(name)))
+			continue;
 		printf("Bus %s: ", bus->name);
 
 #ifdef CONFIG_SANDBOX

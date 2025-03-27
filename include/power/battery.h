@@ -24,6 +24,7 @@ int power_bat_init(unsigned char bus);
 
 enum dm_battery_state {
 	BAT_STATE_UNUSED = 0, /* never used */
+	BAT_STATE_VERY_LOW,   /* battery voltage is very low */
 	BAT_STATE_NOT_PRESENT, /* battery is not present */
 	BAT_STATE_NEED_CHARGING, /* battery needs charging (i.e. low SOC or voltage) */
 	BAT_STATE_NORMAL, /* battery is OK */

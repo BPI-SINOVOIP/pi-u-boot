@@ -893,6 +893,7 @@ const struct oem_config_info config_info[] = {
 	{ "sdk_version", TLV_CODE_SDK_VERSION, 3, NULL},
 	{ "ddr_cs_num", TLV_CODE_DDR_CSNUM, 3, NULL},
 	{ "ddr_datarate", TLV_CODE_DDR_DATARATE, 5, NULL},
+	{ "ddr_tx_odt", TLV_CODE_DDR_TX_ODT, 3, NULL},
 	{ "ddr_type", TLV_CODE_DDR_TYPE, 32, NULL},
 	{ "pmic_type", TLV_CODE_PMIC_TYPE, 3, NULL},
 	{ "eeprom_i2c_index", TLV_CODE_EEPROM_I2C_INDEX, 3, NULL},

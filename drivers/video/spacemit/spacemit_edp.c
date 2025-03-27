@@ -158,11 +158,11 @@ void Reset_LT8911EXB(struct udevice *dev)
 	pr_debug("%s: device %s\n", __func__, dev->name);
 
 	dm_gpio_set_value(&priv->reset_gpio, 1);
-	mdelay(50);
+	mdelay(20);
 	dm_gpio_set_value(&priv->reset_gpio, 0);
-	mdelay(50);
+	mdelay(20);
 	dm_gpio_set_value(&priv->reset_gpio, 1);
-	mdelay(100);
+	mdelay(50);
 }
 
 void LT8911EX_ChipID(struct udevice *dev)                                          // read Chip ID
@@ -716,7 +716,7 @@ void LT8911EXB_video_check(struct udevice *dev)
 
 	LT8911EXB_IIC_Write_byte(dev, 0xff, 0x85 );
 
-	mdelay(100);
+	mdelay(50);
 	if( LT8911EXB_IIC_Read_byte(dev, 0x50 ) == 0x03 )
 	{
 		reg	   = LT8911EXB_IIC_Read_byte(dev, 0x4d );
@@ -861,7 +861,7 @@ void LT8911EX_link_train(struct udevice *dev)
 		mdelay( 10 );
 		DpcdWrite(dev, 0x010a, 0x01 );
 
-		mdelay( 200 );
+		mdelay( 20 );
 	} else {
 		LT8911EXB_IIC_Write_byte(dev, 0xa1, 0x02 ); // DP scramble mode;
 	}
@@ -895,9 +895,9 @@ void LT8911EX_link_train(struct udevice *dev)
 	LT8911EXB_IIC_Write_byte(dev, 0x01, 0x0a );
 	LT8911EXB_IIC_Write_byte(dev, 0x14, 0x80 );
 	LT8911EXB_IIC_Write_byte(dev, 0x14, 0x81 );
-	mdelay( 50 );
+	mdelay( 10 );
 	LT8911EXB_IIC_Write_byte(dev, 0x14, 0x84 );
-	mdelay( 50 );
+	mdelay( 10 );
 	LT8911EXB_IIC_Write_byte(dev, 0x14, 0xc0 );
 #endif
 }
@@ -1032,10 +1032,10 @@ void LT8911EXB_LinkTrainResultCheck(struct udevice *dev)
 			val = LT8911EXB_IIC_Read_byte(dev, 0x84 );
 			pr_info( "\r\npanel link count:0x%x ", val );
 #endif
-			mdelay( 100 );
+			mdelay( 10 );
 		}else
 		{
-			mdelay( 100 );
+			mdelay( 10 );
 		}
 	}
 #endif

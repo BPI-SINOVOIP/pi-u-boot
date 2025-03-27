@@ -133,6 +133,7 @@
 };
 
 &ehci1 {
+	roothub-power-on-debounce-ms = <0>;
 	status = "okay";
 };
 
@@ -155,6 +156,7 @@
 		snps,dis_u3_susphy_quirk;
 		snps,dis-del-phy-power-chg-quirk;
 		snps,dis-tx-ipgap-linecheck-quirk;
+		roothub-power-on-debounce-ms = <100>;
 	};
 };
 

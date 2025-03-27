@@ -26,7 +26,7 @@
 #define DDR_CHECK_CNT			(0x1000)
 #define TOP_DDR_NUM				1
 
-extern u32 ddr_cs_num;
+extern u32 ddr_cs_num, ddr_tx_odt;
 extern const char *ddr_type;
 extern int ddr_freq_change(u32 data_rate);
 extern void qos_set_default(void);
@@ -119,12 +119,13 @@ ERR_HANDLE:
 }
 
 #ifdef CONFIG_K1_X_BOARD_ASIC
-extern void lpddr4_silicon_init(uint32_t base, const char *ddr_type, uint32_t data_rate);
+extern uint32_t lpddr4_silicon_init(uint32_t base, const char *ddr_type, uint32_t data_rate);
 #endif
 
 static int spacemit_ddr_probe(struct udevice *dev)
 {
 	int ret;
+	uint32_t data_rate;
 
 #ifdef CONFIG_K1_X_BOARD_FPGA
 	void (*ddr_init)(void);
@@ -153,6 +154,11 @@ static int spacemit_ddr_probe(struct udevice *dev)
 		ddr_cs_num = DDR_CS_NUM;
 	}
 
+	/* if DDR tx odt is NOT configued in eeprom or in dts, use default value */
+	if ((0 == ddr_tx_odt) && dev_read_u32u(dev, "tx-odt", &ddr_tx_odt)) {
+		pr_info("ddr tx odt not configed in dts!\n");
+	}
+
 	if (NULL == ddr_type) {
 		ddr_type = dev_read_string(dev, "type");
 	}
@@ -160,11 +166,11 @@ static int spacemit_ddr_probe(struct udevice *dev)
 
 	/* init dram */
 	uint64_t start = get_timer(0);
-	lpddr4_silicon_init(ddrc_base, ddr_type, ddr_datarate);
+	data_rate = lpddr4_silicon_init(ddrc_base, ddr_type, ddr_datarate);
 	start = get_timer(start);
 	printf("lpddr4_silicon_init consume %lldms\n", start);
 #endif
-	ddr_freq_change(ddr_datarate);
+	ddr_freq_change(data_rate);
 
 	ret = test_pattern(CONFIG_SYS_SDRAM_BASE, DDR_CHECK_SIZE);
 	if (ret < 0) {

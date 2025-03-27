@@ -18,6 +18,7 @@ int load_env_from_nfs(void);
 char* parse_mtdparts_and_find_bootfs(void);
 enum board_boot_mode get_boot_mode(void);
 void read_from_eeprom(struct tlvinfo_tlv **tlv_data, u8 tcode);
+int run_net_flash_command(void);
 
 #endif // CONFIG_ENV_IS_IN_NFS
 

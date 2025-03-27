@@ -265,12 +265,14 @@ static int cw_get_capacity(struct udevice *dev)
 
 static int cw_get_status(struct udevice *dev)
 {
-	int voltage; 
+	int voltage;
 	int ret = cw_get_voltage(dev, &voltage);
 	if(ret)
 		return ret;
 
-	if(voltage <= 3400000)
+	if(voltage <= 3000000)
+		ret = BAT_STATE_VERY_LOW;
+	else if(voltage <= 3400000)
 		ret = BAT_STATE_NEED_CHARGING;
 	else if(voltage > 3400000 && voltage <= 4350000)
 		ret = BAT_STATE_NORMAL;

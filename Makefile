@@ -860,6 +860,7 @@ libs-y += drivers/usb/musb-new/
 libs-y += drivers/usb/isp1760/
 libs-y += drivers/usb/phy/
 libs-y += drivers/usb/ulpi/
+libs-y += drivers/usb/typec/
 ifdef CONFIG_POST
 libs-y += post/
 endif

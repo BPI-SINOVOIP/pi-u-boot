@@ -7,6 +7,7 @@
 #include "k1-x_pinctrl.dtsi"
 #include "k1-x_spm8821.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/usb/pd.h>
 
 / {
 	model = "M1-MUSE-PAPER";
@@ -99,7 +100,31 @@
 	#size-cells = <0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c4_2>;
-	status = "disabled";	
+	status = "okay";
+
+	husb239_u2: tcpc@62 {
+		compatible = "hynetek,husb239";
+		reg = <0x62>;
+		status = "okay";
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			sink-pdos = <PDO_VAR(5000, 9000, 2000)>;
+		};
+	};
+
+	husb239_u3: tcpc@42 {
+		compatible = "hynetek,husb239";
+		reg = <0x42>;
+		status = "okay";
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			sink-pdos = <PDO_VAR(5000, 9000, 2000)>;
+		};
+	};
 };
 
 &i2c5 {
@@ -339,7 +364,7 @@
 	electricity-meter = <&cw2015>;
 	power-domains = <&pmu K1X_PMU_WKUP_EVENT_PWR_DOMAIN>;
 
-	wk-name = "pwr_event", "pwr_int", "rtc_ctrl", "rtc_event", "rtc_irq", "sys-shutdown";
+	wk-name = "pwr_event", "pwr_int", "rtc_ctrl", "rtc_event", "rtc_irq", "sys-shutdown", "reboot-flag";
 	pwr_event = <&power_event>;
 	pwr_int = <&power_int>;
 
@@ -351,10 +376,17 @@
 	reboot-flag = <&reboot_flag>;
 
 	charge-light = <&gpio 75 0 &gpio 76 0>;
+	valid-level = <1>;
+
+	backlight = <&backlight>;
 
 	charger-name = "charger0", "charger1";
 	charger0 = <&sgm41515>;
 	charger1 = <&secsgm41515>;
+
+	battery-threshold0 = <3>;
+	battery-threshold1 = <5>;
+	battery-threshold2 = <100>;
 
 	status = "okay";
 };

@@ -637,7 +637,7 @@ restart:
 				env_set_hex("filesize", net_boot_file_size);
 				env_set_hex("fileaddr", image_load_addr);
 			}
-			if (protocol != NETCONS && protocol != NFS && protocol != DHCP)
+			if (protocol != NETCONS && protocol != NFS && protocol != TFTPGET && protocol != DHCP)
 				eth_halt();
 			else
 				eth_halt_state_only();

@@ -6,6 +6,7 @@
 #include "k1-x.dtsi"
 #include "k1-x_pinctrl.dtsi"
 #include "k1-x_spm8821.dtsi"
+#include <dt-bindings/usb/pd.h>
 
 / {
 	model = "MUSE-PAPER-MINI-4G";
@@ -75,7 +76,21 @@
 
 &i2c4 {
 	clock-frequency = <400000>;
-	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c4_2>;
+	status = "okay";
+
+	husb239_u2: tcpc@42 {
+		compatible = "hynetek,husb239";
+		reg = <0x42>;
+		status = "okay";
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			sink-pdos = <PDO_VAR(5000, 9000, 2000)>;
+		};
+	};
 };
 
 &i2c5 {

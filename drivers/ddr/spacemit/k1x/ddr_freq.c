@@ -268,7 +268,7 @@ static struct dfc_level_config freq_levels[MAX_FREQ_LV] =
 	{4, 0, DPLL_PLL1, DPLL_DIV2, DPLL_DIV1, 1200, 0, 1},
 	{5, 1, DPLL_PLL2, DPLL_DIV2, DPLL_DIV1, 1600, 0, 2},
 	{6, 2, DPLL_PLL1, DPLL_DIV1, DPLL_DIV1, 2400, 1, 3},
-	{7, 3, DPLL_PLL2, DPLL_DIV1, DPLL_DIV1, 3200, 1, 3},
+	{7, 2, DPLL_PLL1, DPLL_DIV1, DPLL_DIV1, 2666, 1, 3},
 };
 
 #define KHZ			1000
@@ -615,6 +615,6 @@ U_BOOT_CMD(
 	ddrfreq, CONFIG_SYS_MAXARGS, 1, do_ddr_freq,
 	"Adjusting the DRAM working data rate",
 	"list		- display the valid data rate list\n"
-	"ddrfreq [600~3200]	- adjust dram working data rate"
+	"ddrfreq [600~2666]	- adjust dram working data rate"
 );
 #endif

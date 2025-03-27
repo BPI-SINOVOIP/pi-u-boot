@@ -261,6 +261,7 @@ int usb_kbd_deregister(int force);
 #endif
 /* routines */
 int usb_init(void); /* initialize the USB Controller */
+int usb_init_name(const char *name); /* initialize the USB Controller specificing controller name */
 int usb_stop(void); /* stop the USB Controller */
 int usb_detect_change(void); /* detect if a USB device has been (un)plugged */
 

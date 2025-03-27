@@ -86,7 +86,7 @@ extern void update_ddr_info(void);
 extern enum board_boot_mode get_boot_storage(void);
 extern int spl_mtd_read(struct mtd_info *mtd, ulong sector, ulong count, void *buf);
 char *product_name;
-extern u32 ddr_cs_num, ddr_datarate;;
+extern u32 ddr_cs_num, ddr_datarate, ddr_tx_odt;
 extern const char *ddr_type;
 
 int timer_init(void)
@@ -669,6 +669,7 @@ void update_ddr_info(void)
 
 	ddr_cs_num = 0;
 	ddr_datarate = 0;
+	ddr_tx_odt = 0;
 	ddr_type = NULL;
 
 	if (k1x_eeprom_init() < 0)
@@ -691,6 +692,11 @@ void update_ddr_info(void)
 		// convert it from big endian to little endian
 		ddr_datarate = be16_to_cpu(ddr_datarate);
 		pr_info("Get ddr datarate %d from eeprom\n", ddr_datarate);
+	}
+
+	// if fail to get ddr tx odt from eeprom, update it from dts node
+	if (0 == spacemit_eeprom_read((uint8_t*)&ddr_tx_odt, TLV_CODE_DDR_TX_ODT)) {
+		pr_info("Get ddr tx odt(%dohm) from eeprom\n", ddr_tx_odt);
 	}
 }
 

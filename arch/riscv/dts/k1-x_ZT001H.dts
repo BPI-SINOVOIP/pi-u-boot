@@ -6,6 +6,7 @@
 #include "k1-x.dtsi"
 #include "k1-x_pinctrl.dtsi"
 #include "k1-x_spm8821.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "ZT001H";
@@ -22,6 +23,26 @@
 	chosen {
 		bootargs = "earlycon=sbi console=ttyS0,115200 debug loglevel=8,initcall_debug=1 rdinit=/init.tmp";
 		stdout-path = "serial0:115200n8";
+	};
+
+	gpio_keys: gpio_keys {
+		compatible = "gpio-keys";
+		fastboot-key-combo = "volume-up";
+		fastboot-key-press-time = <2000>; /* in milliseconds */
+
+		volume-up-button {
+			label = "volume-up";
+			linux,code = <KEY_VOLUMEUP>;
+			gpios = <&gpio 70 1>;
+			debounce-interval = <10>;
+		};
+
+		volume-down-button {
+			label = "volume-down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			gpios = <&gpio 71 1>;
+			debounce-interval = <10>;
+		};
 	};
 };
 

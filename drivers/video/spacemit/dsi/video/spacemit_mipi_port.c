@@ -291,11 +291,11 @@ static int lcd_mipi_sleep_out(struct video_tx_device *dev)
 		return -1;
 	}
 
-	if (video_tx_client->panel_info->panel_type == LCD_MIPI) {
+	// if (video_tx_client->panel_info->panel_type == LCD_MIPI) {
 
-		ret = spacemit_mipi_write_cmds(0, video_tx_client->panel_info->sleep_out_cmds,
-				video_tx_client->panel_info->sleep_out_cmds_num);
-	}
+	// 	ret = spacemit_mipi_write_cmds(0, video_tx_client->panel_info->sleep_out_cmds,
+	// 			video_tx_client->panel_info->sleep_out_cmds_num);
+	// }
 
 	ret = spacemit_mipi_ready_for_datatx(0, video_tx_client->panel_info->mipi_info);
 	if(0 != ret) {

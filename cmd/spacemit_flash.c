@@ -30,51 +30,6 @@
 #include <nvme.h>
 #include <watchdog.h>
 
-
-#define SUCCESS_BANNER \
-	"\r\n" \
-	"\r\n" \
-	"\tPPPPPPPPPPPPPPPPP        AAA                 SSSSSSSSSSSSSSS    SSSSSSSSSSSSSSS  \r\n" \
-	"\tP::::::::::::::::P      A:::A              SS:::::::::::::::S SS:::::::::::::::S \r\n" \
-	"\tP::::::PPPPPP:::::P    A:::::A            S:::::SSSSSS::::::SS:::::SSSSSS::::::S \r\n" \
-	"\tPP:::::P     P:::::P  A:::::::A           S:::::S     SSSSSSSS:::::S     SSSSSSS \r\n" \
-	"\t  P::::P     P:::::P A:::::::::A          S:::::S            S:::::S             \r\n" \
-	"\t  P::::P     P:::::PA:::::A:::::A         S:::::S            S:::::S             \r\n" \
-	"\t  P::::PPPPPP:::::PA:::::A A:::::A         S::::SSSS          S::::SSSS          \r\n" \
-	"\t  P:::::::::::::PPA:::::A   A:::::A         SS::::::SSSSS      SS::::::SSSSS     \r\n" \
-	"\t  P::::PPPPPPPPP A:::::A     A:::::A          SSS::::::::SS      SSS::::::::SS   \r\n" \
-	"\t  P::::P        A:::::AAAAAAAAA:::::A            SSSSSS::::S        SSSSSS::::S  \r\n" \
-	"\t  P::::P       A:::::::::::::::::::::A                S:::::S            S:::::S \r\n" \
-	"\t  P::::P      A:::::AAAAAAAAAAAAA:::::A               S:::::S            S:::::S \r\n" \
-	"\tPP::::::PP   A:::::A             A:::::A  SSSSSSS     S:::::SSSSSSSS     S:::::S \r\n" \
-	"\tP::::::::P  A:::::A               A:::::A S::::::SSSSSS:::::SS::::::SSSSSS:::::S \r\n" \
-	"\tP::::::::P A:::::A                 A:::::AS:::::::::::::::SS S:::::::::::::::SS  \r\n" \
-	"\tPPPPPPPPPPAAAAAAA                   AAAAAAASSSSSSSSSSSSSSS    SSSSSSSSSSSSSSS    \r\n" \
-	"\r\n" \
-	"\r\n"
-
-#define FAIL_BANNER \
-	"\r\n" \
-	"\r\n" \
-	"\tFFFFFFFFFFFFFFFFFFFFFF      AAA               IIIIIIIIIILLLLLLLLLLL             \r\n" \
-	"\tF::::::::::::::::::::F     A:::A              I::::::::IL:::::::::L             \r\n" \
-	"\tF::::::::::::::::::::F    A:::::A             I::::::::IL:::::::::L             \r\n" \
-	"\tFF::::::FFFFFFFFF::::F   A:::::::A            II::::::IILL:::::::LL             \r\n" \
-	"\t  F:::::F       FFFFFF  A:::::::::A             I::::I    L:::::L               \r\n" \
-	"\t  F:::::F              A:::::A:::::A            I::::I    L:::::L               \r\n" \
-	"\t  F::::::FFFFFFFFFF   A:::::A A:::::A           I::::I    L:::::L               \r\n" \
-	"\t  F:::::::::::::::F  A:::::A   A:::::A          I::::I    L:::::L               \r\n" \
-	"\t  F:::::::::::::::F A:::::A     A:::::A         I::::I    L:::::L               \r\n" \
-	"\t  F::::::FFFFFFFFFFA:::::AAAAAAAAA:::::A        I::::I    L:::::L               \r\n" \
-	"\t  F:::::F         A:::::::::::::::::::::A       I::::I    L:::::L               \r\n" \
-	"\t  F:::::F        A:::::AAAAAAAAAAAAA:::::A      I::::I    L:::::L         LLLLLL\r\n" \
-	"\tFF:::::::FF     A:::::A             A:::::A   II::::::IILL:::::::LLLLLLLLL:::::L\r\n" \
-	"\tF::::::::FF    A:::::A               A:::::A  I::::::::IL::::::::::::::::::::::L\r\n" \
-	"\tF::::::::FF   A:::::A                 A:::::A I::::::::IL::::::::::::::::::::::L\r\n" \
-	"\tFFFFFFFFFFF  AAAAAAA                   AAAAAAAIIIIIIIIIILLLLLLLLLLLLLLLLLLLLLLLL\r\n" \
-	"\r\n" \
-	"\r\n"
-
 static int dev_emmc_num = -1;
 static int dev_sdio_num = -1;
 static u32 bootfs_part_index = 0;
@@ -162,11 +117,17 @@ int check_mmc_exist_and_initialize(void)
 	return RESULT_OK;
 }
 
+#define TFTP_RETRY_COUNT 3
+
 int download_file_via_tftp(char *file_name, char *load_addr) {
 	char full_path[128];
 	char cmd_buffer[256];
 	char *tftp_server_ip;
 	char *tftp_path_prefix;
+	char *net_flash_protocol;
+	char *eth_mac;
+	int retry_count = 0;
+	int cmd_ret;
 
 	tftp_server_ip = env_get("serverip");
 	if (!tftp_server_ip) {
@@ -179,15 +140,43 @@ int download_file_via_tftp(char *file_name, char *load_addr) {
 		printf("Error: TFTP relative path not set\n");
 		return -1;
 	}
+	// Check if net flash mode is enabled
+	net_flash_protocol = env_get("net_flash_protocol");
+	if (!net_flash_protocol || strcmp(net_flash_protocol, "spacemit_tftp") != 0) {
+		sprintf(full_path, "%s%s", tftp_path_prefix, file_name);
+	} else {
+		eth_mac = env_get("ethaddr");
+		if (eth_mac) {
+			sprintf(full_path, "%s*%s%s", eth_mac, tftp_path_prefix, file_name);
+		} else {
+			printf("Warning: MAC address not found, using filename without prefix\n");
+			sprintf(full_path, "%s%s", tftp_path_prefix, file_name);
+		}
+	}
 
-	sprintf(full_path, "%s%s", tftp_path_prefix, file_name);
 	sprintf(cmd_buffer, "tftpboot %s %s:%s", load_addr, tftp_server_ip, full_path);
 
-	if (run_command(cmd_buffer, 0)) {
-		printf("Error: TFTP download failed\n");
-		return -1;
+	while (retry_count < TFTP_RETRY_COUNT) {
+		cmd_ret = run_command(cmd_buffer, 0);
+		if (cmd_ret == 0) {
+			return RESULT_OK;
+		}
+
+		const char *tftp_err = env_get("tftp_err");
+		if (tftp_err && strcmp(tftp_err, "file_not_found") == 0) {
+			printf("No more files to download, finishing...\n");
+			return CMD_RET_FAILURE;
+		}
+
+		retry_count++;
+		if (retry_count < TFTP_RETRY_COUNT) {
+			printf("TFTP download failed, retrying (%d/%d)...\n", 
+					retry_count, TFTP_RETRY_COUNT);
+		}
 	}
-	return 0;
+
+	printf("Error: TFTP download failed after %d attempts\n", TFTP_RETRY_COUNT);
+	return RESULT_FAIL;
 }
 
 static int _find_partition_file(struct flash_dev *fdev, char *tmp_file, char *temp_fname, u32 temp_fname_size)
@@ -385,10 +374,10 @@ static int load_from_device(struct cmd_tbl *cmdtp, char *load_str,
 			printf("do_load flash_config %s success\n", fdev->device_name);
 		}
 	} else if (strcmp(fdev->device_name, "net") == 0) {
-
-		if (download_file_via_tftp(temp_fname, load_str) < 0) {
-			printf("Failed to download file via TFTP\n");
-			retval = RESULT_FAIL;
+		int ret = download_file_via_tftp(temp_fname, load_str);
+		if (ret != RESULT_OK) {
+			printf("Failed to download file via TFTP, error code: %d\n", ret);
+			retval = ret;
 		} else {
 			printf("Downloaded file via TFTP successfully\n");
 		}
@@ -662,9 +651,10 @@ int load_and_flash_file(struct cmd_tbl *cmdtp, struct flash_dev *fdev, char *fil
 				return RESULT_FAIL;
 			}
 		} else {
-			if (download_file_via_tftp(file_name, load_str) < 0) {
-				printf("Failed to download file via TFTP\n");
-				return RESULT_FAIL;
+			int ret = download_file_via_tftp(file_name, load_str);
+			if (ret != RESULT_OK) {
+				printf("Failed to download file via TFTP, error code: %d\n", ret);
+				return ret;
 			}
 			image_size = download_bytes = env_get_hex("filesize", 0);
 		}
@@ -780,9 +770,12 @@ static int flash_image(struct cmd_tbl *cmdtp, struct flash_dev *fdev)
 			printf("\n\nFlashing part: %s, file:%s\n", part_name, file_name);
 			// big rootfs image(larger than 4GB) will split to multi files except flash to nand.
 			sprintf(blk_dev_str, "%d:%d", fdev->dev_index, bootfs_part_index);
-			if ((0 == strcmp(part_name, BIG_IMG_PARTNAME))
-				&& (strcmp(fdev->device_name, "mmc") == 0 || strcmp(fdev->device_name, "usb") == 0)
-				&& !file_exists(fdev->device_name, blk_dev_str, file_name, FS_TYPE_FAT)) {
+			if (strcmp(part_name, BIG_IMG_PARTNAME) == 0) {
+				bool is_mmc_or_usb = (strcmp(fdev->device_name, "mmc") == 0 || strcmp(fdev->device_name, "usb") == 0);
+				bool file_not_exists = !file_exists(fdev->device_name, blk_dev_str, file_name, FS_TYPE_FAT);
+				bool is_net = (strcmp(fdev->device_name, "net") == 0);
+
+				if ((is_mmc_or_usb && file_not_exists) || is_net) {
 					split_file_name = malloc(strlen(file_name) + 8);
 					extension = file_name;
 					// MUST has only 1 "." inside file name
@@ -790,7 +783,23 @@ static int flash_image(struct cmd_tbl *cmdtp, struct flash_dev *fdev)
 					j = 1;
 					while (1) {
 						sprintf(split_file_name, "%s_%d.%s", name, j, extension);
-						if (file_exists(fdev->device_name, blk_dev_str, split_file_name, FS_TYPE_FAT)) {
+						if (strcmp(fdev->device_name, "net") == 0 ) {
+							printf("write %s to device %s\n", split_file_name, fdev->device_name);
+							ret = load_and_flash_file(cmdtp, fdev, split_file_name, part_name, &partition_offset);
+							if (RESULT_OK != ret) {
+								// For network device, if download fails, check if file not found
+								if (ret == CMD_RET_FAILURE) {
+									printf("No more files to download, finishing...\n");
+									return RESULT_OK; // Return success to continue processing
+									break;
+								} else{
+									ret = RESULT_FAIL;
+									break;
+								}
+							}
+							j++;
+						}
+						else if (file_exists(fdev->device_name, blk_dev_str, split_file_name, FS_TYPE_FAT)) {
 							printf("write %s to device %s\n", split_file_name, fdev->device_name);
 							ret = load_and_flash_file(cmdtp, fdev, split_file_name, part_name, &partition_offset);
 							if (RESULT_OK != ret)
@@ -802,8 +811,10 @@ static int flash_image(struct cmd_tbl *cmdtp, struct flash_dev *fdev)
 					}
 
 					free(split_file_name);
+				} else {
+					ret = load_and_flash_file(cmdtp, fdev, file_name, part_name, &partition_offset);
 				}
-			else{
+			} else {
 				ret = load_and_flash_file(cmdtp, fdev, file_name, part_name, &partition_offset);
 			}
 

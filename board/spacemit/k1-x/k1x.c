@@ -440,7 +440,6 @@ void _load_env_from_blk(struct blk_desc *dev_desc, const char *dev_name, int dev
 	char cmd[128];
 	struct disk_partition info;
 
-	printf("BPI: :%s\n", "_load_env_from_blk");
 	for (part = 1; part <= MAX_SEARCH_PARTITIONS; part++) {
 		err = part_get_info(dev_desc, part, &info);
 		if (err)
@@ -450,13 +449,8 @@ void _load_env_from_blk(struct blk_desc *dev_desc, const char *dev_name, int dev
 			break;
 		}
 	}
-	if (part > MAX_SEARCH_PARTITIONS) {
-#ifdef BPI
+	if (part > MAX_SEARCH_PARTITIONS)
 		return;
-#else
-		part = 1;
-#endif
-	}
 
 	env_set("bootfs_part", simple_itoa(part));
 	env_set("bootfs_devname", dev_name);
@@ -466,14 +460,12 @@ void _load_env_from_blk(struct blk_desc *dev_desc, const char *dev_name, int dev
 	sprintf(cmd, "load %s %d:%d 0x%x env_%s.txt", dev_name,
 			dev, part, CONFIG_SPL_LOAD_FIT_ADDRESS, CONFIG_SYS_CONFIG_NAME);
 	pr_debug("cmd:%s\n", cmd);
-	printf("BPI: cmd:%s\n", cmd);
 	if (run_command(cmd, 0))
 		return;
 
 	memset(cmd, '\0', 128);
 	sprintf(cmd, "env import -t 0x%x", CONFIG_SPL_LOAD_FIT_ADDRESS);
 	pr_debug("cmd:%s\n", cmd);
-	printf("BPI: cmd:%s\n", cmd);
 	if (!run_command(cmd, 0)){
 		pr_info("load env_%s.txt from bootfs successful\n", CONFIG_SYS_CONFIG_NAME);
 	}
@@ -943,6 +935,29 @@ void refresh_config_info(u8 *eeprom_data)
 	}
 }
 
+static int probe_shutdown_charge(void)
+{
+#ifdef CONFIG_SPACEMIT_SHUTDOWN_CHARGE
+	struct udevice *udev;
+	int ret;
+
+#ifdef CONFIG_TYPEC_HUSB239
+	ret = uclass_get_device_by_driver(UCLASS_I2C_GENERIC, DM_DRIVER_GET(husb239), &udev);
+	if (ret) {
+		pr_err("Failed to probe HUSB239: %d\n", ret);
+	}
+#endif
+
+	ret = uclass_get_device_by_driver(UCLASS_MISC, DM_DRIVER_GET(shutdown_charge), &udev);
+	if (ret) {
+		pr_info("Continue to boot\n");
+	}
+	return ret;
+#else
+	return 0;
+#endif
+}
+
 int board_init(void)
 {
 #ifdef CONFIG_DM_REGULATOR_SPM8XX
@@ -952,13 +967,7 @@ int board_init(void)
 	if (ret)
 		pr_debug("%s: Cannot enable boot on regulator\n", __func__);
 #endif
-#ifdef CONFIG_SPACEMIT_SHUTDOWN_CHARGE
-	struct udevice *udev;
 
-	if (get_boot_mode() != BOOT_MODE_USB) {
-		ret = uclass_get_device_by_driver(UCLASS_MISC, DM_DRIVER_GET(shutdown_charge), &udev);
-	}
-#endif
 	return 0;
 }
 
@@ -1021,6 +1030,10 @@ int board_late_init(void)
 	run_fastboot_command();
 
 	run_cardfirmware_flash_command();
+
+	run_net_flash_command();
+
+	probe_shutdown_charge();
 
 	ret = run_uboot_shell();
 	if (!ret) {

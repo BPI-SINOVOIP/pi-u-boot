@@ -26,6 +26,7 @@
 #include <ctype.h>
 #include <dm.h>
 #include <fb_spacemit.h>
+#include <watchdog.h>
 #include "nfs_env.h"
 
 #define NFS_LOAD_ADDR  CONFIG_FASTBOOT_BUF_ADDR
@@ -329,6 +330,137 @@ int check_bootfs_exists(void)
 	}
 
 	return ret;
+}
+
+#ifdef CONFIG_CMD_NET
+static int initr_net(void)
+{
+	printf("Net:   ");
+	eth_initialize();
+#if defined(CONFIG_RESET_PHY_R)
+	debug("Reset Ethernet PHY\n");
+	reset_phy();
+#endif
+	return 0;
+}
+#endif
+
+int run_net_flash_command(void)
+{
+#ifdef CONFIG_CMD_NET
+	char cmd[128];
+	char *ethaddr;
+	char *tftp_load_addr = (char *)NFS_LOAD_ADDR;
+	const char *flash_cmd = "flash_image net";
+	char *filesize_str;
+	ulong filesize = 0;
+	int ret;
+	char *net_flash_mode;
+
+	// Check if net flash mode is enabled
+	net_flash_mode = env_get("net_flash_protocol");
+	if (!net_flash_mode || strcmp(net_flash_mode, "spacemit_tftp") != 0) {
+		pr_info("Net flash mode not enabled\n");
+		return 1;
+	}
+
+	ret = initr_net();
+	if (ret != 0) {
+		pr_err("Failed to initialize network\n");
+		goto flash_fail;
+	}
+
+	// Run DHCP
+	sprintf(cmd, "dhcp");
+	ret = run_command(cmd, 0);
+	if (ret != 0) {
+		pr_err("DHCP failed, return value: %d\n", ret);
+		goto flash_fail;
+	}
+
+	// Get mac address after DHCP
+	ethaddr = env_get("ethaddr");
+	if (!ethaddr) {
+		pr_err("mac address not set in environment\n");
+		goto flash_fail;
+	}
+
+	// Construct TFTP command
+	snprintf(cmd, sizeof(cmd), "tftpboot %lx %s", (ulong)tftp_load_addr, ethaddr);
+	if (run_command(cmd, 0) != 0) {
+		pr_err("Failed to execute TFTP command\n");
+		goto flash_fail;
+	}
+
+	// Get downloaded file size from environment
+	filesize_str = env_get("filesize");
+	if (!filesize_str) {
+		pr_err("Failed to get filesize from environment\n");
+		goto flash_fail;
+	}
+
+	filesize = simple_strtoul(filesize_str, NULL, 16);
+	pr_info("Downloaded size: %lu bytes\n", filesize);
+	pr_info("Received content: '");
+	for (int i = 0; i < filesize && i < 64; i++) {
+		printf("%c", tftp_load_addr[i]);
+	}
+	printf("'\n");
+
+	// Check for flash command prefix
+	char *path_start = strstr(tftp_load_addr, "net_data_path=");
+	if (path_start) {
+		char path[128];
+		char server_ip[16];
+		int len = 0;
+		path_start += 13; // Skip "net_data_path="
+
+		// Find IP and path separator
+		char *colon = strchr(path_start, ':');
+		if (colon) {
+			// Extract server IP address
+			len = colon - path_start;
+			if (len < sizeof(server_ip)) {
+				strncpy(server_ip, path_start, len);
+				server_ip[len] = '\0';
+				env_set("serverip", server_ip);
+				pr_info("Set serverip=%s\n", server_ip);
+
+				// Extract path portion after colon
+				path_start = colon + 1;  // Skip colon
+				len = 0;
+				while (*path_start && len < sizeof(path) - 1) {
+					path[len++] = *path_start++;
+				}
+				path[len] = '\0';
+
+				env_set("net_data_path", path);
+				pr_info("Set net_data_path=%s\n", path);
+
+				// Execute flash command
+				if (run_command(flash_cmd, 0) != 0) {
+					pr_err("Failed to execute flash command\n");
+					goto flash_fail;
+				}
+				return 0;
+			}
+		}
+		pr_err("Invalid format: IP:path not found\n");
+		goto flash_fail;
+	}
+
+	pr_info("Continuing with NFS boot\n");
+	return 1;
+
+flash_fail:
+	printf(FAIL_BANNER);
+	while(1) {
+		/* do not return while flashing over! */
+		WATCHDOG_RESET();
+	}
+#else
+	return 0;
+#endif
 }
 
 int load_env_from_nfs(void)

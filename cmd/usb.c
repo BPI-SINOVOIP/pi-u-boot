@@ -574,11 +574,11 @@ static int do_usb_stop_keyboard(int force)
 	return 0;
 }
 
-static void do_usb_start(void)
+static void do_usb_start(const char *name)
 {
 	bootstage_mark_name(BOOTSTAGE_ID_USB_START, "usb_start");
 
-	if (usb_init() < 0)
+	if (usb_init_name(name) < 0)
 		return;
 
 	/* Driver model will probe the devices as they are found */
@@ -623,6 +623,7 @@ static void usb_show_info(struct usb_device *udev)
 }
 #endif
 
+extern bool usb_kbd_only;
 /******************************************************************************
  * usb command intepreter
  */
@@ -631,15 +632,29 @@ static int do_usb(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	struct usb_device *udev = NULL;
 	int i;
 	extern char usb_started;
+	char *usb_name;
 
 	if (argc < 2)
 		return CMD_RET_USAGE;
+
+	usb_name = argc > 2 ? argv[2] : NULL;
+
+	if (strncmp(argv[1], "kbd", 3) == 0) {
+		if (usb_started)
+			return 0; /* Already started */
+		printf("starting USB only for keyboard...\n");
+		usb_kbd_only = true;
+		do_usb_start(usb_name);
+		return 0;
+	}
+
+	usb_kbd_only = false;
 
 	if (strncmp(argv[1], "start", 5) == 0) {
 		if (usb_started)
 			return 0; /* Already started */
 		printf("starting USB...\n");
-		do_usb_start();
+		do_usb_start(usb_name);
 		return 0;
 	}
 
@@ -648,7 +663,7 @@ static int do_usb(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		if (do_usb_stop_keyboard(1) != 0)
 			return 1;
 		usb_stop();
-		do_usb_start();
+		do_usb_start(usb_name);
 		return 0;
 	}
 	if (strncmp(argv[1], "stop", 4) == 0) {

@@ -657,6 +657,7 @@ static void tftp_handler(uchar *pkt, unsigned dest, struct in_addr sip,
 
 		switch (ntohs(*(__be16 *)pkt)) {
 		case TFTP_ERR_FILE_NOT_FOUND:
+			env_set("tftp_err", "file_not_found");
 		case TFTP_ERR_ACCESS_DENIED:
 			puts("Not retrying...\n");
 			eth_halt();
@@ -710,6 +711,7 @@ static int tftp_init_load_addr(void)
 
 void tftp_start(enum proto_t protocol)
 {
+	env_set("tftp_err", "");
 #if CONFIG_NET_TFTP_VARS
 	char *ep;             /* Environment pointer */
 

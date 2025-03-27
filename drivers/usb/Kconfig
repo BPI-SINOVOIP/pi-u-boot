@@ -87,6 +87,7 @@ source "drivers/usb/phy/Kconfig"
 
 source "drivers/usb/ulpi/Kconfig"
 
+source "drivers/usb/typec/Kconfig"
 if USB_HOST
 
 comment "USB peripherals"

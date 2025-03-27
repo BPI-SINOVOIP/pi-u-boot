@@ -92,6 +92,8 @@ struct pcie_dw_k1x {
 	/* reset, clock resources */
 	struct clk clock;
 	struct reset_ctl reset;
+	struct gpio_desc pwr_on_gpio;
+	int power_on_status;
 };
 
 enum dw_pcie_device_mode {
@@ -641,6 +643,34 @@ static int pcie_dw_init_id(struct pcie_dw_k1x *pci)
 	return 0;
 }
 
+static int k1x_power_on(struct pcie_dw_k1x *pci, int on)
+{
+	struct pcie_dw *dwp = &pci->dw;
+	int gpio_val = 0;
+
+	if (on) {
+		if (pci->power_on_status) {
+			gpio_val = 1;
+		} else {
+			gpio_val = 0;
+		}
+	} else {
+		if (pci->power_on_status) {
+			gpio_val = 0;
+		} else {
+			gpio_val = 1;
+		}
+	}
+
+	if (dm_gpio_is_valid(&pci->pwr_on_gpio)) {
+		dev_info(dwp->dev, "PCIe interface power %s, set gpio %d to %d\n", \
+			on ? "on": "off", pci->pwr_on_gpio.offset, gpio_val);
+		dm_gpio_set_value(&pci->pwr_on_gpio, gpio_val);
+	}
+
+	return 0;
+}
+
 /**
  * pcie_dw_k1x_probe() - Probe the PCIe bus for active link
  *
@@ -697,6 +727,9 @@ static int pcie_dw_k1x_probe(struct udevice *dev)
 	pci->dw.dev = dev;
 
 	pcie_set_mode(pci, DW_PCIE_RC_TYPE);
+
+	/* power on the interface */
+	k1x_power_on(pci, 1);
 
 	k1x_pcie_host_init(pci);
 	pcie_dw_setup_host(&pci->dw);
@@ -790,6 +823,18 @@ static int pcie_dw_k1x_of_to_plat(struct udevice *dev)
 	if (ret) {
 		dev_warn(dev, "It has no reset: %d\n", ret);
 		return -EINVAL;
+	}
+
+	gpio_request_by_name(dev, "k1x,pwr_on", 0, &pcie->pwr_on_gpio,
+			     GPIOD_IS_OUT);
+	if (!dm_gpio_is_valid(&pcie->pwr_on_gpio)) {
+		dev_info(dev, "has no power on gpio.\n");
+	}
+
+	ret = dev_read_u32(dev, "power-on-status", &pcie->power_on_status);
+	if (ret) {
+		dev_info(dev, "has no power-on-status flag, use default.\n");
+		pcie->power_on_status = 1;
 	}
 
 	return 0;

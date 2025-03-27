@@ -138,7 +138,13 @@ static int sgm41515_set_input_curr_lim(struct udevice *dev, int iindpm)
 	return ret;
 }
 
-static int sgm41515_set_chrg_curr(struct udevice *dev, int uA)
+static int sgm41515_get_current(struct udevice *dev)
+{
+    struct sgm41515_charger *priv = dev_get_priv(dev);
+    return priv->ichg;
+}
+
+static int sgm41515_set_chrg_curr(struct udevice *dev, unsigned int uA)
 {
 	int ret;
 	unsigned char reg, reg_val;
@@ -383,6 +389,8 @@ static const struct udevice_id sgm41515_ids[] = {
 
 static struct dm_charger_ops sgm41515_chg_ops = {
 	.get_status = sgm41515_get_status,
+	.set_current = sgm41515_set_chrg_curr,
+	.get_current = sgm41515_get_current,
 };
 
 U_BOOT_DRIVER(sgm41515_charger) = {

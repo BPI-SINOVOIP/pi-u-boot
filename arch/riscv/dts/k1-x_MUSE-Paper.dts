@@ -342,7 +342,7 @@
 	electricity-meter = <&cw2015>;
 	power-domains = <&pmu K1X_PMU_WKUP_EVENT_PWR_DOMAIN>;
 
-	wk-name = "pwr_event", "pwr_int", "rtc_ctrl", "rtc_event", "rtc_irq", "sys-shutdown";
+	wk-name = "pwr_event", "pwr_int", "rtc_ctrl", "rtc_event", "rtc_irq", "sys-shutdown", "reboot-flag";
 	pwr_event = <&power_event>;
 	pwr_int = <&power_int>;
 
@@ -354,11 +354,17 @@
 	reboot-flag = <&reboot_flag>;
 
 	charge-light = <&gpio 75 0 &gpio 76 0>;
-	valid-level = <0>;
+	valid-level = <1>;
+
+	backlight = <&backlight>;
 
 	charger-name = "charger0", "charger1";
 	charger0 = <&sgm41515>;
 	charger1 = <&secsgm41515>;
+
+	battery-threshold0 = <3>;
+	battery-threshold1 = <5>;
+	battery-threshold2 = <100>;
 
 	status = "okay";
 };

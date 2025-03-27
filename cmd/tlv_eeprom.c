@@ -245,6 +245,7 @@ static struct tlv_code_desc tlv_code_list[] = {
 	{ TLV_CODE_DIAG_VERSION,   "Diag Version"},
 	{ TLV_CODE_SERVICE_TAG,    "Service Tag"},
 	{ TLV_CODE_VENDOR_EXT,     "Vendor Extension"},
+	{ TLV_CODE_DDR_TX_ODT,     "DDR tx odt"},
 	{ TLV_CODE_CRC_32,         "CRC-32"},
 };
 

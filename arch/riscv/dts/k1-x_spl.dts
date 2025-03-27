@@ -81,6 +81,7 @@
 		datarate = <2400>;
 		cs-num = <2>;
 		type = "LPDDR4X";
+		tx-odt = <80>;
 		u-boot,dm-spl;
 	};
 

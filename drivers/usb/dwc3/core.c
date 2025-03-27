@@ -56,6 +56,14 @@ static int dwc3_core_soft_reset(struct dwc3 *dwc)
 {
 	u32		reg;
 
+	/*
+	 * We're resetting only the device side because, if we're in host mode,
+	 * XHCI driver will reset the host block. If dwc3 was configured for
+	 * host-only mode, then we can return early.
+	 */
+	if (dwc->dr_mode == USB_DR_MODE_HOST)
+		return 0;
+
 	/* Before Resetting PHY, put Core in Reset */
 	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
 	reg |= DWC3_GCTL_CORESOFTRESET;
@@ -435,7 +443,9 @@ static void dwc3_phy_setup(struct dwc3 *dwc)
 
 	dwc3_hsphy_mode_setup(dwc);
 
-	mdelay(100);
+	/* linux code have removed this delay
+	 * in 45bb7de213d86d491840e9c3ae139475ab3fa493*/
+	/* mdelay(100); */
 
 	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
 
@@ -459,7 +469,9 @@ static void dwc3_phy_setup(struct dwc3 *dwc)
 
 	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
 
-	mdelay(100);
+	/* linux code have removed this delay
+	 * in 45bb7de213d86d491840e9c3ae139475ab3fa493*/
+	/* mdelay(100); */
 }
 
 /* set global incr burst type configuration registers */

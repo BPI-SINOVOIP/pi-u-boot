@@ -49,6 +49,12 @@
 
 #define HUB_DEBOUNCE_TIMEOUT	1000
 
+#if CONFIG_IS_ENABLED(K1_X_BOARD_ASIC)
+static unsigned usb_hub_debounce_timeout = HUB_DEBOUNCE_TIMEOUT;
+extern bool usb_kbd_only;
+extern unsigned int usbkbd_count;
+#endif
+
 #define PORT_OVERCURRENT_MAX_SCAN_COUNT		3
 
 struct usb_device_scan {
@@ -169,6 +175,7 @@ static void usb_hub_power_on(struct usb_hub_device *hub)
 	struct usb_device *dev;
 	unsigned pgood_delay = hub->desc.bPwrOn2PwrGood * 2;
 	const char *env;
+	u32 tmp;
 
 	dev = hub->pusb_dev;
 
@@ -204,16 +211,32 @@ static void usb_hub_power_on(struct usb_hub_device *hub)
 	 * so that the power can stablize before the devices are queried
 	 */
 	hub->query_delay = get_timer(0) + max(100, (int)pgood_delay);
-
+#if CONFIG_IS_ENABLED(K1_X_BOARD_ASIC)	
+	env = env_get("usb_hub_debounce_timeout");
+	if (env)
+		usb_hub_debounce_timeout = (unsigned)simple_strtol(env, NULL, 0);
+#endif
 	/*
 	 * Record the power-on timeout here. The max. delay (timeout)
 	 * will be done based on this value in the USB port loop in
 	 * usb_hub_configure() later.
 	 */
+#if CONFIG_IS_ENABLED(K1_X_BOARD_ASIC)
+	hub->connect_timeout = hub->query_delay + usb_hub_debounce_timeout;
+	printf("devnum=%d poweron: query_delay=%d connect_timeout=%d\n",
+			dev->devnum, max(100, (int)pgood_delay),
+			max(100, (int)pgood_delay) + usb_hub_debounce_timeout);
+	if (usb_hub_is_root_hub(dev->dev)) {
+		tmp = usb_hub_debounce_timeout;
+		dev_read_u32(dev->dev->parent, "roothub-power-on-debounce-ms", &tmp);
+		hub->connect_timeout = hub->query_delay + tmp;
+	}
+#else
 	hub->connect_timeout = hub->query_delay + HUB_DEBOUNCE_TIMEOUT;
 	debug("devnum=%d poweron: query_delay=%d connect_timeout=%d\n",
 	      dev->devnum, max(100, (int)pgood_delay),
 	      max(100, (int)pgood_delay) + HUB_DEBOUNCE_TIMEOUT);
+#endif
 }
 
 #if !CONFIG_IS_ENABLED(DM_USB)
@@ -393,6 +416,15 @@ int usb_hub_port_connect_change(struct usb_device *dev, int port)
 		break;
 	}
 
+#if CONFIG_IS_ENABLED(K1_X_BOARD_ASIC)
+	/* If multiple hub are connected, we only support 2 keyboard for now 
+	 * there is no need to scan over those hubs! */
+	if ((usb_kbd_only && usbkbd_count >= 2) || (usb_kbd_only && speed > USB_SPEED_HIGH)) {
+		printf("bypass a non-HS udev for quick boot...kbd: %d\n", usbkbd_count);
+		return -ENOENT;
+	}
+#endif
+
 #if CONFIG_IS_ENABLED(DM_USB)
 	struct udevice *child;
 
@@ -499,7 +531,9 @@ static int usb_scan_port(struct usb_device_scan *usb_scan)
 	/* A new USB device is ready at this point */
 	debug("devnum=%d port=%d: USB dev found\n", dev->devnum, i + 1);
 
-	usb_hub_port_connect_change(dev, i);
+	ret = usb_hub_port_connect_change(dev, i);
+	if (ret == -ENODEV)
+		goto done;
 
 	if (portchange & USB_PORT_STAT_C_ENABLE) {
 		debug("port %d enable change, status %x\n", i + 1, portstatus);
@@ -549,7 +583,7 @@ static int usb_scan_port(struct usb_device_scan *usb_scan)
 		printf("Port %d over-current occurred %d times\n", i + 1,
 		       hub->overcurrent_count[i]);
 	}
-
+done:
 	/*
 	 * We're done with this device, so let's remove this device from
 	 * scanning list
@@ -573,10 +607,19 @@ static int usb_device_list_scan(void)
 
 	running = 1;
 
+	pr_info("start port scan\n");
 	while (1) {
 		/* We're done, once the list is empty again */
 		if (list_empty(&usb_scan_list))
 			goto out;
+
+		if (usb_kbd_only && usbkbd_count >= 2) {
+			list_for_each_entry_safe(usb_scan, tmp, &usb_scan_list, list) {
+				list_del(&usb_scan->list);
+				free(usb_scan);
+			}
+			goto out;
+		}
 
 		list_for_each_entry_safe(usb_scan, tmp, &usb_scan_list, list) {
 			int ret;
