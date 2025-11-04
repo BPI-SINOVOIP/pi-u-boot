@@ -1,0 +1,342 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the RZ/Five series (r9a07g043fx) SoC
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ */
+#include <dt-bindings/clock/r9a07g043f-cpg.h>
+/ {
+	compatible = "renesas,rzf";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+	};
+
+	/* Bootloader run on 1 core, just delare 1 core in dts but
+	the dtb can support multicore device */
+	cpus {
+		u-boot,dm-spl;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		timebase-frequency = <12000000>;
+		CPU0: cpu@0 {
+			u-boot,dm-spl;
+			device_type = "cpu";
+			reg = <0>;
+			status = "okay";
+			compatible = "riscv";
+			riscv,isa = "rv64imafdc";
+			riscv,priv-major = <1>;
+			riscv,priv-minor = <10>;
+			mmu-type = "riscv,sv39";
+			clock-frequency = <1000000000>;
+			i-cache-size = <0x8000>;
+			i-cache-line-size = <32>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <32>;
+			next-level-cache = <&L2>;
+			CPU0_intc: interrupt-controller {
+				u-boot,dm-spl;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				compatible = "riscv,cpu-intc";
+			};
+		};
+	};
+
+	L2: l2-cache@13400000 {
+		u-boot,dm-spl;
+		compatible = "v5l2cache";
+		cache-level = <2>;
+		cache-size = <0x40000>;
+		reg = <0x0 0x13400000 0x0 0x40000>;
+		andes,inst-prefetch = <0>;
+		andes,data-prefetch = <0>;
+		/* The value format is <XRAMOCTL XRAMICTL> */
+		andes,tag-ram-ctl = <1 0>;
+		andes,data-ram-ctl = <1 0>;
+	};
+
+	/*
+	 * The external audio clocks are configured as 0 Hz fixed frequency
+	 * clocks by default.
+	 * Boards that provide audio clocks should override them.
+	 */
+	xinclk: xinclk {
+		u-boot,dm-spl;
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
+	soc: soc {
+		u-boot,dm-spl;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "simple-bus";
+		interrupt-parent = <&plic0>;
+		ranges;
+
+		plic0: interrupt-controller@12c00000 {
+			u-boot,dm-spl;
+			compatible = "riscv,plic0";
+			#address-cells = <2>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			reg = <0x0 0x12c00000 0x0 0x2000000>;
+			interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
+		};
+
+		plic1: interrupt-controller@13000000 {
+			u-boot,dm-spl;
+			compatible = "riscv,plic1";
+			#address-cells = <2>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			reg = <0x0 0x13000000 0x0 0x400000>;
+			interrupts-extended = <&CPU0_intc 3>;
+		};
+
+		plmt0@110c0000 {
+			u-boot,dm-spl;
+			compatible = "riscv,plmt0";
+			reg = <0x0 0x110c0000 0x0 0x100000>;
+			interrupts-extended = <&CPU0_intc 7>;
+		};
+
+		cpg: clock-controller@11010000 {
+			u-boot,dm-spl;
+			compatible = "renesas,r9a07g043f-cpg";
+			reg = <0 0x11010000 0 0x10000>;
+			clocks = <&xinclk>;
+			clock-names = "xinclk";
+			#clock-cells = <2>;
+			#reset-cells = <1>;
+			#power-domain-cells = <0>;
+		};
+
+		pinctrl: pin-controller@11030000 {
+			u-boot,dm-spl;
+			compatible = "renesas,r9a07g043f-pinctrl";
+			reg = <0 0x11030000 0 0x10000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 0 176>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_GPIO>;
+		};
+
+		scif0: serial@1004b800 {
+			u-boot,dm-spl;
+			compatible = "renesas,scif-r9a07g043f", "renesas,scif";
+			reg = <0 0x1004b800 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_SCIF0>;
+			resets = <&cpg R9A07G043F_CLK_SCIF0>;
+			power-domains = <&cpg>;
+			status = "disable";
+		};
+
+		scif1: serial@1004bc00 {
+			u-boot,dm-spl;
+			compatible = "renesas,scif-r9a07g043f", "renesas,scif";
+			reg = <0 0x1004bc00 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_SCIF1>;
+			resets = <&cpg R9A07G043F_CLK_SCIF1>;
+			power-domains = <&cpg>;
+			status = "disable";
+		};
+
+		scif2: serial@1004c000 {
+			u-boot,dm-spl;
+			compatible = "renesas,scif-r9a07g043f", "renesas,scif";
+			reg = <0 0x1004c000 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_SCIF2>;
+			resets = <&cpg R9A07G043F_CLK_SCIF2>;
+			power-domains = <&cpg>;
+			status = "disable";
+		};
+
+		sdhi0: sd@11c00000 {
+			compatible = "renesas,sdhi-r9a07g043f";
+			reg = <0 0x11c00000 0 0x10000>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_SDHI0>;
+			resets = <&cpg R9A07G043F_CLK_SDHI0>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		sdhi1: sd@11c10000 {
+			compatible = "renesas,sdhi-r9a07g043f";
+			reg = <0x0 0x11c10000 0 0x10000>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_SDHI1>;
+			resets = <&cpg R9A07G043F_CLK_SDHI1>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		eth0: ethernet@11c20000 {
+			u-boot,dm-spl;
+			compatible = "renesas,etheravb-r9a07g043f";
+			reg = <0 0x11c20000 0 0x10000>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_ETH0>;
+			resets = <&cpg R9A07G043F_CLK_ETH0>;
+			power-domains = <&cpg>;
+			phy-mode = "rgmii";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			eth-pin-mode-switch = <&pinctrl 0>;
+			status = "disabled";
+		};
+
+		eth1: ethernet@11c30000 {
+			u-boot,dm-spl;
+			compatible = "renesas,etheravb-r9a07g043f";
+			reg = <0 0x11c30000 0 0x10000>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_ETH1>;
+			resets = <&cpg R9A07G043F_CLK_ETH1>;
+			power-domains = <&cpg>;
+			phy-mode = "rgmii";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@10058000 {
+			u-boot,dm-spl;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "renesas,riic-r9a07g043f",
+					"renesas,riic-rz";
+			reg = <0 0x10058000 0 0x44>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_I2C0>;
+			clock-frequency = <100000>;
+			resets = <&cpg R9A07G043F_CLK_I2C0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@10058400 {
+			u-boot,dm-spl;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "renesas,riic-r9a07g043f",
+					"renesas,riic-rz";
+			reg = <0 0x10058400 0 0x44>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_I2C1>;
+			clock-frequency = <100000>;
+			resets = <&cpg R9A07G043F_CLK_I2C1>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@10058800 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "renesas,riic-r9a07g043f",
+					"renesas,riic-rz";
+			reg = <0 0x10058800 0 0x44>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_I2C2>;
+			clock-frequency = <100000>;
+			resets = <&cpg R9A07G043F_CLK_I2C2>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@10058C00 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "renesas,riic-r9a07g043f",
+					"renesas,riic-rz";
+			reg = <0 0x10058c00 0 0x44>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_I2C3>;
+			clock-frequency = <100000>;
+			resets = <&cpg R9A07G043F_CLK_I2C3>;
+			status = "disabled";
+		};
+
+		ohci0: usb@11c50000 {
+			u-boot,dm-spl;
+			compatible = "generic-ohci";
+			reg = <0 0x11c50000 0 0x100>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_USB0>;
+			resets = <&cpg R9A07G043F_CLK_USB0>;
+			phys = <&usb2_phy0>;
+			phy-names = "usb";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		ehci0: usb@11c50100 {
+			u-boot,dm-spl;
+			compatible = "generic-ehci";
+			reg = <0 0x11c50100 0 0x100>;
+			companion= <&ohci0>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_USB0>;
+			resets = <&cpg R9A07G043F_CLK_USB0>;
+			phys = <&usb2_phy0>;
+			phy-names = "usb";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		ohci1: usb@11c70000 {
+			u-boot,dm-spl;
+			compatible = "generic-ohci";
+			reg = <0 0x11c70000 0 0x100>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_USB1>;
+			resets = <&cpg R9A07G043F_CLK_USB1>;
+			phys = <&usb2_phy1>;
+			phy-names = "usb";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		ehci1: usb@11c70100 {
+			u-boot,dm-spl;
+			compatible = "generic-ehci";
+			reg = <0 0x11c70100 0 0x100>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_USB1>;
+			resets = <&cpg R9A07G043F_CLK_USB1>;
+			phys = <&usb2_phy1>;
+			phy-names = "usb";
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		usb2_phy0: usb-phy@11c50200 {
+			u-boot,dm-spl;
+			compatible = "renesas,usb2-phy-r9a07g043f", "renesas,rcar-gen3-usb2-phy";
+			reg = <0 0x11c50200 0 0x700>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_USB0>;
+			resets = <&cpg R9A07G043F_CLK_USB0>;
+			#phy-cells = <0>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		usb2_phy1: usb-phy@11c70200 {
+			u-boot,dm-spl;
+			compatible = "renesas,usb2-phy-r9a07g043f", "renesas,rcar-gen3-usb2-phy";
+			reg = <0 0x11c70200 0 0x700>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_USB1>;
+			resets = <&cpg R9A07G043F_CLK_USB1>;
+			#phy-cells = <0>;
+			power-domains = <&cpg>;
+			status = "disabled";
+		};
+
+		spibsc: spi@10060000 {
+			u-boot,dm-spl;
+			compatible = "renesas,r9a07g043g-spibsc";
+			reg = <0 0x10060000 0 0x78>, <0 0x20000000 0 0x10000000>;
+			clocks = <&cpg CPG_MOD R9A07G043F_CLK_SPI>;
+			resets = <&cpg R9A07G043F_CLK_SPI>;
+			power-domains = <&cpg>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+	};
+};

@@ -1,0 +1,15 @@
+if TARGET_BANANAPI_AI2N
+
+config SYS_SOC
+	default "rmobile"
+
+config SYS_BOARD
+	default "bananapi-ai2n"
+
+config SYS_VENDOR
+	default "renesas"
+
+config SYS_CONFIG_NAME
+	default "bananapi-ai2n"
+
+endif

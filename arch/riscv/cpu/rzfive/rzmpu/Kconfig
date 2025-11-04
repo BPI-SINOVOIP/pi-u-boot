@@ -1,0 +1,35 @@
+if TARGET_RZF_DEV || TARGET_SMARC_RZF
+
+config ARCH_RZMPU
+	bool "RZFMPU architecture"
+	default y
+
+choice
+	prompt "SoC type select"
+	default RZF_DEV
+
+config RZF_DEV
+	bool "RZ/Five type"
+endchoice
+
+choice
+	prompt "DDR type select"
+	default RZF_DDR_C_011_D4_01_1
+
+config RZF_DDR_C_010_D3_02_2
+	bool "param_mc_C-010_D3-02-2"
+
+config RZF_DDR_C_010_D4_01_1
+	bool "param_mc_C-010_D4-01-1"
+
+config RZF_DDR_C_010_D4_01_2
+	bool "param_mc_C-010_D4-01-2"
+
+config RZF_DDR_C_011_D4_01_1
+	bool "param_mc_C-011_D4-01-1"
+
+config RZF_DDR_C_011_D4_01_2
+	bool "param_mc_C-011_D4-01-2"
+endchoice
+
+endif

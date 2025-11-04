@@ -1,0 +1,25 @@
+stages:
+  - build
+  - deploy
+
+build:u-boot:
+  stage: build
+  before_script:
+  script:
+    - make -j ${JOBS} rzv2h-dev_defconfig
+    - make -j ${JOBS}
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "v2021.10/rzv2h_init"'
+  variables:
+    ARCH: arm64
+    CROSS_COMPILE: aarch64-linux-gnu-
+    JOBS: 26
+
+deploy:u-boot:
+  stage: deploy
+  before_script:
+  script:
+    - cd /mnt/build03/autobuilder/20_rzv2h-ci
+    - bash v2h-ci_uboot.sh 
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "v2021.10/rzv2h_init"'

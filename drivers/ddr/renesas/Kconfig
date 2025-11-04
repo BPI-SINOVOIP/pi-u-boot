@@ -1,0 +1,40 @@
+if TARGET_RZF_DEV || TARGET_SMARC_RZF
+
+choice
+	prompt "DDR type select"
+	default RZF_DDR_SWIZZLE_T3CL
+
+config RZF_DDR_SWIZZLE_T1BC
+	bool "param_swizzle_T1bc"
+
+config RZF_DDR_SWIZZLE_T1C
+	bool "param_swizzle_T1c"
+
+config RZF_DDR_SWIZZLE_T2C
+	bool "param_swizzle_T2c"
+
+config RZF_DDR_SWIZZLE_T3BC
+	bool "param_swizzle_T3bc"
+
+config RZF_DDR_SWIZZLE_T3BCUD
+	bool "param_swizzle_T3bcud"
+
+config RZF_DDR_SWIZZLE_T3BCUD2
+	bool "param_swizzle_T3bcud2"
+
+config RZF_DDR_SWIZZLE_T3BCUL
+	bool "param_swizzle_T3bcul"
+
+config RZF_DDR_SWIZZLE_T3CL
+	bool "param_swizzle_T3cl"
+endchoice
+
+config RZF_DDR_PLL4
+	int "DDR clock"
+	default 1600
+
+config RZF_DDR_SIZE
+	hex "DDR RAM size"
+	default 0x40000000
+
+endif

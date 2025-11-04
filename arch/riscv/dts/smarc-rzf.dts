@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the GR-Peach board
+ *
+ * Copyright (C) 2017 Jacopo Mondi <jacopo+renesas@jmondi.org>
+ * Copyright (C) 2021 Renesas Electronics
+ */
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include "r9a07g043f.dtsi"
+#include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
+/ {
+	model = "smarc-rzf";
+	compatible = "renesas,rzf";
+
+	aliases {
+		serial0 = &scif0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@48000000 {
+		u-boot,dm-spl;
+		device_type = "memory";
+		/* first 128MB is reserved for secure area. */
+		reg = <0 0x48000000 0 0x38000000>;
+	};
+};
+
+&pinctrl {
+	eth1_pins: eth1 {
+		pinmux = <RZG2L_PINMUX(7, 0, 1)>,
+				<RZG2L_PINMUX(7, 1, 1)>,
+				<RZG2L_PINMUX(7, 2, 1)>,
+				<RZG2L_PINMUX(7, 3, 1)>,
+				<RZG2L_PINMUX(7, 4, 1)>,
+				<RZG2L_PINMUX(8, 0, 1)>,
+				<RZG2L_PINMUX(8, 4, 1)>,
+				<RZG2L_PINMUX(9, 0, 1)>,
+				<RZG2L_PINMUX(9, 1, 1)>,
+				<RZG2L_PINMUX(9, 2, 1)>,
+				<RZG2L_PINMUX(9, 3, 1)>,
+				<RZG2L_PINMUX(10, 0, 1)>,
+				<RZG2L_PINMUX(10, 2, 1)>,
+				<RZG2L_PINMUX(10, 3, 1)>,
+				<RZG2L_PINMUX(10, 4, 1)>;
+	};
+};
+
+&xinclk {
+        clock-frequency = <24000000>;
+};
+
+&scif0 {
+	status = "okay";
+	clock = <100000000>;
+};
+
+&sdhi0 {
+	bus-width = <8>;
+	status = "okay";
+};
+
+&sdhi1 {
+	/* pinctrl placeholder
+	 * A power enable pin (SD1_PWR_EN) must be defined to interface with a
+	 * SD card.
+	 * The SD1_PWR_EN pin is associated with P0_3.
+	 * A HIGH signal on SD1_PWR_EN will enable supply voltage for SD card.
+	*/
+	bus-width = <4>;
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&eth1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&eth1_pins>;
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii";
+	status = "okay";
+
+	phy1: ethernet-phy@7 {
+		reg = <7>;
+	};
+};

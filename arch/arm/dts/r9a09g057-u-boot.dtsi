@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * RZ/V2H(R9A09G057) SoC, specific setting for u-boot
+ *
+ * Copyright (C) 2021 Renesas Electronics Corp.
+ */
+
+&pinctrl {
+       P0: gpio-00 {
+               gpio-controller;
+               #gpio-cells = <2>;
+               gpio-ranges = <&pinctrl 0 0 8>;
+       };
+
+       P1: gpio-01 {
+               gpio-controller;
+               #gpio-cells = <2>;
+               gpio-ranges = <&pinctrl 0 8 6>;
+       };
+
+       P2: gpio-02 {
+               gpio-controller;
+               #gpio-cells = <2>;
+               gpio-ranges = <&pinctrl 0 16 2>;
+       };
+
+       P3: gpio-03 {
+               gpio-controller;
+               #gpio-cells = <2>;
+               gpio-ranges = <&pinctrl 0 24 8>;
+       };
+
+       P4: gpio-04 {
+               gpio-controller;
+               #gpio-cells = <2>;
+               gpio-ranges = <&pinctrl 0 32 8>;
+       };
+
+       P5: gpio-05 {
+               gpio-controller;
+               #gpio-cells = <2>;
+               gpio-ranges = <&pinctrl 0 40 8>;
+       };
+
+       P6: gpio-06 {
+               gpio-controller;
+               #gpio-cells = <2>;
+               gpio-ranges = <&pinctrl 0 48 8>;
+       };
+
+       P7: gpio-07 {
+               gpio-controller;
+               #gpio-cells = <2>;
+               gpio-ranges = <&pinctrl 0 56 8>;
+       };
+
+       P8: gpio-08 {
+               gpio-controller;
+               #gpio-cells = <2>;
+               gpio-ranges = <&pinctrl 0 64 8>;
+       };
+
+       P9: gpio-09 {
+               gpio-controller;
+               #gpio-cells = <2>;
+               gpio-ranges = <&pinctrl 0 72 8>;
+       };
+
+       P10: gpio-10 {
+               gpio-controller;
+               #gpio-cells = <2>;
+               gpio-ranges = <&pinctrl 0 80 8>;
+       };
+
+       P11: gpio-11 {
+               gpio-controller;
+               #gpio-cells = <2>;
+               gpio-ranges = <&pinctrl 0 88 6>;
+       };
+};
